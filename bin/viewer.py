@@ -1218,7 +1218,9 @@ class Runs:
             sub = not first and bool(right)
             # "➜ ✓ label<gap>right " and "  ✓ label<gap>right " both fill the line.
             fixed = 5
-            room = cols - fixed - 1 - max(len(right), column + 2 if column else 0)
+            # A first row keeps the right-hand column clear; a second row only its own right
+            # side, so a row without a task bar uses that space for its text.
+            room = cols - fixed - 1 - (len(right) + 2 if sub else max(len(right), column + 2 if column else 0))
             label = cut(label, max(2, room))
             gap = " " * max(1, cols - fixed - cells(label) - len(right))
             # A run just added: its row starts in the section's colour and fades to the usual.
@@ -2234,6 +2236,30 @@ def dashboard(d, cols, main, title="", links=None, focus=None, window=None, task
     return out
 
 
+TEAM_SHOWN = 8  # subagents in an agent's team card, newest first
+
+
+def team_card(team, cols):
+    """The subagents an agent started (a manager's workers, the main agent's subagents),
+    newest first: at work or done, what each was given, its model and time."""
+    if not team:
+        return []
+    w = max(16, cols - 4)
+    rows, shown = [], team[:TEAM_SHOWN]
+    models = [k.top_right() for k in shown]
+    times = [k.state()[3] for k in shown]
+    mw, tw = max(map(len, models)), max(map(len, times))
+    for k, model, when in zip(shown, models, times):
+        icon, rgb = k.status()
+        right = f"{model:<{mw}}  {when:>{tw}}".strip()  # model and time in columns
+        text = cut(k.full, max(4, w - 2 - len(right) - 2))
+        rows.append(f"{fg(rgb)}{icon}{RESET} {text}{' ' * max(2, w - 2 - cells(text) - len(right))}{fg(MUTED_RGB)}{right}{RESET}")
+    if len(team) > TEAM_SHOWN:
+        rows.append(f"{fg(MUTED_RGB)}  {len(team) - TEAM_SHOWN} more{RESET}")
+    working = sum(1 for k in team if k.status()[1] == AMBER_RGB)
+    return card(f"team {working}/{len(team)} at work", rows, cols)
+
+
 TASK_STATES = {"completed": ("✓", GREEN_RGB, "done"), "in_progress": ("◐", AMBER_RGB, "in progress")}
 
 
@@ -2339,7 +2365,7 @@ class AgentRun(Run):
         return ""
 
     def label(self):
-        return "  " * int(self.meta.get("spawnDepth") or 1) + self.full  # under the main agent
+        return getattr(self, "tree_prefix", "  " * int(self.meta.get("spawnDepth") or 1)) + self.full  # under the main agent
 
     def subline(self):
         """The row under its name in the list: what it is doing (the call running, else
@@ -2356,7 +2382,7 @@ class AgentRun(Run):
             # Its first line of words, without markdown marks.
             lines = [re.sub(r"[*_`#>]+", "", l).strip() for l in (d.says or "").splitlines()]
             doing = next((l for l in lines if l), "")
-        indent = " " * (len(self.label()) - len(self.label().lstrip(" ")) + 2)
+        indent = getattr(self, "tree_cont", None) or " " * (len(self.label()) - len(self.label().lstrip(" ")) + 2)
         plain = shown = ""
         if d.tasks:
             done, total = sum(1 for _, st in d.tasks.values() if st == "completed"), len(d.tasks)
@@ -2425,9 +2451,10 @@ class AgentRun(Run):
             self.controls = []
             return task_story(self.digest, self.task_open, self.cols)
         self.task_open = None
-        head = status_block(name, colour, icon, since, self.stamps, self.cols)
+        head = status_block(name, colour, icon, since, self.stamps, self.cols) + team_card(getattr(self, "team", []), self.cols)
         task_rows = []
-        out = head + dashboard(self.digest, self.cols, isinstance(self, MainRun), self.label().strip(),
+        title = self.label().strip() if isinstance(self, MainRun) else self.full
+        out = head + dashboard(self.digest, self.cols, isinstance(self, MainRun), title,
                                links, focus, window, task_rows)
         if window:  # the top the card settled on, the cursor's call in view
             self.activity_at, self.activity_top = window["at"], window["top"]
@@ -2637,12 +2664,29 @@ class Agents(Runs):
         # The subagents at work as a tree: the newest on top, each subagent's own
         # subagents right under it. The list draws the last run on top, so the tree
         # is built top down and turned round, the main agent last.
+        # A subagent's own subagents hang off it with branch lines (├ └, │ carrying on past
+        # a branch that has more below it), so a manager and its workers read as one group.
         working = [r for r in self.every if r.status()[1] == AMBER_RGB]
         ids = {r.id for r in working}
-        def under(pid):
-            kids = [r for r in working if (r.meta.get("parentAgentId") if r.meta.get("parentAgentId") in ids else None) == pid]
-            return [x for r in sorted(kids, key=lambda r: -r.first) for x in [r] + under(r.id)]
+        def under(pid, lead=""):
+            kids = sorted((r for r in working if (r.meta.get("parentAgentId") if r.meta.get("parentAgentId") in ids else None) == pid),
+                          key=lambda r: -r.first)
+            out = []
+            for n, r in enumerate(kids):
+                last = n == len(kids) - 1
+                if pid is None:  # under the main agent: no branch line
+                    r.tree_prefix, r.tree_cont, below = "  ", "    ", ""
+                else:
+                    r.tree_prefix = "  " + lead + ("└ " if last else "├ ")
+                    r.tree_cont = "  " + lead + ("  " if last else "│ ") + "  "
+                    below = lead + ("  " if last else "│ ")
+                out += [r] + under(r.id, below)
+            return out
         runs = under(None)[::-1] + ([self.main] if self.session else [])
+        # Each agent's team: the subagents it started, at work or done, for its detail.
+        for r in self.every + ([self.main] if self.main else []):
+            mine = None if isinstance(r, MainRun) else r.id
+            r.team = sorted((k for k in self.every if k.meta.get("parentAgentId") == mine), key=lambda k: -k.first)
         # New: a subagent never seen before. (An ended one can show as at work for a moment
         # until the main transcript is read; coming back is not being new.)
         ever = getattr(self, "ever", None)

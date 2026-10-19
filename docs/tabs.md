@@ -29,7 +29,7 @@ agents too; a subagent's own subagents sit indented under it), two rows each:
 The first row is its name and model; the second, what it is doing now (the call running, else its
 latest words, or `waiting for you`), its tasks done when it keeps a list, and how long it has been at it. Pick one
 for the whole picture, in cards (with **activity**: what it did in words, newest first: five, or all with "▾ more", which scrolls inside the card; a call that ran long has "↗ jobs #n" to its output): state, tokens per minute and a heartbeat of its activity, its full session title (a subagent: the task it was given), model and effort, context used, tokens, tools by
-kind, and its task list. Enter on a task shows the talk it came up in, in order.
+kind, and its task list, and a **team** card listing the subagents it started (at work or done, with model and time); in the list a subagent's own subagents hang off it on branch lines (├ └). Enter on a task shows the talk it came up in, in order.
 
 **Comes in when** a session starts in the pane, and when the agent hands work to a subagent. Read
 from the session's transcripts, as [zoetrope](https://github.com/furkankly/zoetrope) does.

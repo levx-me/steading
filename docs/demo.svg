@@ -344,9 +344,9 @@
 <text x="1391.6" y="84.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">›</text>
 <rect x="1450.4" y="71.0" width="58.8" height="19.0" rx="0" fill="#976870"/>
 <text x="1458.8" y="84.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4" font-weight="bold">1 new</text>
-<rect x="1009.4" y="99.5" width="495.6" height="95.0" rx="5" fill="none" stroke="#8fa8d2"/>
+<rect x="1009.4" y="99.5" width="495.6" height="171.0" rx="5" fill="none" stroke="#8fa8d2"/>
 <rect x="1017.8" y="91.9" width="100.8" height="15.2" fill="#1b1e23"/>
-<text x="1030.4" y="103.7" textLength="84.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">agents · 2</text>
+<text x="1030.4" y="103.7" textLength="84.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">agents · 4</text>
 <rect x="1013.6" y="109.0" width="487.2" height="38.0" rx="0" fill="#3e4451"/>
 <g class="b b0">
 <text x="1030.4" y="122.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠋</text>
@@ -484,8 +484,8 @@
 <text x="1030.4" y="160.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠏</text>
 </g>
 <text x="1064.0" y="160.7" textLength="151.2" lengthAdjust="spacingAndGlyphs" fill="#abb2bf">Map the auth tests</text>
-<text x="1408.4" y="160.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">haiku-5-5</text>
-<text x="1080.8" y="179.7" textLength="268.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">Reading src/auth/refresh.test.ts</text>
+<text x="1400.0" y="160.7" textLength="84.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">sonnet-5-5</text>
+<text x="1080.8" y="179.7" textLength="226.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">Splitting the work in three</text>
 <g class="t t0">
 <text x="1458.8" y="179.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">38s</text>
 </g>
@@ -555,16 +555,212 @@
 <g class="t t22">
 <text x="1442.0" y="179.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">1m 0s</text>
 </g>
-<rect x="1030.4" y="223.0" width="92.4" height="19.0" rx="0" fill="#d8b46a"/>
-<text x="1005.2" y="217.7" textLength="504.0" lengthAdjust="spacingAndGlyphs" fill="#464c58">╭──────────────────────────────────────────────────────────╮</text>
-<text x="1005.2" y="236.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1500.8" y="236.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1005.2" y="255.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1500.8" y="255.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1005.2" y="274.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1500.8" y="274.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1005.2" y="293.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1500.8" y="293.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
+<g class="b b0">
+<text x="1030.4" y="198.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠋</text>
+</g>
+<g class="b b1">
+<text x="1030.4" y="198.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠙</text>
+</g>
+<g class="b b2">
+<text x="1030.4" y="198.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠹</text>
+</g>
+<g class="b b3">
+<text x="1030.4" y="198.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠸</text>
+</g>
+<g class="b b4">
+<text x="1030.4" y="198.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠼</text>
+</g>
+<g class="b b5">
+<text x="1030.4" y="198.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠴</text>
+</g>
+<g class="b b6">
+<text x="1030.4" y="198.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠦</text>
+</g>
+<g class="b b7">
+<text x="1030.4" y="198.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠧</text>
+</g>
+<g class="b b8">
+<text x="1030.4" y="198.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠇</text>
+</g>
+<g class="b b9">
+<text x="1030.4" y="198.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠏</text>
+</g>
+<text x="1064.0" y="198.7" textLength="210.0" lengthAdjust="spacingAndGlyphs" fill="#abb2bf">├ Find every refresh call</text>
+<text x="1408.4" y="198.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">haiku-5-5</text>
+<text x="1064.0" y="217.7" textLength="277.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">│   Searching for refresh( in src</text>
+<g class="t t0">
+<text x="1458.8" y="217.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">21s</text>
+</g>
+<g class="t t1">
+<text x="1458.8" y="217.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">22s</text>
+</g>
+<g class="t t2">
+<text x="1458.8" y="217.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">23s</text>
+</g>
+<g class="t t3">
+<text x="1458.8" y="217.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">24s</text>
+</g>
+<g class="t t4">
+<text x="1458.8" y="217.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">25s</text>
+</g>
+<g class="t t5">
+<text x="1458.8" y="217.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">26s</text>
+</g>
+<g class="t t6">
+<text x="1458.8" y="217.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">27s</text>
+</g>
+<g class="t t7">
+<text x="1458.8" y="217.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">28s</text>
+</g>
+<g class="t t8">
+<text x="1458.8" y="217.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">29s</text>
+</g>
+<g class="t t9">
+<text x="1458.8" y="217.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">30s</text>
+</g>
+<g class="t t10">
+<text x="1458.8" y="217.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">31s</text>
+</g>
+<g class="t t11">
+<text x="1458.8" y="217.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">32s</text>
+</g>
+<g class="t t12">
+<text x="1458.8" y="217.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">33s</text>
+</g>
+<g class="t t13">
+<text x="1458.8" y="217.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">34s</text>
+</g>
+<g class="t t14">
+<text x="1458.8" y="217.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">35s</text>
+</g>
+<g class="t t15">
+<text x="1458.8" y="217.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">36s</text>
+</g>
+<g class="t t16">
+<text x="1458.8" y="217.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">37s</text>
+</g>
+<g class="t t17">
+<text x="1458.8" y="217.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">38s</text>
+</g>
+<g class="t t18">
+<text x="1458.8" y="217.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">39s</text>
+</g>
+<g class="t t19">
+<text x="1458.8" y="217.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">40s</text>
+</g>
+<g class="t t20">
+<text x="1458.8" y="217.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">41s</text>
+</g>
+<g class="t t21">
+<text x="1458.8" y="217.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">42s</text>
+</g>
+<g class="t t22">
+<text x="1458.8" y="217.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">43s</text>
+</g>
+<g class="b b0">
+<text x="1030.4" y="236.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠋</text>
+</g>
+<g class="b b1">
+<text x="1030.4" y="236.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠙</text>
+</g>
+<g class="b b2">
+<text x="1030.4" y="236.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠹</text>
+</g>
+<g class="b b3">
+<text x="1030.4" y="236.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠸</text>
+</g>
+<g class="b b4">
+<text x="1030.4" y="236.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠼</text>
+</g>
+<g class="b b5">
+<text x="1030.4" y="236.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠴</text>
+</g>
+<g class="b b6">
+<text x="1030.4" y="236.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠦</text>
+</g>
+<g class="b b7">
+<text x="1030.4" y="236.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠧</text>
+</g>
+<g class="b b8">
+<text x="1030.4" y="236.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠇</text>
+</g>
+<g class="b b9">
+<text x="1030.4" y="236.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠏</text>
+</g>
+<text x="1064.0" y="236.7" textLength="218.4" lengthAdjust="spacingAndGlyphs" fill="#abb2bf">└ Write the rotation tests</text>
+<text x="1400.0" y="236.7" textLength="84.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">sonnet-5-5</text>
+<text x="1097.6" y="255.7" textLength="260.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">Writing src/auth/rotate.test.ts</text>
+<g class="t t0">
+<text x="1458.8" y="255.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">17s</text>
+</g>
+<g class="t t1">
+<text x="1458.8" y="255.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">18s</text>
+</g>
+<g class="t t2">
+<text x="1458.8" y="255.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">19s</text>
+</g>
+<g class="t t3">
+<text x="1458.8" y="255.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">20s</text>
+</g>
+<g class="t t4">
+<text x="1458.8" y="255.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">21s</text>
+</g>
+<g class="t t5">
+<text x="1458.8" y="255.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">22s</text>
+</g>
+<g class="t t6">
+<text x="1458.8" y="255.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">23s</text>
+</g>
+<g class="t t7">
+<text x="1458.8" y="255.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">24s</text>
+</g>
+<g class="t t8">
+<text x="1458.8" y="255.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">25s</text>
+</g>
+<g class="t t9">
+<text x="1458.8" y="255.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">26s</text>
+</g>
+<g class="t t10">
+<text x="1458.8" y="255.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">27s</text>
+</g>
+<g class="t t11">
+<text x="1458.8" y="255.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">28s</text>
+</g>
+<g class="t t12">
+<text x="1458.8" y="255.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">29s</text>
+</g>
+<g class="t t13">
+<text x="1458.8" y="255.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">30s</text>
+</g>
+<g class="t t14">
+<text x="1458.8" y="255.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">31s</text>
+</g>
+<g class="t t15">
+<text x="1458.8" y="255.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">32s</text>
+</g>
+<g class="t t16">
+<text x="1458.8" y="255.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">33s</text>
+</g>
+<g class="t t17">
+<text x="1458.8" y="255.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">34s</text>
+</g>
+<g class="t t18">
+<text x="1458.8" y="255.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">35s</text>
+</g>
+<g class="t t19">
+<text x="1458.8" y="255.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">36s</text>
+</g>
+<g class="t t20">
+<text x="1458.8" y="255.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">37s</text>
+</g>
+<g class="t t21">
+<text x="1458.8" y="255.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">38s</text>
+</g>
+<g class="t t22">
+<text x="1458.8" y="255.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">39s</text>
+</g>
+<rect x="1030.4" y="299.0" width="92.4" height="19.0" rx="0" fill="#d8b46a"/>
+<text x="1005.2" y="293.7" textLength="504.0" lengthAdjust="spacingAndGlyphs" fill="#464c58">╭──────────────────────────────────────────────────────────╮</text>
 <text x="1005.2" y="312.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1500.8" y="312.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1005.2" y="331.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
@@ -617,372 +813,454 @@
 <text x="1500.8" y="768.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1005.2" y="787.7" textLength="504.0" lengthAdjust="spacingAndGlyphs" fill="#464c58">╰──────────────────────────────────────────────────────────╯</text>
 <g class="b b0">
-<text x="1038.8" y="236.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#21252b" font-weight="bold">⠋</text>
+<text x="1038.8" y="312.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#21252b" font-weight="bold">⠋</text>
 </g>
 <g class="b b1">
-<text x="1038.8" y="236.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#21252b" font-weight="bold">⠙</text>
+<text x="1038.8" y="312.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#21252b" font-weight="bold">⠙</text>
 </g>
 <g class="b b2">
-<text x="1038.8" y="236.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#21252b" font-weight="bold">⠹</text>
+<text x="1038.8" y="312.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#21252b" font-weight="bold">⠹</text>
 </g>
 <g class="b b3">
-<text x="1038.8" y="236.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#21252b" font-weight="bold">⠸</text>
+<text x="1038.8" y="312.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#21252b" font-weight="bold">⠸</text>
 </g>
 <g class="b b4">
-<text x="1038.8" y="236.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#21252b" font-weight="bold">⠼</text>
+<text x="1038.8" y="312.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#21252b" font-weight="bold">⠼</text>
 </g>
 <g class="b b5">
-<text x="1038.8" y="236.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#21252b" font-weight="bold">⠴</text>
+<text x="1038.8" y="312.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#21252b" font-weight="bold">⠴</text>
 </g>
 <g class="b b6">
-<text x="1038.8" y="236.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#21252b" font-weight="bold">⠦</text>
+<text x="1038.8" y="312.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#21252b" font-weight="bold">⠦</text>
 </g>
 <g class="b b7">
-<text x="1038.8" y="236.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#21252b" font-weight="bold">⠧</text>
+<text x="1038.8" y="312.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#21252b" font-weight="bold">⠧</text>
 </g>
 <g class="b b8">
-<text x="1038.8" y="236.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#21252b" font-weight="bold">⠇</text>
+<text x="1038.8" y="312.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#21252b" font-weight="bold">⠇</text>
 </g>
 <g class="b b9">
-<text x="1038.8" y="236.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#21252b" font-weight="bold">⠏</text>
+<text x="1038.8" y="312.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#21252b" font-weight="bold">⠏</text>
 </g>
-<text x="1055.6" y="236.7" textLength="58.8" lengthAdjust="spacingAndGlyphs" fill="#21252b" font-weight="bold">WORKING</text>
-<text x="1148.0" y="236.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#98b17d">↑</text>
+<text x="1055.6" y="312.7" textLength="58.8" lengthAdjust="spacingAndGlyphs" fill="#21252b" font-weight="bold">WORKING</text>
+<text x="1148.0" y="312.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#98b17d">↑</text>
 <g class="t t0">
-<text x="1164.8" y="236.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">3.6k tok/min</text>
+<text x="1164.8" y="312.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">3.6k tok/min</text>
 </g>
 <g class="t t1">
-<text x="1164.8" y="236.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">2.9k tok/min</text>
+<text x="1164.8" y="312.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">2.9k tok/min</text>
 </g>
 <g class="t t2">
-<text x="1164.8" y="236.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">1.5k tok/min</text>
+<text x="1164.8" y="312.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">1.5k tok/min</text>
 </g>
 <g class="t t3">
-<text x="1164.8" y="236.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">1.7k tok/min</text>
+<text x="1164.8" y="312.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">1.7k tok/min</text>
 </g>
 <g class="t t4">
-<text x="1164.8" y="236.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">1.7k tok/min</text>
+<text x="1164.8" y="312.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">1.7k tok/min</text>
 </g>
 <g class="t t5">
-<text x="1164.8" y="236.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">2.1k tok/min</text>
+<text x="1164.8" y="312.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">2.1k tok/min</text>
 </g>
 <g class="t t6">
-<text x="1164.8" y="236.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">2.5k tok/min</text>
+<text x="1164.8" y="312.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">2.5k tok/min</text>
 </g>
 <g class="t t7">
-<text x="1164.8" y="236.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">3.4k tok/min</text>
+<text x="1164.8" y="312.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">3.4k tok/min</text>
 </g>
 <g class="t t8">
-<text x="1164.8" y="236.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">4.2k tok/min</text>
+<text x="1164.8" y="312.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">4.2k tok/min</text>
 </g>
 <g class="t t9">
-<text x="1164.8" y="236.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">4.2k tok/min</text>
+<text x="1164.8" y="312.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">4.2k tok/min</text>
 </g>
 <g class="t t10">
-<text x="1164.8" y="236.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">4.2k tok/min</text>
+<text x="1164.8" y="312.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">4.2k tok/min</text>
 </g>
 <g class="t t11">
-<text x="1164.8" y="236.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">4.0k tok/min</text>
+<text x="1164.8" y="312.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">4.0k tok/min</text>
 </g>
 <g class="t t12">
-<text x="1164.8" y="236.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">3.4k tok/min</text>
+<text x="1164.8" y="312.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">3.4k tok/min</text>
 </g>
 <g class="t t13">
-<text x="1164.8" y="236.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">2.3k tok/min</text>
+<text x="1164.8" y="312.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">2.3k tok/min</text>
 </g>
 <g class="t t14">
-<text x="1164.8" y="236.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">1.3k tok/min</text>
+<text x="1164.8" y="312.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">1.3k tok/min</text>
 </g>
 <g class="t t15">
-<text x="1164.8" y="236.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">0.8k tok/min</text>
+<text x="1164.8" y="312.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">0.8k tok/min</text>
 </g>
 <g class="t t16">
-<text x="1164.8" y="236.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">0.6k tok/min</text>
+<text x="1164.8" y="312.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">0.6k tok/min</text>
 </g>
 <g class="t t17">
-<text x="1164.8" y="236.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">0.4k tok/min</text>
+<text x="1164.8" y="312.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">0.4k tok/min</text>
 </g>
 <g class="t t18">
-<text x="1164.8" y="236.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">0.8k tok/min</text>
+<text x="1164.8" y="312.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">0.8k tok/min</text>
 </g>
 <g class="t t19">
-<text x="1164.8" y="236.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">1.3k tok/min</text>
+<text x="1164.8" y="312.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">1.3k tok/min</text>
 </g>
 <g class="t t20">
-<text x="1164.8" y="236.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">1.3k tok/min</text>
+<text x="1164.8" y="312.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">1.3k tok/min</text>
 </g>
 <g class="t t21">
-<text x="1164.8" y="236.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">1.3k tok/min</text>
+<text x="1164.8" y="312.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">1.3k tok/min</text>
 </g>
 <g class="t t22">
-<text x="1164.8" y="236.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">1.3k tok/min</text>
+<text x="1164.8" y="312.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">1.3k tok/min</text>
 </g>
 <g class="t t0">
-<text x="1047.2" y="274.7" textLength="436.8" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▁▁▁▂     ▂▂▁▁▁▁ ▂▂▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█</text>
+<text x="1047.2" y="350.7" textLength="436.8" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▁▁▁▂     ▂▂▁▁▁▁ ▂▂▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█</text>
 </g>
 <g class="t t1">
-<text x="1038.8" y="274.7" textLength="445.2" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▁▁▁▂     ▂▂▁▁▁▁ ▂▂▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁</text>
+<text x="1038.8" y="350.7" textLength="445.2" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▁▁▁▂     ▂▂▁▁▁▁ ▂▂▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁</text>
 </g>
 <g class="t t2">
-<text x="1030.4" y="274.7" textLength="453.6" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▁▁▁▂     ▂▂▁▁▁▁ ▂▂▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂</text>
+<text x="1030.4" y="350.7" textLength="453.6" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▁▁▁▂     ▂▂▁▁▁▁ ▂▂▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂</text>
 </g>
 <g class="t t3">
-<text x="1030.4" y="274.7" textLength="453.6" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▁▁▂     ▂▂▁▁▁▁ ▂▂▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂▁</text>
+<text x="1030.4" y="350.7" textLength="453.6" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▁▁▂     ▂▂▁▁▁▁ ▂▂▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂▁</text>
 </g>
 <g class="t t4">
-<text x="1030.4" y="274.7" textLength="453.6" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▁▂     ▂▂▁▁▁▁ ▂▂▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂▁▁</text>
+<text x="1030.4" y="350.7" textLength="453.6" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▁▂     ▂▂▁▁▁▁ ▂▂▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂▁▁</text>
 </g>
 <g class="t t5">
-<text x="1030.4" y="274.7" textLength="453.6" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▂     ▂▂▁▁▁▁ ▂▂▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂▁▁▁</text>
+<text x="1030.4" y="350.7" textLength="453.6" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▂     ▂▂▁▁▁▁ ▂▂▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂▁▁▁</text>
 </g>
 <g class="t t6">
-<text x="1072.4" y="274.7" textLength="411.6" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▂▂▁▁▁▁ ▂▂▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂▁▁▁▁</text>
+<text x="1072.4" y="350.7" textLength="411.6" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▂▂▁▁▁▁ ▂▂▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂▁▁▁▁</text>
 </g>
 <g class="t t7">
-<text x="1064.0" y="274.7" textLength="420.0" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▂▂▁▁▁▁ ▂▂▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂▁▁▁▁▂</text>
+<text x="1064.0" y="350.7" textLength="420.0" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▂▂▁▁▁▁ ▂▂▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂▁▁▁▁▂</text>
 </g>
 <g class="t t8">
-<text x="1055.6" y="274.7" textLength="428.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▂▂▁▁▁▁ ▂▂▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂▁▁▁▁▂▂</text>
+<text x="1055.6" y="350.7" textLength="428.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▂▂▁▁▁▁ ▂▂▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂▁▁▁▁▂▂</text>
 </g>
 <g class="t t9">
-<text x="1047.2" y="274.7" textLength="436.8" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▂▂▁▁▁▁ ▂▂▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂▁▁▁▁▂▂▃</text>
+<text x="1047.2" y="350.7" textLength="436.8" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▂▂▁▁▁▁ ▂▂▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂▁▁▁▁▂▂▃</text>
 </g>
 <g class="t t10">
-<text x="1038.8" y="274.7" textLength="445.2" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▂▂▁▁▁▁ ▂▂▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂▁▁▁▁▂▂▃▃</text>
+<text x="1038.8" y="350.7" textLength="445.2" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▂▂▁▁▁▁ ▂▂▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂▁▁▁▁▂▂▃▃</text>
 </g>
 <g class="t t11">
-<text x="1030.4" y="274.7" textLength="453.6" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▂▂▁▁▁▁ ▂▂▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂▁▁▁▁▂▂▃▃▅</text>
+<text x="1030.4" y="350.7" textLength="453.6" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▂▂▁▁▁▁ ▂▂▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂▁▁▁▁▂▂▃▃▅</text>
 </g>
 <g class="t t12">
-<text x="1030.4" y="274.7" textLength="453.6" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▂▁▁▁▁ ▂▂▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂▁▁▁▁▂▂▃▃▅▅</text>
+<text x="1030.4" y="350.7" textLength="453.6" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▂▁▁▁▁ ▂▂▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂▁▁▁▁▂▂▃▃▅▅</text>
 </g>
 <g class="t t13">
-<text x="1030.4" y="274.7" textLength="453.6" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▁▁▁▁ ▂▂▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂▁▁▁▁▂▂▃▃▅▅▂</text>
+<text x="1030.4" y="350.7" textLength="453.6" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▁▁▁▁ ▂▂▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂▁▁▁▁▂▂▃▃▅▅▂</text>
 </g>
 <g class="t t14">
-<text x="1030.4" y="274.7" textLength="453.6" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▁▁▁ ▂▂▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂▁▁▁▁▂▂▃▃▅▅▂▂</text>
+<text x="1030.4" y="350.7" textLength="453.6" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▁▁▁ ▂▂▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂▁▁▁▁▂▂▃▃▅▅▂▂</text>
 </g>
 <g class="t t15">
-<text x="1030.4" y="274.7" textLength="453.6" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▁▁ ▂▂▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂▁▁▁▁▂▂▃▃▅▅▂▂▂</text>
+<text x="1030.4" y="350.7" textLength="453.6" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▁▁ ▂▂▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂▁▁▁▁▂▂▃▃▅▅▂▂▂</text>
 </g>
 <g class="t t16">
-<text x="1030.4" y="274.7" textLength="445.2" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▁ ▂▂▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂▁▁▁▁▂▂▃▃▅▅▂▂▂</text>
+<text x="1030.4" y="350.7" textLength="445.2" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▁ ▂▂▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂▁▁▁▁▂▂▃▃▅▅▂▂▂</text>
 </g>
 <g class="t t17">
-<text x="1038.8" y="274.7" textLength="428.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▂▂▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂▁▁▁▁▂▂▃▃▅▅▂▂▂</text>
+<text x="1038.8" y="350.7" textLength="428.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▂▂▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂▁▁▁▁▂▂▃▃▅▅▂▂▂</text>
 </g>
 <g class="t t18">
-<text x="1030.4" y="274.7" textLength="428.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▂▂▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂▁▁▁▁▂▂▃▃▅▅▂▂▂</text>
+<text x="1030.4" y="350.7" textLength="428.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▂▂▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂▁▁▁▁▂▂▃▃▅▅▂▂▂</text>
 </g>
 <g class="t t19">
-<text x="1030.4" y="274.7" textLength="420.0" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▂▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂▁▁▁▁▂▂▃▃▅▅▂▂▂</text>
+<text x="1030.4" y="350.7" textLength="420.0" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▂▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂▁▁▁▁▂▂▃▃▅▅▂▂▂</text>
 </g>
 <g class="t t20">
-<text x="1030.4" y="274.7" textLength="453.6" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂▁▁▁▁▂▂▃▃▅▅▂▂▂    ▁</text>
+<text x="1030.4" y="350.7" textLength="453.6" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▁▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂▁▁▁▁▂▂▃▃▅▅▂▂▂    ▁</text>
 </g>
 <g class="t t21">
-<text x="1030.4" y="274.7" textLength="453.6" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂▁▁▁▁▂▂▃▃▅▅▂▂▂    ▁▁</text>
+<text x="1030.4" y="350.7" textLength="453.6" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▁▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂▁▁▁▁▂▂▃▃▅▅▂▂▂    ▁▁</text>
 </g>
 <g class="t t22">
-<text x="1030.4" y="274.7" textLength="453.6" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂▁▁▁▁▂▂▃▃▅▅▂▂▂    ▁▁▂</text>
+<text x="1030.4" y="350.7" textLength="453.6" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">▂▁▁▂▅▄▂▇▄█▃▆▄▆     ▅▅▄▄▄▂▄▃▄▇█▄█▁▂▁▁▁▁▂▂▃▃▅▅▂▂▂    ▁▁▂</text>
 </g>
-<text x="1030.4" y="293.7" textLength="50.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">8m ago</text>
-<text x="1450.4" y="293.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">now</text>
-<text x="1022.0" y="331.7" textLength="16.8" lengthAdjust="spacingAndGlyphs" fill="#464c58">╭─</text>
-<text x="1047.2" y="331.7" textLength="58.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">session</text>
-<text x="1114.4" y="331.7" textLength="378.0" lengthAdjust="spacingAndGlyphs" fill="#464c58">────────────────────────────────────────────╮</text>
-<text x="1022.0" y="350.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1038.8" y="350.7" textLength="344.4" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4" font-weight="bold">add refresh tokens to the auth middleware</text>
-<text x="1484.0" y="350.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1022.0" y="369.7" textLength="470.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">╰──────────────────────────────────────────────────────╯</text>
-<text x="1022.0" y="388.7" textLength="16.8" lengthAdjust="spacingAndGlyphs" fill="#464c58">╭─</text>
-<text x="1047.2" y="388.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">model</text>
-<text x="1097.6" y="388.7" textLength="394.8" lengthAdjust="spacingAndGlyphs" fill="#464c58">──────────────────────────────────────────────╮</text>
-<text x="1022.0" y="407.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1047.2" y="407.7" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">opus-5-5</text>
-<text x="1148.0" y="407.7" textLength="50.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">medium</text>
-<text x="1223.6" y="407.7" textLength="117.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">✻ thought 1.3s</text>
-<text x="1484.0" y="407.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
+<text x="1030.4" y="369.7" textLength="50.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">8m ago</text>
+<text x="1450.4" y="369.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">now</text>
+<text x="1022.0" y="407.7" textLength="16.8" lengthAdjust="spacingAndGlyphs" fill="#464c58">╭─</text>
+<text x="1047.2" y="407.7" textLength="134.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">team 1/1 at work</text>
+<text x="1190.0" y="407.7" textLength="302.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">───────────────────────────────────╮</text>
 <text x="1022.0" y="426.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1038.8" y="426.7" textLength="58.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">context</text>
-<text x="1106.0" y="426.7" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#98b17d">████████</text>
-<text x="1173.2" y="426.7" textLength="134.4" lengthAdjust="spacingAndGlyphs" fill="#2c313a">░░░░░░░░░░░░░░░░</text>
-<text x="1316.0" y="426.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#98b17d">34%</text>
-<text x="1349.6" y="426.7" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">68k/200k</text>
+<g class="b b0">
+<text x="1038.8" y="426.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠋</text>
+</g>
+<g class="b b1">
+<text x="1038.8" y="426.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠙</text>
+</g>
+<g class="b b2">
+<text x="1038.8" y="426.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠹</text>
+</g>
+<g class="b b3">
+<text x="1038.8" y="426.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠸</text>
+</g>
+<g class="b b4">
+<text x="1038.8" y="426.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠼</text>
+</g>
+<g class="b b5">
+<text x="1038.8" y="426.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠴</text>
+</g>
+<g class="b b6">
+<text x="1038.8" y="426.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠦</text>
+</g>
+<g class="b b7">
+<text x="1038.8" y="426.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠧</text>
+</g>
+<g class="b b8">
+<text x="1038.8" y="426.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠇</text>
+</g>
+<g class="b b9">
+<text x="1038.8" y="426.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠏</text>
+</g>
+<text x="1055.6" y="426.7" textLength="151.2" lengthAdjust="spacingAndGlyphs" fill="#abb2bf">Map the auth tests</text>
+<g class="t t0">
+<text x="1324.4" y="426.7" textLength="151.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">sonnet-5-5     38s</text>
+</g>
+<g class="t t1">
+<text x="1324.4" y="426.7" textLength="151.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">sonnet-5-5     39s</text>
+</g>
+<g class="t t2">
+<text x="1324.4" y="426.7" textLength="151.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">sonnet-5-5     40s</text>
+</g>
+<g class="t t3">
+<text x="1324.4" y="426.7" textLength="151.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">sonnet-5-5     41s</text>
+</g>
+<g class="t t4">
+<text x="1324.4" y="426.7" textLength="151.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">sonnet-5-5     42s</text>
+</g>
+<g class="t t5">
+<text x="1324.4" y="426.7" textLength="151.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">sonnet-5-5     43s</text>
+</g>
+<g class="t t6">
+<text x="1324.4" y="426.7" textLength="151.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">sonnet-5-5     44s</text>
+</g>
+<g class="t t7">
+<text x="1324.4" y="426.7" textLength="151.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">sonnet-5-5     45s</text>
+</g>
+<g class="t t8">
+<text x="1324.4" y="426.7" textLength="151.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">sonnet-5-5     46s</text>
+</g>
+<g class="t t9">
+<text x="1324.4" y="426.7" textLength="151.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">sonnet-5-5     47s</text>
+</g>
+<g class="t t10">
+<text x="1324.4" y="426.7" textLength="151.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">sonnet-5-5     48s</text>
+</g>
+<g class="t t11">
+<text x="1324.4" y="426.7" textLength="151.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">sonnet-5-5     49s</text>
+</g>
+<g class="t t12">
+<text x="1324.4" y="426.7" textLength="151.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">sonnet-5-5     50s</text>
+</g>
+<g class="t t13">
+<text x="1324.4" y="426.7" textLength="151.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">sonnet-5-5     51s</text>
+</g>
+<g class="t t14">
+<text x="1324.4" y="426.7" textLength="151.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">sonnet-5-5     52s</text>
+</g>
+<g class="t t15">
+<text x="1324.4" y="426.7" textLength="151.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">sonnet-5-5     53s</text>
+</g>
+<g class="t t16">
+<text x="1324.4" y="426.7" textLength="151.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">sonnet-5-5     54s</text>
+</g>
+<g class="t t17">
+<text x="1324.4" y="426.7" textLength="151.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">sonnet-5-5     55s</text>
+</g>
+<g class="t t18">
+<text x="1324.4" y="426.7" textLength="151.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">sonnet-5-5     56s</text>
+</g>
+<g class="t t19">
+<text x="1324.4" y="426.7" textLength="151.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">sonnet-5-5     57s</text>
+</g>
+<g class="t t20">
+<text x="1324.4" y="426.7" textLength="151.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">sonnet-5-5     58s</text>
+</g>
+<g class="t t21">
+<text x="1324.4" y="426.7" textLength="151.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">sonnet-5-5     59s</text>
+</g>
+<g class="t t22">
+<text x="1324.4" y="426.7" textLength="151.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">sonnet-5-5   1m 0s</text>
+</g>
 <text x="1484.0" y="426.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1022.0" y="445.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1038.8" y="445.7" textLength="50.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">tokens</text>
-<text x="1106.0" y="445.7" textLength="16.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">in</text>
-<text x="1131.2" y="445.7" textLength="16.8" lengthAdjust="spacingAndGlyphs" fill="#abb2bf">2k</text>
-<text x="1164.8" y="445.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">cache</text>
-<text x="1215.2" y="445.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#abb2bf">1.4M</text>
-<text x="1265.6" y="445.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">out</text>
-<text x="1299.2" y="445.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#abb2bf">18k</text>
-<text x="1484.0" y="445.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1022.0" y="464.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1038.8" y="464.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">tools</text>
-<text x="1106.0" y="464.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#98b17d">█████████</text>
-<text x="1181.6" y="464.7" textLength="50.4" lengthAdjust="spacingAndGlyphs" fill="#7aa2c8">██████</text>
-<text x="1232.0" y="464.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">█████</text>
-<text x="1274.0" y="464.7" textLength="16.8" lengthAdjust="spacingAndGlyphs" fill="#7fb4b4">██</text>
-<text x="1484.0" y="464.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
+<text x="1022.0" y="445.7" textLength="470.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">╰──────────────────────────────────────────────────────╯</text>
+<text x="1022.0" y="464.7" textLength="16.8" lengthAdjust="spacingAndGlyphs" fill="#464c58">╭─</text>
+<text x="1047.2" y="464.7" textLength="58.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">session</text>
+<text x="1114.4" y="464.7" textLength="378.0" lengthAdjust="spacingAndGlyphs" fill="#464c58">────────────────────────────────────────────╮</text>
 <text x="1022.0" y="483.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1106.0" y="483.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#98b17d">■</text>
-<text x="1122.8" y="483.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">run 9</text>
-<text x="1181.6" y="483.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#7aa2c8">■</text>
-<text x="1198.4" y="483.7" textLength="50.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">read 6</text>
-<text x="1265.6" y="483.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">■</text>
-<text x="1282.4" y="483.7" textLength="50.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">edit 5</text>
-<text x="1349.6" y="483.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#7fb4b4">■</text>
-<text x="1366.4" y="483.7" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">search 2</text>
+<text x="1038.8" y="483.7" textLength="344.4" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4" font-weight="bold">add refresh tokens to the auth middleware</text>
 <text x="1484.0" y="483.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1022.0" y="502.7" textLength="470.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">╰──────────────────────────────────────────────────────╯</text>
 <text x="1022.0" y="521.7" textLength="16.8" lengthAdjust="spacingAndGlyphs" fill="#464c58">╭─</text>
-<text x="1047.2" y="521.7" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">activity</text>
-<text x="1122.8" y="521.7" textLength="369.6" lengthAdjust="spacingAndGlyphs" fill="#464c58">───────────────────────────────────────────╮</text>
+<text x="1047.2" y="521.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">model</text>
+<text x="1097.6" y="521.7" textLength="394.8" lengthAdjust="spacingAndGlyphs" fill="#464c58">──────────────────────────────────────────────╮</text>
 <text x="1022.0" y="540.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<g class="b b0">
-<text x="1038.8" y="540.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠋</text>
-</g>
-<g class="b b1">
-<text x="1038.8" y="540.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠙</text>
-</g>
-<g class="b b2">
-<text x="1038.8" y="540.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠹</text>
-</g>
-<g class="b b3">
-<text x="1038.8" y="540.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠸</text>
-</g>
-<g class="b b4">
-<text x="1038.8" y="540.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠼</text>
-</g>
-<g class="b b5">
-<text x="1038.8" y="540.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠴</text>
-</g>
-<g class="b b6">
-<text x="1038.8" y="540.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠦</text>
-</g>
-<g class="b b7">
-<text x="1038.8" y="540.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠧</text>
-</g>
-<g class="b b8">
-<text x="1038.8" y="540.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠇</text>
-</g>
-<g class="b b9">
-<text x="1038.8" y="540.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠏</text>
-</g>
-<text x="1055.6" y="540.7" textLength="151.2" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">Run the auth tests</text>
-<g class="t t0">
-<text x="1450.4" y="540.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">12s</text>
-</g>
-<g class="t t1">
-<text x="1450.4" y="540.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">13s</text>
-</g>
-<g class="t t2">
-<text x="1450.4" y="540.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">14s</text>
-</g>
-<g class="t t3">
-<text x="1450.4" y="540.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">15s</text>
-</g>
-<g class="t t4">
-<text x="1450.4" y="540.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">16s</text>
-</g>
-<g class="t t5">
-<text x="1450.4" y="540.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">17s</text>
-</g>
-<g class="t t6">
-<text x="1450.4" y="540.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">18s</text>
-</g>
-<g class="t t7">
-<text x="1450.4" y="540.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">19s</text>
-</g>
-<g class="t t8">
-<text x="1450.4" y="540.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">20s</text>
-</g>
-<g class="t t9">
-<text x="1450.4" y="540.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">21s</text>
-</g>
-<g class="t t10">
-<text x="1450.4" y="540.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">22s</text>
-</g>
-<g class="t t11">
-<text x="1450.4" y="540.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">23s</text>
-</g>
-<g class="t t12">
-<text x="1450.4" y="540.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">24s</text>
-</g>
-<g class="t t13">
-<text x="1450.4" y="540.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">25s</text>
-</g>
-<g class="t t14">
-<text x="1450.4" y="540.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">26s</text>
-</g>
-<g class="t t15">
-<text x="1450.4" y="540.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">27s</text>
-</g>
-<g class="t t16">
-<text x="1450.4" y="540.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">28s</text>
-</g>
-<g class="t t17">
-<text x="1450.4" y="540.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">29s</text>
-</g>
-<g class="t t18">
-<text x="1450.4" y="540.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">30s</text>
-</g>
-<g class="t t19">
-<text x="1450.4" y="540.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">31s</text>
-</g>
-<g class="t t20">
-<text x="1450.4" y="540.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">32s</text>
-</g>
-<g class="t t21">
-<text x="1450.4" y="540.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">33s</text>
-</g>
-<g class="t t22">
-<text x="1450.4" y="540.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">34s</text>
-</g>
+<text x="1047.2" y="540.7" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">opus-5-5</text>
+<text x="1148.0" y="540.7" textLength="50.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">medium</text>
+<text x="1223.6" y="540.7" textLength="117.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">✻ thought 1.3s</text>
 <text x="1484.0" y="540.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1022.0" y="559.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1038.8" y="559.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#98b17d">✓</text>
-<text x="1055.6" y="559.7" textLength="218.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">Wait for the API to answer</text>
-<rect x="1383.2" y="546.0" width="92.4" height="19.0" rx="0" fill="#2c313a"/>
-<text x="1391.6" y="559.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#7fb4b4">↗ jobs #3</text>
+<text x="1038.8" y="559.7" textLength="58.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">context</text>
+<text x="1106.0" y="559.7" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#98b17d">████████</text>
+<text x="1173.2" y="559.7" textLength="134.4" lengthAdjust="spacingAndGlyphs" fill="#2c313a">░░░░░░░░░░░░░░░░</text>
+<text x="1316.0" y="559.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#98b17d">34%</text>
+<text x="1349.6" y="559.7" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">68k/200k</text>
 <text x="1484.0" y="559.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1022.0" y="578.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1038.8" y="578.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#98b17d">✓</text>
-<text x="1055.6" y="578.7" textLength="252.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">Editing src/middleware/auth.ts</text>
+<text x="1038.8" y="578.7" textLength="50.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">tokens</text>
+<text x="1106.0" y="578.7" textLength="16.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">in</text>
+<text x="1131.2" y="578.7" textLength="16.8" lengthAdjust="spacingAndGlyphs" fill="#abb2bf">2k</text>
+<text x="1164.8" y="578.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">cache</text>
+<text x="1215.2" y="578.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#abb2bf">1.4M</text>
+<text x="1265.6" y="578.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">out</text>
+<text x="1299.2" y="578.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#abb2bf">18k</text>
 <text x="1484.0" y="578.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1022.0" y="597.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1038.8" y="597.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#98b17d">✓</text>
-<text x="1055.6" y="597.7" textLength="226.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">Reading src/auth/refresh.ts</text>
+<text x="1038.8" y="597.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">tools</text>
+<text x="1106.0" y="597.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#98b17d">█████████</text>
+<text x="1181.6" y="597.7" textLength="50.4" lengthAdjust="spacingAndGlyphs" fill="#7aa2c8">██████</text>
+<text x="1232.0" y="597.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">█████</text>
+<text x="1274.0" y="597.7" textLength="16.8" lengthAdjust="spacingAndGlyphs" fill="#7fb4b4">██</text>
 <text x="1484.0" y="597.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1022.0" y="616.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<rect x="1038.8" y="603.0" width="92.4" height="19.0" rx="0" fill="#2c313a"/>
-<text x="1047.2" y="616.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#8fa8d2">▾ 18 more</text>
+<text x="1106.0" y="616.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#98b17d">■</text>
+<text x="1122.8" y="616.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">run 9</text>
+<text x="1181.6" y="616.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#7aa2c8">■</text>
+<text x="1198.4" y="616.7" textLength="50.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">read 6</text>
+<text x="1265.6" y="616.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">■</text>
+<text x="1282.4" y="616.7" textLength="50.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">edit 5</text>
+<text x="1349.6" y="616.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#7fb4b4">■</text>
+<text x="1366.4" y="616.7" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">search 2</text>
 <text x="1484.0" y="616.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1022.0" y="635.7" textLength="470.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">╰──────────────────────────────────────────────────────╯</text>
 <text x="1022.0" y="654.7" textLength="16.8" lengthAdjust="spacingAndGlyphs" fill="#464c58">╭─</text>
-<text x="1047.2" y="654.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">tasks 3/5</text>
-<text x="1131.2" y="654.7" textLength="361.2" lengthAdjust="spacingAndGlyphs" fill="#464c58">──────────────────────────────────────────╮</text>
+<text x="1047.2" y="654.7" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">activity</text>
+<text x="1122.8" y="654.7" textLength="369.6" lengthAdjust="spacingAndGlyphs" fill="#464c58">───────────────────────────────────────────╮</text>
 <text x="1022.0" y="673.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1038.8" y="673.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#98b17d">✓</text>
-<text x="1055.6" y="673.7" textLength="226.8" lengthAdjust="spacingAndGlyphs" fill="#abb2bf">Add the refresh-token store</text>
+<g class="b b0">
+<text x="1038.8" y="673.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠋</text>
+</g>
+<g class="b b1">
+<text x="1038.8" y="673.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠙</text>
+</g>
+<g class="b b2">
+<text x="1038.8" y="673.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠹</text>
+</g>
+<g class="b b3">
+<text x="1038.8" y="673.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠸</text>
+</g>
+<g class="b b4">
+<text x="1038.8" y="673.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠼</text>
+</g>
+<g class="b b5">
+<text x="1038.8" y="673.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠴</text>
+</g>
+<g class="b b6">
+<text x="1038.8" y="673.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠦</text>
+</g>
+<g class="b b7">
+<text x="1038.8" y="673.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠧</text>
+</g>
+<g class="b b8">
+<text x="1038.8" y="673.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠇</text>
+</g>
+<g class="b b9">
+<text x="1038.8" y="673.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠏</text>
+</g>
+<text x="1055.6" y="673.7" textLength="151.2" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">Run the auth tests</text>
+<g class="t t0">
+<text x="1450.4" y="673.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">12s</text>
+</g>
+<g class="t t1">
+<text x="1450.4" y="673.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">13s</text>
+</g>
+<g class="t t2">
+<text x="1450.4" y="673.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">14s</text>
+</g>
+<g class="t t3">
+<text x="1450.4" y="673.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">15s</text>
+</g>
+<g class="t t4">
+<text x="1450.4" y="673.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">16s</text>
+</g>
+<g class="t t5">
+<text x="1450.4" y="673.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">17s</text>
+</g>
+<g class="t t6">
+<text x="1450.4" y="673.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">18s</text>
+</g>
+<g class="t t7">
+<text x="1450.4" y="673.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">19s</text>
+</g>
+<g class="t t8">
+<text x="1450.4" y="673.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">20s</text>
+</g>
+<g class="t t9">
+<text x="1450.4" y="673.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">21s</text>
+</g>
+<g class="t t10">
+<text x="1450.4" y="673.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">22s</text>
+</g>
+<g class="t t11">
+<text x="1450.4" y="673.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">23s</text>
+</g>
+<g class="t t12">
+<text x="1450.4" y="673.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">24s</text>
+</g>
+<g class="t t13">
+<text x="1450.4" y="673.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">25s</text>
+</g>
+<g class="t t14">
+<text x="1450.4" y="673.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">26s</text>
+</g>
+<g class="t t15">
+<text x="1450.4" y="673.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">27s</text>
+</g>
+<g class="t t16">
+<text x="1450.4" y="673.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">28s</text>
+</g>
+<g class="t t17">
+<text x="1450.4" y="673.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">29s</text>
+</g>
+<g class="t t18">
+<text x="1450.4" y="673.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">30s</text>
+</g>
+<g class="t t19">
+<text x="1450.4" y="673.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">31s</text>
+</g>
+<g class="t t20">
+<text x="1450.4" y="673.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">32s</text>
+</g>
+<g class="t t21">
+<text x="1450.4" y="673.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">33s</text>
+</g>
+<g class="t t22">
+<text x="1450.4" y="673.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">34s</text>
+</g>
 <text x="1484.0" y="673.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1022.0" y="692.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1038.8" y="692.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#98b17d">✓</text>
-<text x="1055.6" y="692.7" textLength="193.2" lengthAdjust="spacingAndGlyphs" fill="#abb2bf">Rotate on every refresh</text>
+<text x="1055.6" y="692.7" textLength="218.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">Wait for the API to answer</text>
+<rect x="1383.2" y="679.0" width="92.4" height="19.0" rx="0" fill="#2c313a"/>
+<text x="1391.6" y="692.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#7fb4b4">↗ jobs #3</text>
 <text x="1484.0" y="692.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1022.0" y="711.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1038.8" y="711.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#98b17d">✓</text>
-<text x="1055.6" y="711.7" textLength="176.4" lengthAdjust="spacingAndGlyphs" fill="#abb2bf">Detect a reused token</text>
+<text x="1055.6" y="711.7" textLength="252.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">Editing src/middleware/auth.ts</text>
 <text x="1484.0" y="711.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1022.0" y="730.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1038.8" y="730.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">◐</text>
-<text x="1055.6" y="730.7" textLength="218.4" lengthAdjust="spacingAndGlyphs" fill="#abb2bf">Fix the last-second expiry</text>
+<text x="1038.8" y="730.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#98b17d">✓</text>
+<text x="1055.6" y="730.7" textLength="226.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">Reading src/auth/refresh.ts</text>
 <text x="1484.0" y="730.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1022.0" y="749.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1038.8" y="749.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">○</text>
-<text x="1055.6" y="749.7" textLength="142.8" lengthAdjust="spacingAndGlyphs" fill="#abb2bf">Document the flow</text>
+<rect x="1038.8" y="736.0" width="92.4" height="19.0" rx="0" fill="#2c313a"/>
+<text x="1047.2" y="749.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#8fa8d2">▾ 18 more</text>
 <text x="1484.0" y="749.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1022.0" y="768.7" textLength="470.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">╰──────────────────────────────────────────────────────╯</text>
 <rect x="1005.2" y="793.0" width="504.0" height="19.0" rx="0" fill="#21252b"/>

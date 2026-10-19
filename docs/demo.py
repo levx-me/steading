@@ -448,8 +448,13 @@ def scene_agents():
     row = run_box([(SPIN, AMBER, "add refresh tokens to the auth middleware", "opus-5-5"),
                    ("", AMBER, "  Run the auth tests", [("▰▰▰", GREEN), ("▱▱", DIMMED), (" 3/5  ", MUTED),
                                                     (lambda t: took(134 + t).rjust(6), MUTED)]),
-                   (SPIN, AMBER, "  Map the auth tests", "haiku-5-5"),
-                   ("", AMBER, "    Reading src/auth/refresh.test.ts", [(lambda t: took(38 + t).rjust(6), MUTED)])],
+                   # A manager and its workers, on branch lines (bin/viewer.py Agents.refresh).
+                   (SPIN, AMBER, "  Map the auth tests", "sonnet-5-5"),
+                   ("", AMBER, "    Splitting the work in three", [(lambda t: took(38 + t).rjust(6), MUTED)]),
+                   (SPIN, AMBER, "  ├ Find every refresh call", "haiku-5-5"),
+                   ("", AMBER, "  │   Searching for refresh( in src", [(lambda t: took(21 + t).rjust(6), MUTED)]),
+                   (SPIN, AMBER, "  └ Write the rotation tests", "sonnet-5-5"),
+                   ("", AMBER, "      Writing src/auth/rotate.test.ts", [(lambda t: took(17 + t).rjust(6), MUTED)])],
                   ACCENT["AGENTS"], "agents")
     rect(d0 + 3, row + 1, 11, AMBER)  # the WORKING pill, inside the run's box
     body(row, [
@@ -459,6 +464,7 @@ def scene_agents():
         [(" ", AMBER), (lambda t: beats[t:t + D - 6], AMBER)],
         [(" 8m ago", MUTED), ("now".rjust(D - 13), MUTED)],
         [],
+        *card("team 1/1 at work", [[(SPIN, AMBER), (" Map the auth tests", TEXT), (lambda t: f"sonnet-5-5  {took(38 + t):>6}".rjust(D - 8 - 20), MUTED)]]),
         *card("session", [[("add refresh tokens to the auth middleware", BRIGHT, True)]]),
         *card("model", [
             [(" opus-5-5 ", BRIGHT), ("  ", MUTED), (" medium ", AMBER), ("  ✻ thought 1.3s", MUTED)],

@@ -535,7 +535,7 @@ for r in s.every:
     ]);
   });
 
-  test("a subagent's subagent sits under it, and ends by its parent's answer", () => {
+  test("a subagent's subagent sits under it on a branch line, ends by its parent's answer, and shows in its team", () => {
     const dir = mkdtempSync(join(tmpdir(), "steading-session-"));
     const main = join(dir, "s1.jsonl");
     const subs = join(dir, "s1", "subagents");
@@ -564,12 +564,18 @@ v.background = lambda fn, *a: fn(*a)
 s = v.Agents(); s.session, s.looked = sys.argv[2], time.time()
 s.read_main(); s.refresh()
 print(*(r.id for r in reversed(s.runs)))  # top down, as drawn
+print(" | ".join(r.label() for r in reversed(s.runs) if r.id in ("k1", "g1")))  # branch lines
+p1 = next(r for r in s.runs if r.id == "p1")
+print(*(k.id for k in p1.team), "|", v.ANSI.sub("", v.team_card(p1.team, 60)[0]).strip("─╭╮ "))  # its team, done ones too
 `;
     const r = Bun.spawnSync(["python3", "-I", "-c", check, join(root, "bin/viewer.py"), main], {
       env: { PATH: process.env.PATH!, STEADING_BASE: join(dir, "base") },
     });
     expect(r.stderr.toString()).toBe("");
-    expect(r.stdout.toString().trim()).toBe("main p2 p1 k1 g1");
+    const [order, branches, team] = r.stdout.toString().trim().split("\n");
+    expect(order).toBe("main p2 p1 k1 g1");
+    expect(branches).toBe("  └ Kid |     └ Grandkid");
+    expect(team).toBe("k2 k1 | team 1/2 at work"); // newest first
   });
 
   test("the activity card shows a call that ran long with a button to its output in the jobs tab", () => {
