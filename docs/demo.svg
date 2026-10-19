@@ -1212,10 +1212,10 @@
 </g>
 <text x="1030.4" y="141.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#98b17d">✓</text>
 <text x="1047.2" y="141.7" textLength="243.6" lengthAdjust="spacingAndGlyphs" fill="#abb2bf">Install Playwright's Chromium</text>
-<text x="1433.6" y="141.7" textLength="50.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">4m ago</text>
+<text x="1358.0" y="141.7" textLength="126.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">1m 12s · 4m ago</text>
 <text x="1030.4" y="160.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#98b17d">✓</text>
 <text x="1047.2" y="160.7" textLength="176.4" lengthAdjust="spacingAndGlyphs" fill="#abb2bf">Seed the dev database</text>
-<text x="1425.2" y="160.7" textLength="58.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">26m ago</text>
+<text x="1374.8" y="160.7" textLength="109.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">48s · 26m ago</text>
 <text x="1005.2" y="198.7" textLength="504.0" lengthAdjust="spacingAndGlyphs" fill="#464c58">╭──────────────────────────────────────────────────────────╮</text>
 <text x="1005.2" y="217.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1500.8" y="217.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
@@ -1510,10 +1510,10 @@
 </g>
 <text x="1030.4" y="141.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#98b17d">✓</text>
 <text x="1047.2" y="141.7" textLength="243.6" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4" font-weight="bold">Install Playwright's Chromium</text>
-<text x="1433.6" y="141.7" textLength="50.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">4m ago</text>
+<text x="1358.0" y="141.7" textLength="126.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">1m 12s · 4m ago</text>
 <text x="1030.4" y="160.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#98b17d">✓</text>
 <text x="1047.2" y="160.7" textLength="176.4" lengthAdjust="spacingAndGlyphs" fill="#abb2bf">Seed the dev database</text>
-<text x="1425.2" y="160.7" textLength="58.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">26m ago</text>
+<text x="1374.8" y="160.7" textLength="109.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">48s · 26m ago</text>
 <text x="1005.2" y="198.7" textLength="504.0" lengthAdjust="spacingAndGlyphs" fill="#464c58">╭──────────────────────────────────────────────────────────╮</text>
 <text x="1005.2" y="217.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1500.8" y="217.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
@@ -1581,7 +1581,7 @@
 <text x="1030.4" y="217.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#21252b" font-weight="bold">✓</text>
 <rect x="1038.8" y="204.0" width="50.4" height="19.0" rx="0" fill="#98b17d"/>
 <text x="1047.2" y="217.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#21252b" font-weight="bold">DONE</text>
-<text x="1400.0" y="217.7" textLength="92.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">~/app · 72s</text>
+<text x="1341.2" y="217.7" textLength="151.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">~/app · ran 1m 12s</text>
 <text x="1022.0" y="236.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">$</text>
 <text x="1038.8" y="236.7" textLength="260.4" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4" font-weight="bold">npx playwright install chromium</text>
 <line x1="1022.0" y1="251.5" x2="1492.4" y2="251.5" stroke="#3e4451" stroke-width="1"/>
@@ -1702,10 +1702,10 @@
 </g>
 <text x="1030.4" y="141.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#98b17d">✓</text>
 <text x="1047.2" y="141.7" textLength="243.6" lengthAdjust="spacingAndGlyphs" fill="#abb2bf">Install Playwright's Chromium</text>
-<text x="1433.6" y="141.7" textLength="50.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">4m ago</text>
+<text x="1358.0" y="141.7" textLength="126.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">1m 12s · 4m ago</text>
 <text x="1030.4" y="160.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#98b17d">✓</text>
 <text x="1047.2" y="160.7" textLength="176.4" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4" font-weight="bold">Seed the dev database</text>
-<text x="1425.2" y="160.7" textLength="58.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">26m ago</text>
+<text x="1374.8" y="160.7" textLength="109.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">48s · 26m ago</text>
 <text x="1005.2" y="198.7" textLength="504.0" lengthAdjust="spacingAndGlyphs" fill="#464c58">╭──────────────────────────────────────────────────────────╮</text>
 <text x="1005.2" y="217.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1500.8" y="217.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
@@ -1773,7 +1773,7 @@
 <text x="1030.4" y="217.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#21252b" font-weight="bold">✓</text>
 <rect x="1038.8" y="204.0" width="50.4" height="19.0" rx="0" fill="#98b17d"/>
 <text x="1047.2" y="217.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#21252b" font-weight="bold">DONE</text>
-<text x="1400.0" y="217.7" textLength="92.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">~/app · 48s</text>
+<text x="1366.4" y="217.7" textLength="126.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">~/app · ran 48s</text>
 <text x="1022.0" y="236.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">$</text>
 <text x="1038.8" y="236.7" textLength="294.0" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4" font-weight="bold">npm run db:reset &amp;&amp; npm run db:seed</text>
 <line x1="1022.0" y1="251.5" x2="1492.4" y2="251.5" stroke="#3e4451" stroke-width="1"/>

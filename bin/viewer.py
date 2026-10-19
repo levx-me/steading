@@ -414,7 +414,7 @@ class Run:
         end = self.end()
         if not end:
             start = int(self.fixed("start", "0") or 0)
-            return f"running {int(time.time()) - start}s" if start else "running"
+            return f"running {took(time.time() - start)}" if start else "running"
         s = int(time.time()) - int(end)
         for unit, size in (("d", 86400), ("h", 3600), ("m", 60)):
             if s >= size:
@@ -1445,20 +1445,24 @@ class JobRun(Run):
         return (spinner(), AMBER_RGB)
 
     def age(self):
-        return "stopped" if self.stopped() else super().age()
+        """How long it ran, then how long ago it ended: '1m 32s · 5m ago' (running: 'running 12s')."""
+        if self.stopped():
+            return "stopped"
+        start, end = int(self.fixed("start", "0") or 0), self.end()
+        return f"{took(int(end) - start)} · {super().age()}" if end and start else super().age()
 
     def info(self):
         start = int(self.fixed("start", "0") or 0)
         end, rc = self.end(), self.rc()
         limit = self.limit()
-        took = f"{(int(end) if end else int(time.time())) - start}s"
+        ran = took((int(end) if end else int(time.time())) - start)
         parts = [self.fixed("cwd").replace(os.path.expanduser("~"), "~", 1)]
         if rc:
-            parts += [took, exit_code(rc)]
+            parts += [f"ran {ran}", exit_code(rc)]
         elif self.stopped():
             parts += ["stopped"]
         else:
-            parts += [f"{took} of {limit // 60}m" if limit % 60 == 0 else f"{took} of {limit}s", "running"]
+            parts += [f"{ran} of {took(limit)}", "running"]
         return f"{DIM}  {' · '.join(p for p in parts if p)}{RESET}"
 
 
@@ -1644,7 +1648,9 @@ def took(secs):
     secs = int(max(0, secs))
     if secs >= 3600:
         return f"{secs // 3600}h {secs % 3600 // 60}m"
-    return f"{secs // 60}m {secs % 60}s" if secs >= 60 else f"{secs}s"
+    if secs >= 60:
+        return f"{secs // 60}m {secs % 60}s" if secs % 60 else f"{secs // 60}m"
+    return f"{secs}s"
 
 
 def heartbeat(stamps, width):

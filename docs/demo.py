@@ -490,20 +490,20 @@ RUN_KEYS = [("L", "side"), ("[ ]", "sections"), (",", "settings"), ("ctrl+c", "c
 
 def scene_jobs():
     browse(1, [(SPIN, AMBER, "Wait for the API to answer", lambda t: f"running {t + 9}s"),
-               ("✓", GREEN, "Install Playwright's Chromium", "4m ago"),
-               ("✓", GREEN, "Seed the dev database", "26m ago")], ACCENT["JOBS"], "jobs", [
+               ("✓", GREEN, "Install Playwright's Chromium", "1m 12s · 4m ago"),
+               ("✓", GREEN, "Seed the dev database", "48s · 26m ago")], ACCENT["JOBS"], "jobs", [
         [[("$ ", MUTED), ("until curl -sf localhost:3000/health; do sleep 2; done", BRIGHT, True)],
          [(lambda t: f"  ~/app · {t + 9}s of 2m · running", MUTED)], RULE,
          [("curl: (7) Failed to connect to localhost port 3000", MUTED)],
          [("curl: (7) Failed to connect to localhost port 3000", MUTED)],
          [("curl: (7) Failed to connect to localhost port 3000", MUTED)]],
         [[("$ ", MUTED), ("npx playwright install chromium", BRIGHT, True)],
-         [("  ~/app · 72s · exit 0", MUTED)], RULE,
+         [("  ~/app · ran 1m 12s · exit 0", MUTED)], RULE,
          [("Downloading Chromium 131.0.6778.33", TEXT)],
          [("|████████████████████| 100% of 162.8 MiB", GREEN)],
          [("Chromium downloaded to ~/Library/Caches", TEXT)]],
         [[("$ ", MUTED), ("npm run db:reset && npm run db:seed", BRIGHT, True)],
-         [("  ~/app · 48s · exit 0", MUTED)], RULE,
+         [("  ~/app · ran 48s · exit 0", MUTED)], RULE,
          [("Applied 14 migrations", TEXT)],
          [("Seeded 2,400 users, 18,250 sessions", GREEN)]],
     ], RUN_KEYS)
