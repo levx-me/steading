@@ -1022,14 +1022,18 @@ class Runs:
         digits = len(str(len(log_plain))) if reported else 0
         self.gutter = digits + 2 if reported and not in_head else 0
 
+        def number(plain, y):
+            """A reported log's gutter for line y: its number and a bar, red on errors, amber on warnings."""
+            mark = line_mark(plain[y]) if y < len(plain) else ""
+            bar = f"{fg(RED_RGB)}▌" if mark == "error" else f"{fg(AMBER_RGB)}▌" if mark == "warn" else f"{fg('70;76;88')}│"
+            return f"{fg(DIMMED_RGB)}{y + 1:>{digits}}{bar}{RESET} "
+
         def drawn(raw, plain, first, last, marks, gutter=False):
             out = drawn_lines(raw, plain, first, last, marks)
             if not gutter:
                 return out
             for n, y in enumerate(range(first, first + len(out))):
-                mark = line_mark(plain[y]) if y < len(plain) else ""
-                bar = f"{fg(RED_RGB)}▌" if mark == "error" else f"{fg(AMBER_RGB)}▌" if mark == "warn" else f"{fg('70;76;88')}│"
-                out[n] = f"{fg(DIMMED_RGB)}{y + 1:>{digits}}{bar}{RESET} " + out[n]
+                out[n] = number(plain, y) + out[n]
             return out
 
         def drawn_lines(raw, plain, first, last, marks):
@@ -1048,8 +1052,30 @@ class Runs:
             return out
 
         top = drawn(extras, self.plain if in_head else [ANSI.sub("", l) for l in extras], 0, len(extras), in_head)
+        # The cursor's line, when wider than the box, unfolds onto the rows under it; the
+        # other lines stay cut. The view moves down to keep all of it in sight.
+        self.unfold = None
+        pieces = []
+        if cursor and not in_head and self.cy < len(log_plain):
+            pieces = unfold_pieces(log_plain[self.cy], max(10, cols - self.gutter))
+            if len(pieces) > 1:
+                extra = min(len(pieces) - 1, height - 1)
+                pieces = pieces[:extra + 1]
+                if self.cy - self.offset + 1 + extra > height:
+                    self.offset = self.cy + 1 + extra - height
+                self.unfold = (self.cy, extra)
         log_offset = self.saved.get("log", (0, 0, 0))[2] if in_head else self.offset
         body = drawn(log_raw, log_plain, log_offset, log_offset + height, not in_head, gutter=reported)
+        if self.unfold:
+            at = self.cy - log_offset
+            rows = []
+            for n, (start, piece) in enumerate(pieces):
+                x = self.cx - start
+                if 0 <= x < len(piece):  # the cursor is on this piece
+                    piece = f"{piece[:x]}\033[7m{piece[x]}\033[27m{piece[x + 1:]}"
+                lead = (number(log_plain, self.cy) if n == 0 else " " * self.gutter) if reported else ""
+                rows.append(lead + piece)
+            body = (body[:at] + rows + body[at + 1:])[:height]
         head += top + ([rule(cols)] if extras else [])
         if running:
             start = int(read(os.path.join(run.path, "start"), "0") or 0)
@@ -1379,17 +1405,27 @@ class Runs:
         elif row >= getattr(self, "body_row", 99) and self.plain:
             self.focus, self.anchor = "log", None
             # "│ " before it, and a reported log's gutter
-            self.cy, self.cx, self.follow = self.offset + row - self.body_row, col - 3 - getattr(self, "gutter", 0), False
+            self.cy, self.cx, self.follow = self.log_line(row), col - 3 - getattr(self, "gutter", 0), False
             self.clamp()
             self.dragging = (self.cy, self.cx)
             if getattr(self.runs[self.tab], "activate", lambda line: False)(self.plain[self.cy]):
                 self.dragging = None  # a click on a control is not the start of a selection
 
+    unfold = None  # (log line, extra rows) while the cursor's long line is unfolded
+
+    def log_line(self, row):
+        """The log line on a screen row, past the rows the cursor's unfolded line takes."""
+        line = self.offset + row - self.body_row
+        unfold = getattr(self, "unfold", None)
+        if unfold and line > unfold[0]:
+            line = unfold[0] if line <= unfold[0] + unfold[1] else line - unfold[1]
+        return line
+
     def drag(self, row, col):
         """Dragging in the log selects from where the button went down, as in herdr."""
         if getattr(self, "dragging", None) is None:
             return
-        self.cy, self.cx = self.offset + row - self.body_row, col - 3 - getattr(self, "gutter", 0)
+        self.cy, self.cx = self.log_line(row), col - 3 - getattr(self, "gutter", 0)
         self.clamp()
         self.anchor, self.linewise = self.dragging, False
 
@@ -1642,6 +1678,22 @@ def datetime_epoch(ts):
 STAMP = re.compile(rb'"timestamp":"([0-9T:.\-]+Z)"')
 BEAT_SECS = 10  # one heartbeat column: this many seconds of transcript writes
 SPARK = " ▁▂▃▄▅▆▇█"
+
+
+def unfold_pieces(text, width):
+    """A long line cut into pieces width cells wide (wide characters count two):
+    [(index of its first character, piece)]."""
+    pieces, start, used = [], 0, 0
+    for i, ch in enumerate(text):
+        w = cells(ch)
+        if used + w > width and i > start:
+            space = text.rfind(" ", start, i)  # at a word's end where there is one
+            cut = space + 1 if space >= start and space + 1 > start + width // 2 else i
+            pieces.append((start, text[start:cut]))
+            start, used = cut, cells(text[cut:i])
+        used += w
+    pieces.append((start, text[start:]))
+    return pieces
 
 
 def took(secs):

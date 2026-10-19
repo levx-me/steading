@@ -34,7 +34,7 @@ apply right now.
 | | `ctrl+c`, or a click on `✕` at the tabs' left end | close the deck (`q` only goes back from a log to the list, so a stray `q` closes nothing) |
 | run list | `j` `k` (or `↓` `↑`), `gg` `G` | pick a run (newest on top), the newest, the oldest |
 | | `enter` `l` | move into its output |
-| output | `h` `j` `k` `l`, `w` `b` `e`, `W` `B` `E`, `0` `^` `$`, `{` `}` | move the cursor (herdr copy-mode keys) |
+| output | `h` `j` `k` `l`, `w` `b` `e`, `W` `B` `E`, `0` `^` `$`, `{` `}` | move the cursor (herdr copy-mode keys); a line wider than the box unfolds onto the rows under it while the cursor is on it |
 | | `gg` `G`, `ctrl+d` `ctrl+u` | top / bottom (`G` follows the live run again), half page |
 | | `v` `V`, `y` | select by character / line, yank (the cursor line when nothing is selected) |
 | | `/` `?`, `n` `N` | search forward / back, repeat |

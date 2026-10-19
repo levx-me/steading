@@ -896,3 +896,42 @@ print(a.story())
     expect(clicked).toBe("None");
   });
 });
+
+describe("a long log line", () => {
+  test("unfolds under itself while the cursor is on it, and clicks below it still land on their own lines", () => {
+    const { mkdtempSync, writeFileSync, mkdirSync } = require("node:fs");
+    const { tmpdir } = require("node:os");
+    const dir = mkdtempSync(join(tmpdir(), "steading-unfold-"));
+    const run = join(dir, "test", "runs", "1");
+    mkdirSync(run, { recursive: true });
+    const now = String(Math.floor(Date.now() / 1000));
+    for (const [f, v] of [["cmd", "bun test"], ["rc", "0"], ["start", now], ["end", now], ["cwd", "/tmp"]]) writeFileSync(join(run, f), v + "\n");
+    const long = "AssertionError: expected 401 to be 200 // Object.is equality at src/middleware/auth.test.ts:41:7 in the refresh-token rotation case";
+    writeFileSync(join(run, "log"), ["one", "two", long, "three", "four"].join("\n") + "\n");
+    const check = `
+import sys, time
+from importlib.machinery import SourceFileLoader
+args = sys.argv[1:]; sys.argv = sys.argv[:1]  # the viewer takes its base from argv, else STEADING_BASE
+v = SourceFileLoader("v", args[0]).load_module()
+v.background = lambda fn, *a: fn(*a)
+t = v.Runs("test")
+for _ in range(40):
+    t.refresh(); t.frame(50, 30); time.sleep(0.05)
+    if t.runs and t.plain and t.plain[-1] == "four": break
+show = lambda: [v.ANSI.sub("", l) for l in t.frame(50, 30)[0]]
+t.focus, t.follow, t.cx = "log", False, 0
+t.cy = 1; p = show(); print(t.unfold, any(l.rstrip("│ ").endswith("case") for l in p))  # cut: its end is not shown
+t.cy = 2; p = show(); print(t.unfold, any(l.rstrip("│ ").endswith("case") for l in p))  # unfolded: its end shows
+row = next(i for i, l in enumerate(p) if "three" in l) + 2  # +2: the frame starts under the tab strip
+print(t.plain[t.log_line(row)])
+`;
+    const r = Bun.spawnSync(["python3", "-I", "-c", check, join(root, "bin/viewer.py")], {
+      env: { PATH: process.env.PATH!, STEADING_BASE: dir },
+    });
+    expect(r.stderr.toString()).toBe("");
+    const [cut, open, clicked] = r.stdout.toString().trim().split("\n");
+    expect(cut).toBe("None False");
+    expect(open).toMatch(/^\(2, [2-9]\) True$/); // line 2, its rest on the rows under it
+    expect(clicked).toBe("three");
+  });
+});
