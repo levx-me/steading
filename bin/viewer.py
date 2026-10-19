@@ -2236,6 +2236,7 @@ def dashboard(d, cols, main, title="", links=None, focus=None, window=None, task
     return out
 
 
+RESUME_SECS = 10  # a subagent writing this long after its "done" notification has been resumed
 TEAM_SHOWN = 8  # subagents in an agent's team card, newest first
 
 
@@ -2340,7 +2341,13 @@ class AgentRun(Run):
             hit = answers.get(self.meta.get("toolUseId", ""))
             if hit is not None:
                 return "failed" if hit else "done"
-        return self.deck.notified.get(self.id, "")
+        end = self.deck.notified.get(self.id, "")
+        # A background subagent can be sent a message after it finished: it works again,
+        # writing its transcript after the notification that said it was done.
+        if end and os.path.exists(self.path) and \
+                os.path.getmtime(self.path) > getattr(self.deck, "notified_at", {}).get(self.id, 0) + RESUME_SECS:
+            return ""
+        return end
 
     def status(self):
         end = self.ended()
@@ -2562,6 +2569,7 @@ class Agents(Runs):
         self.session, self.looked = "", 0.0           # the main transcript, found through herdr
         self.title, self.agent_status = "", ""        # the session's title and state, as herdr has them
         self.results, self.notified = {}, {}          # what the main transcript says about subagents
+        self.notified_at = {}                         # when each subagent's latest notification came
         self.read_to, self.reading = 0, False
         self.main, self.stamps = None, []             # the main transcript's write times, last hour
         self.digest = Digest()                        # what the main transcript says about the agent
@@ -2589,6 +2597,7 @@ class Agents(Runs):
         session = max(found, key=os.path.getmtime) if found else ""
         if session != self.session:
             self.session, self.results, self.notified, self.read_to, self.stamps = session, {}, {}, 0, []
+            self.notified_at = {}
             self.digest = Digest()
 
     def read_main(self):
@@ -2631,9 +2640,14 @@ class Agents(Runs):
                     self.results[b.get("tool_use_id")] = bool(b.get("is_error"))
                 text = b.get("text") if b.get("type") == "text" else None
                 if isinstance(text, str) and "<task-notification>" in text:
+                    try:
+                        when = datetime_epoch(row["timestamp"])
+                    except (KeyError, TypeError, ValueError):
+                        when = time.time()
                     for agent, status in NOTIFICATION.findall(text):
                         self.notified[agent.strip()] = {"completed": "done", "failed": "failed"}.get(
                             status.strip(), "stopped" if status.strip() in ("stopped", "killed") else "")
+                        self.notified_at[agent.strip()] = when
         self.read_to += done
         self.reading = False
 

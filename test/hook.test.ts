@@ -945,3 +945,40 @@ print(t.unfold[0], [l.split("│")[1:2] for l in before if "three" in l] == [l.s
     expect(selecting).toBe("2 True");
   });
 });
+
+describe("a resumed background subagent", () => {
+  test("is at work again when it writes after the notification that said it was done", () => {
+    const { mkdtempSync, writeFileSync, mkdirSync, utimesSync } = require("node:fs");
+    const { tmpdir } = require("node:os");
+    const dir = mkdtempSync(join(tmpdir(), "steading-resume-agent-"));
+    const main = join(dir, "s1.jsonl");
+    const subs = join(dir, "s1", "subagents");
+    mkdirSync(subs, { recursive: true });
+    const at = (s: number) => new Date(Date.now() - s * 1000).toISOString();
+    const note = (id: string) => `<task-notification><task-id>${id}</task-id><status>completed</status></task-notification>`;
+    for (const id of ["back", "gone"]) {
+      writeFileSync(join(subs, `agent-${id}.meta.json`), JSON.stringify({ description: id, requestShape: "background", spawnDepth: 1 }));
+      writeFileSync(join(subs, `agent-${id}.jsonl`), JSON.stringify({ type: "user", timestamp: at(300), message: { content: "go" } }) + "\n");
+    }
+    // Both were reported done 2 minutes ago; "back" was then sent a message and is writing now.
+    writeFileSync(main, [{ type: "user", timestamp: at(120), message: { content: note("back") } },
+                         { type: "user", timestamp: at(120), message: { content: note("gone") } }].map((r) => JSON.stringify(r)).join("\n") + "\n");
+    const old = new Date(Date.now() - 200 * 1000);
+    utimesSync(join(subs, "agent-gone.jsonl"), old, old);
+    const check = `
+import sys, time
+from importlib.machinery import SourceFileLoader
+args = sys.argv[1:]; sys.argv = sys.argv[:1]
+v = SourceFileLoader("v", args[0]).load_module()
+v.background = lambda fn, *a: fn(*a)
+s = v.Agents(); s.find_session = lambda: None; s.session = args[1]
+s.read_main(); s.refresh(); s.refresh()
+print(*sorted(r.id for r in s.runs))
+`;
+    const r = Bun.spawnSync(["python3", "-I", "-c", check, join(root, "bin/viewer.py"), main], {
+      env: { PATH: process.env.PATH!, STEADING_BASE: join(dir, "base") },
+    });
+    expect(r.stderr.toString()).toBe("");
+    expect(r.stdout.toString().trim()).toBe("back main");
+  });
+});
