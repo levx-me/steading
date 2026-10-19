@@ -1054,27 +1054,29 @@ class Runs:
         top = drawn(extras, self.plain if in_head else [ANSI.sub("", l) for l in extras], 0, len(extras), in_head)
         # The cursor's line, when wider than the box, unfolds onto the rows under it; the
         # other lines stay cut. The view moves down to keep all of it in sight.
-        self.unfold = None
+        # While a selection is made (v, V, a drag) the line unfolded when it began stays so,
+        # and no other unfolds: rows would move under the cursor and the mouse.
+        selecting = self.anchor is not None
+        was, self.unfold = self.unfold, None
+        line = (was[0] if was else None) if selecting else self.cy
         pieces = []
-        if cursor and not in_head and self.cy < len(log_plain):
-            pieces = unfold_pieces(log_plain[self.cy], max(10, cols - self.gutter))
+        if cursor and not in_head and line is not None and line < len(log_plain):
+            pieces = unfold_pieces(log_plain[line], max(10, cols - self.gutter))
             if len(pieces) > 1:
                 extra = min(len(pieces) - 1, height - 1)
                 pieces = pieces[:extra + 1]
-                if self.cy - self.offset + 1 + extra > height:
-                    self.offset = self.cy + 1 + extra - height
-                self.unfold = (self.cy, extra)
+                if not selecting and line - self.offset + 1 + extra > height:
+                    self.offset = line + 1 + extra - height
+                self.unfold = (line, extra)
         log_offset = self.saved.get("log", (0, 0, 0))[2] if in_head else self.offset
         body = drawn(log_raw, log_plain, log_offset, log_offset + height, not in_head, gutter=reported)
-        if self.unfold:
-            at = self.cy - log_offset
+        if self.unfold and 0 <= self.unfold[0] - log_offset < len(body):
+            line = self.unfold[0]
+            at = line - log_offset
             rows = []
             for n, (start, piece) in enumerate(pieces):
-                x = self.cx - start
-                if 0 <= x < len(piece):  # the cursor is on this piece
-                    piece = f"{piece[:x]}\033[7m{piece[x]}\033[27m{piece[x + 1:]}"
-                lead = (number(log_plain, self.cy) if n == 0 else " " * self.gutter) if reported else ""
-                rows.append(lead + piece)
+                lead = (number(log_plain, line) if n == 0 else " " * self.gutter) if reported else ""
+                rows.append(lead + self.marked(line, start, start + len(piece)))  # selection and cursor shown
             body = (body[:at] + rows + body[at + 1:])[:height]
         head += top + ([rule(cols)] if extras else [])
         if running:
@@ -1240,11 +1242,11 @@ class Runs:
                 lines.append(f"  {fg(colour)}{icon} {fg(text)}{label}{fg(MUTED_RGB)}{gap}{shown} {RESET}")
         return lines
 
-    def marked(self, y):
-        """A plain line with the selection shaded and the cursor in reverse."""
+    def marked(self, y, start=0, end=None):
+        """A plain line (or its start:end piece) with the selection shaded and the cursor in reverse."""
         line = self.plain[y] or " "
         out = []
-        for x, ch in enumerate(line):
+        for x, ch in enumerate(line[start:end], start):
             if y == self.cy and x == self.cx:
                 out.append(f"\033[7m{ch}\033[27m")
             elif self.selected(y, x):

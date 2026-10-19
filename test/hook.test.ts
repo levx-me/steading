@@ -898,7 +898,7 @@ print(a.story())
 });
 
 describe("a long log line", () => {
-  test("unfolds under itself while the cursor is on it, and clicks below it still land on their own lines", () => {
+  test("unfolds under itself while the cursor is on it, stays put while selecting, and clicks below it land on their own lines", () => {
     const { mkdtempSync, writeFileSync, mkdirSync } = require("node:fs");
     const { tmpdir } = require("node:os");
     const dir = mkdtempSync(join(tmpdir(), "steading-unfold-"));
@@ -924,14 +924,18 @@ t.cy = 1; p = show(); print(t.unfold, any(l.rstrip("│ ").endswith("case") for 
 t.cy = 2; p = show(); print(t.unfold, any(l.rstrip("│ ").endswith("case") for l in p))  # unfolded: its end shows
 row = next(i for i, l in enumerate(p) if "three" in l) + 2  # +2: the frame starts under the tab strip
 print(t.plain[t.log_line(row)])
+# A selection started on it keeps it unfolded while the cursor moves on: the rows stay put.
+t.cy, t.cx = 2, 0; show(); t.key("v"); before = show(); t.key("j"); t.key("j"); after = show()
+print(t.unfold[0], [l.split("│")[1:2] for l in before if "three" in l] == [l.split("│")[1:2] for l in after if "three" in l])
 `;
     const r = Bun.spawnSync(["python3", "-I", "-c", check, join(root, "bin/viewer.py")], {
       env: { PATH: process.env.PATH!, STEADING_BASE: dir },
     });
     expect(r.stderr.toString()).toBe("");
-    const [cut, open, clicked] = r.stdout.toString().trim().split("\n");
+    const [cut, open, clicked, selecting] = r.stdout.toString().trim().split("\n");
     expect(cut).toBe("None False");
     expect(open).toMatch(/^\(2, [2-9]\) True$/); // line 2, its rest on the rows under it
     expect(clicked).toBe("three");
+    expect(selecting).toBe("2 True");
   });
 });
