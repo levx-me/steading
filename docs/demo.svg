@@ -380,7 +380,7 @@
 </g>
 <text x="1047.2" y="122.7" textLength="344.4" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4" font-weight="bold">add refresh tokens to the auth middleware</text>
 <text x="1416.8" y="122.7" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">opus-5-5</text>
-<text x="1064.0" y="141.7" textLength="151.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">Run the auth tests</text>
+<text x="1064.0" y="141.7" textLength="235.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">◐ Fix the last-second expiry</text>
 <text x="1341.2" y="141.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#98b17d">▰▰▰</text>
 <text x="1366.4" y="141.7" textLength="16.8" lengthAdjust="spacingAndGlyphs" fill="#585e69">▱▱</text>
 <text x="1391.6" y="141.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">3/5</text>

@@ -446,7 +446,7 @@ def scene_agents():
     # The heartbeat scrolls left a column a second, new beats coming in at the right.
     beats, rates = heartbeat(CYCLE + D - 2)
     row = run_box([(SPIN, AMBER, "add refresh tokens to the auth middleware", "opus-5-5"),
-                   ("", AMBER, "  Run the auth tests", [("▰▰▰", GREEN), ("▱▱", DIMMED), (" 3/5  ", MUTED),
+                   ("", AMBER, "  ◐ Fix the last-second expiry", [("▰▰▰", GREEN), ("▱▱", DIMMED), (" 3/5  ", MUTED),
                                                     (lambda t: took(134 + t).rjust(6), MUTED)]),
                    # A manager and its workers, on branch lines (bin/viewer.py Agents.refresh).
                    (SPIN, AMBER, "  Map the auth tests", "sonnet-5-5"),

@@ -2380,8 +2380,14 @@ class AgentRun(Run):
         and how long it has been at it, as (text, plain, shown)."""
         self.count()
         d = self.digest
+        working = [subject for subject, st in d.tasks.values() if st == "in_progress"]
         if isinstance(self, MainRun) and self.deck.agent_status == "blocked":
             doing = "waiting for you"
+        elif isinstance(self, MainRun):
+            # The main agent: the task it has in hand, else what was last asked of it. Steadier
+            # than its latest call or words, which change every few seconds.
+            asked = next((l.strip() for l in (d.request or "").splitlines() if l.strip()), "")
+            doing = f"◐ {working[0]}" if working else asked
         elif d.open or (d.last_tool and not d.says):
             name, what, _ = list(d.open.values())[-1] if d.open else d.last_tool
             doing = what.splitlines()[0] if what else name
