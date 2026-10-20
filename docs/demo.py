@@ -304,7 +304,7 @@ def run_box(rows, accent, noun, picked=0, fade=None, state=None):
         mark = [(SPIN, colour), (" ", colour)] if icon == SPIN else [(f"{icon} " if icon else "  ", colour)]
         if isinstance(label, tuple):  # an agent's first row: its name, then what it does now
             name, doing = label
-            body = [(name, BRIGHT if on else TEXT, on), (doing, TEXT if on else MUTED)]
+            body = [(name, BRIGHT if on else TEXT, on), (doing, ACCENT["AGENTS"])]  # the doing text in the section's colour, as in the deck
         else:
             body = [(label, MUTED) if sub else (label, BRIGHT if on else TEXT, on)]
         left = [("   ", MUTED), *mark, *body]

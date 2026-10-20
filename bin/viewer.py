@@ -1219,7 +1219,10 @@ class Runs:
             # gives the whole width to its name and what it is doing.
             room = cols - fixed - 1 - (len(right) + 2 if sub else len(right))
             label = cut(label, max(2, room))
-            gap = " " * max(1, cols - fixed - cells(label) - len(right))
+            # An agent's first row: its name, then what it is doing in the section's colour.
+            split = getattr(run, "name_end", 0) if first and self.kind == "agents" else 0
+            label, doing = label[:split] if split else label, label[split:] if split else ""
+            gap = " " * max(1, cols - fixed - cells(label) - cells(doing) - len(right))
             # A run just added: its row starts in the section's colour and fades to the usual.
             fresh, at = getattr(self, "fresh", (None, 0))
             fade = (time.time() - at) / FADE_SECS if run is fresh else 1
@@ -1232,13 +1235,16 @@ class Runs:
                 ink = STRIP_RGB if fade < 0.5 else BRIGHT_RGB  # dark on the bright start, then light
                 weight = "" if sub else BOLD
                 ink = MUTED_RGB if sub and fade >= 0.5 else ink
+                doing_ink = ink if fade < 0.5 else ACCENT["agents"]  # apart from the name and the grey second row
                 lines.append(f"{bg(back)}{arrow}{fg(ink if fade < 0.5 else colour)} {icon} {fg(ink)}{weight}{label}"
+                             f"\033[22m{fg(doing_ink)}{doing}"
                              f"\033[22m{gap}{fg(ink if fade < 0.5 else MUTED_RGB)}{ANSI.sub('', shown) if fade < 0.5 else shown} {RESET}")
             else:
                 # Labels bright while the cursor is in the list, dim while it is in the log.
                 text = BRIGHT_RGB if self.focus == "list" else DIMMED_RGB
                 text = MUTED_RGB if sub and self.focus == "list" else text
-                lines.append(f"  {fg(colour)}{icon} {fg(text)}{label}{fg(MUTED_RGB)}{gap}{shown} {RESET}")
+                lines.append(f"  {fg(colour)}{icon} {fg(text)}{label}{fg(ACCENT['agents'] if self.focus == 'list' else text)}{doing}"
+                             f"{fg(MUTED_RGB)}{gap}{shown} {RESET}")
         return lines
 
     def marked(self, y, start=0, end=None):
@@ -2387,6 +2393,7 @@ class AgentRun(Run):
         width = max((len(r.prefix() + r.name()) for r in getattr(self.deck, "runs", [])
                      if isinstance(r, AgentRun)), default=0)
         head = self.prefix() + self.name()
+        self.name_end = width  # where the doing text starts: the list draws it in its own colour
         return f"{head}{' ' * (width - len(head))}  {self.doing()}".rstrip()
 
     def doing(self):

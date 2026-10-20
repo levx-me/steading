@@ -379,7 +379,7 @@
 <text x="1030.4" y="122.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠏</text>
 </g>
 <text x="1047.2" y="122.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4" font-weight="bold">main</text>
-<text x="1240.4" y="122.7" textLength="235.2" lengthAdjust="spacingAndGlyphs" fill="#abb2bf">◐ Fix the last-second expiry</text>
+<text x="1240.4" y="122.7" textLength="235.2" lengthAdjust="spacingAndGlyphs" fill="#8fa8d2">◐ Fix the last-second expiry</text>
 <text x="1064.0" y="141.7" textLength="159.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">auth refresh tokens</text>
 <text x="1341.2" y="141.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#98b17d">▰▰▰</text>
 <text x="1366.4" y="141.7" textLength="16.8" lengthAdjust="spacingAndGlyphs" fill="#585e69">▱▱</text>
@@ -484,7 +484,7 @@
 <text x="1030.4" y="160.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠏</text>
 </g>
 <text x="1064.0" y="160.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#abb2bf">└ foreman</text>
-<text x="1240.4" y="160.7" textLength="226.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">Splitting the work in three</text>
+<text x="1240.4" y="160.7" textLength="226.8" lengthAdjust="spacingAndGlyphs" fill="#8fa8d2">Splitting the work in three</text>
 <text x="1097.6" y="179.7" textLength="151.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">Map the auth tests</text>
 <g class="t t0">
 <text x="1458.8" y="179.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">38s</text>
@@ -586,7 +586,7 @@
 <text x="1030.4" y="198.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠏</text>
 </g>
 <text x="1080.8" y="198.7" textLength="126.0" lengthAdjust="spacingAndGlyphs" fill="#abb2bf">├ foreman-scout</text>
-<text x="1240.4" y="198.7" textLength="184.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">Searching for refresh(</text>
+<text x="1240.4" y="198.7" textLength="184.8" lengthAdjust="spacingAndGlyphs" fill="#8fa8d2">Searching for refresh(</text>
 <text x="1114.4" y="217.7" textLength="193.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">Find every refresh call</text>
 <g class="t t0">
 <text x="1458.8" y="217.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">21s</text>
@@ -688,7 +688,7 @@
 <text x="1030.4" y="236.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠏</text>
 </g>
 <text x="1080.8" y="236.7" textLength="142.8" lengthAdjust="spacingAndGlyphs" fill="#abb2bf">└ foreman-builder</text>
-<text x="1240.4" y="236.7" textLength="184.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">Writing rotate.test.ts</text>
+<text x="1240.4" y="236.7" textLength="184.8" lengthAdjust="spacingAndGlyphs" fill="#8fa8d2">Writing rotate.test.ts</text>
 <text x="1114.4" y="255.7" textLength="201.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">Write the rotation tests</text>
 <g class="t t0">
 <text x="1458.8" y="255.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">17s</text>
