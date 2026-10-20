@@ -104,6 +104,12 @@ ARROWS = {"\x1b[A": "k", "\x1b[B": "j", "\x1b[C": "l", "\x1b[D": "h",
 SPIN = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
 
 
+# Every helper the deck runs (git, herdr, ps, lsof, the servers scan) starts in a session of
+# its own. In the pane's foreground group herdr would see it and rename the pane and its tab
+# after it every few seconds ("Steading" <-> "Steading > Python").
+subprocess.run = functools.partial(subprocess.run, start_new_session=True)
+
+
 def background(fn, *args):
     """Run fn in a thread, so the deck never waits on it."""
     threading.Thread(target=fn, args=args, daemon=True).start()
@@ -1710,7 +1716,7 @@ class Servers(Runs):
         if k == "o" and self.runs:
             opener = "open" if sys.platform == "darwin" else "xdg-open"
             subprocess.Popen([opener, f"http://localhost:{self.runs[self.tab].port}"],
-                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
         else:
             super().list_key(k)
 
