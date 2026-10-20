@@ -8,6 +8,8 @@ context use, as herdr pane tokens for its sidebar, with or without a deck open.
   $ctxhot  the same from 80% on, so a ui.sidebar.agents.rows layout can colour it
   $tasks   its task list: a bar and done/total, from ~/.claude/tasks/session-<id>
 
+It also names the pane and its tab after the session's title, when that changes.
+
 Tool calls report at most every 3 seconds; the end of a turn always reports."""
 import json
 import os
@@ -117,3 +119,24 @@ try:
     subprocess.run(args, capture_output=True, timeout=5)
 except (OSError, subprocess.TimeoutExpired):
     pass
+
+# The pane's name: the session's title (one set with /rename, else Claude's own, which changes
+# only when the talk turns to something else), so the pane and its tab read as the conversation
+# rather than the command that started it. Renamed only when the title changes.
+named = os.path.join(state, "title")
+try:
+    with open(named) as f:
+        before = f.read()
+except OSError:
+    before = ""
+if d.title and d.title != before:
+    herdr = os.environ.get("HERDR_BIN_PATH", "herdr")
+    try:
+        subprocess.run([herdr, "pane", "rename", pane, d.title], capture_output=True, timeout=5)
+        out = subprocess.run([herdr, "pane", "get", pane], capture_output=True, text=True, timeout=5).stdout
+        tab = json.loads(out)["result"]["pane"]["tab_id"]  # the tab keeps a name of its own
+        subprocess.run([herdr, "tab", "rename", tab, d.title], capture_output=True, timeout=5)
+        with open(named, "w") as f:
+            f.write(d.title)
+    except (OSError, subprocess.TimeoutExpired, ValueError, KeyError):
+        pass
