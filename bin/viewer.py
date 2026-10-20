@@ -867,7 +867,11 @@ class Runs:
             ns = sorted(int(n) for n in os.listdir(self.dir) if n.isdigit())
         except OSError:
             ns = []
-        ns = [n for n in ns if self.shows(os.path.join(self.dir, str(n)))]
+        # A run's folder without its command is not a run: just being made, or emptied by the
+        # system's cleanup of old temp files (macOS clears /tmp files left untouched for days and
+        # keeps the folders), which would otherwise read as "in progress" forever.
+        ns = [n for n in ns if os.path.exists(os.path.join(self.dir, str(n), "cmd"))
+              and self.shows(os.path.join(self.dir, str(n)))]
         new = self.known is not None and any(n not in self.known for n in ns)
         if self.known is None or new:  # start on, and jump to, the newest run
             self.select(len(ns) - 1)

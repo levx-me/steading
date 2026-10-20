@@ -943,6 +943,34 @@ print(a.story())
   });
 });
 
+describe("a run folder emptied by the system's temp cleanup", () => {
+  test("is not listed, so it never reads as in progress", () => {
+    const { mkdtempSync, writeFileSync, mkdirSync } = require("node:fs");
+    const { tmpdir } = require("node:os");
+    const dir = mkdtempSync(join(tmpdir(), "steading-emptied-"));
+    const now = String(Math.floor(Date.now() / 1000));
+    const done = join(dir, "deploy", "runs", "1");
+    mkdirSync(done, { recursive: true });
+    for (const [f, v] of [["cmd", "vercel --prod"], ["rc", "0"], ["start", now], ["end", now]]) writeFileSync(join(done, f), v + "\n");
+    mkdirSync(join(dir, "deploy", "runs", "2"));  // emptied: no files left
+    mkdirSync(join(dir, "deploy", "runs", "3"));  // only its start left
+    writeFileSync(join(dir, "deploy", "runs", "3", "start"), now + "\n");
+    const check = `
+import sys
+from importlib.machinery import SourceFileLoader
+args = sys.argv[1:]; sys.argv = sys.argv[:1]
+v = SourceFileLoader("v", args[0]).load_module()
+t = v.Runs("deploy"); t.refresh()
+print(*[r.n for r in t.runs])
+`;
+    const r = Bun.spawnSync(["python3", "-I", "-c", check, join(root, "bin/viewer.py")], {
+      env: { PATH: process.env.PATH!, STEADING_BASE: dir },
+    });
+    expect(r.stderr.toString()).toBe("");
+    expect(r.stdout.toString().trim()).toBe("1");
+  });
+});
+
 describe("a long log line", () => {
   test("unfolds under itself while the cursor is on it, stays put while selecting, and clicks below it land on their own lines", () => {
     const { mkdtempSync, writeFileSync, mkdirSync } = require("node:fs");
