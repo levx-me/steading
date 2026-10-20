@@ -25,14 +25,17 @@ Editing this file restarts every open deck with the new code.
 """
 import functools
 import glob
+import hashlib
 import json
 import os
+import pickle
 import re
 import select
 import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
 import termios
 import textwrap
 import threading
@@ -104,6 +107,57 @@ SPIN = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
 def background(fn, *args):
     """Run fn in a thread, so the deck never waits on it."""
     threading.Thread(target=fn, args=args, daemon=True).start()
+
+
+# What a deck has parsed of a transcript is kept between runs, so a deck starting beside a
+# long session reads only what came after. Our own local file, keyed by the transcript's path
+# and by this file's source (any change here drops every old cache).
+CACHE = os.environ.get("STEADING_CACHE") or os.path.join(tempfile.gettempdir(), "steading", "cache")
+CODE = hashlib.sha1(open(__file__, "rb").read()).hexdigest()
+TAIL, EVERY = 64, 20  # bytes checked before the offset; seconds between saves of one file
+
+
+def cache_file(path):
+    return os.path.join(CACHE, hashlib.sha1(path.encode()).hexdigest())
+
+
+def tail_of(path, end):
+    with open(path, "rb") as f:
+        f.seek(max(0, end - TAIL))
+        return f.read(min(TAIL, end))
+
+
+def cache_load(path):
+    """The saved parse state of a transcript that is still the same file and only grew, else None."""
+    try:
+        with open(cache_file(path), "rb") as f:
+            saved = pickle.load(f)
+        st = os.stat(path)
+        if (saved["code"], saved["path"], saved["ino"], saved["dev"]) != (CODE, path, st.st_ino, st.st_dev):
+            return None
+        end = saved["state"]["read_to"]
+        if st.st_size < end or tail_of(path, end) != saved["tail"]:
+            return None
+        return saved["state"]
+    except Exception:  # missing, corrupt, from other code: parse it all
+        return None
+
+
+def cache_save(path, owner, state):
+    """Keep state (its read_to is the offset it stands at), at most every EVERY seconds per owner."""
+    if time.time() - owner.__dict__.get("kept_at", 0) < EVERY:
+        return
+    owner.kept_at = time.time()
+    try:
+        st = os.stat(path)
+        os.makedirs(CACHE, exist_ok=True)
+        tmp = f"{cache_file(path)}.{os.getpid()}.{threading.get_ident()}"
+        with open(tmp, "wb") as f:
+            pickle.dump({"code": CODE, "path": path, "ino": st.st_ino, "dev": st.st_dev, "state": state,
+                         "tail": tail_of(path, state["read_to"])}, f, pickle.HIGHEST_PROTOCOL)
+        os.replace(tmp, cache_file(path))
+    except Exception:
+        pass
 
 
 def spinner():
@@ -2312,6 +2366,7 @@ class AgentRun(Run):
         self.full = self.cmd = self.meta.get("description") or self.id
         self.first, self.calls, self.read_to, self.stamps, self.cols = os.path.getmtime(path), 0, 0, [], 60
         self.digest = Digest()
+        self.__dict__.update(cache_load(path) or {})
         self.count()
 
     def count(self):
@@ -2334,6 +2389,8 @@ class AgentRun(Run):
         self.read_to += done
         self.first = self.digest.first or self.first
         self.calls = sum(self.digest.kinds.values())
+        if done:
+            cache_save(self.path, self, {"read_to": self.read_to, "digest": self.digest, "stamps": self.stamps})
 
     def parent(self):
         """The subagent that started this one (a subagent's subagent), or None."""
@@ -2622,7 +2679,7 @@ class Agents(Runs):
         self.title, self.agent_status = "", ""        # the session's title and state, as herdr has them
         self.results, self.notified = {}, {}          # what the main transcript says about subagents
         self.notified_at = {}                         # when each subagent's latest notification came
-        self.read_to, self.reading = 0, False
+        self.read_to, self.reading, self.cached = 0, False, ""
         self.main, self.stamps = None, []             # the main transcript's write times, last hour
         self.digest = Digest()                        # what the main transcript says about the agent
 
@@ -2651,10 +2708,14 @@ class Agents(Runs):
             self.session, self.results, self.notified, self.read_to, self.stamps = session, {}, {}, 0, []
             self.notified_at = {}
             self.digest = Digest()
+            self.cached = ""
 
     def read_main(self):
         """What the main transcript has said since the last read: answers to Agent calls
         and task notifications (a big transcript is read once, then only its new lines)."""
+        if self.cached != self.session:  # first read of this session: start from what an earlier deck kept
+            self.cached = self.session
+            self.__dict__.update((self.read_to == 0 and cache_load(self.session)) or {})
         try:
             with open(self.session, "rb") as f:
                 f.seek(self.read_to)
@@ -2701,6 +2762,9 @@ class Agents(Runs):
                             status.strip(), "stopped" if status.strip() in ("stopped", "killed") else "")
                         self.notified_at[agent.strip()] = when
         self.read_to += done
+        if done:
+            cache_save(self.session, self, {k: getattr(self, k) for k in (
+                "read_to", "digest", "results", "notified", "notified_at", "stamps")})
         self.reading = False
 
     def refresh(self):

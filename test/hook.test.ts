@@ -1022,3 +1022,97 @@ print(*sorted(r.id for r in s.runs))
     expect(r.stdout.toString().trim()).toBe("back main");
   });
 });
+
+describe("the agents section keeps what it parsed of a transcript", () => {
+  const { mkdtempSync, mkdirSync, writeFileSync, appendFileSync, readdirSync, renameSync, truncateSync, readFileSync } = require("node:fs");
+  const { tmpdir } = require("node:os");
+  const line = (o: object) => JSON.stringify(o) + "\n";
+  const at = "2026-01-01T00:00:00Z";
+  const result = (id: string) => line({ type: "user", timestamp: at, message: { content: [{ type: "tool_result", tool_use_id: id }] } });
+  const note = (id: string) => line({ type: "queue-operation", timestamp: at, content: `<task-notification>\n<task-id>${id}</task-id>\n<status>completed</status>\n</task-notification>` });
+  const call = (id: string) => line({ type: "assistant", timestamp: at, message: { content: [{ type: "tool_use", id, name: "Read", input: { file_path: "/a" } }] } });
+
+  const setup = () => {
+    const dir = mkdtempSync(join(tmpdir(), "steading-cache-"));
+    const main = join(dir, "s1.jsonl");
+    const sagent = join(dir, "s1", "subagents", "agent-aaa.jsonl");
+    mkdirSync(join(dir, "s1", "subagents"), { recursive: true });
+    writeFileSync(join(dir, "s1", "subagents", "agent-aaa.meta.json"), JSON.stringify({ agentType: "Explore", toolUseId: "t1" }));
+    writeFileSync(sagent, call("x1") + call("x2"));
+    writeFileSync(main, result("t1") + note("bbb") + result("t2"));
+    return { dir, main, sagent, cache: join(dir, "cache") };
+  };
+  // One deck's whole parse in a fresh process: the state it ends with and how many rows it parsed.
+  const run = (dir: string, main: string, cache: string) => {
+    const code = `
+import json, sys, time
+from importlib.machinery import SourceFileLoader
+v = SourceFileLoader("v", sys.argv[1]).load_module()
+v.background = lambda fn, *a: fn(*a)
+n = [0]; loads = json.loads
+def counted(raw, *a, **k):
+    n[0] += isinstance(raw, bytes)
+    return loads(raw, *a, **k)
+json.loads = counted
+s = v.Agents(); s.session, s.looked = sys.argv[2], time.time()
+s.read_main(); s.refresh()
+sub = next(r for r in s.every if r.id == "aaa")
+dump = lambda o: json.dumps(o.__dict__, sort_keys=True, default=lambda x: sorted(x) if isinstance(x, set) else str(type(x)))
+print(json.dumps({"parsed": n[0], "read_to": s.read_to, "results": s.results, "notified": s.notified,
+                  "main": dump(s.digest), "sub": dump(sub.digest), "calls": sub.calls}))
+`;
+    const r = Bun.spawnSync(["python3", "-I", "-c", code, join(root, "bin/viewer.py"), main], {
+      env: { PATH: process.env.PATH!, STEADING_BASE: join(dir, "base"), STEADING_CACHE: cache },
+    });
+    expect(r.stderr.toString()).toBe("");
+    return JSON.parse(r.stdout.toString());
+  };
+  // The same files parsed with no cache at all.
+  const full = (dir: string, main: string) => run(dir, main, join(dir, "nocache"));
+  const same = (a: any, b: any) => expect({ ...a, parsed: 0 }).toEqual({ ...b, parsed: 0 });
+
+  test("a second deck parses only the rows added since the first", () => {
+    const { dir, main, sagent, cache } = setup();
+    expect(run(dir, main, cache).parsed).toBe(5);
+    expect(readdirSync(cache).length).toBe(2); // the main transcript and the subagent
+    appendFileSync(main, result("t3") + note("ccc"));
+    appendFileSync(sagent, call("x3"));
+    const second = run(dir, main, cache);
+    expect(second.parsed).toBe(3);
+    const fresh = full(dir, main);
+    expect(fresh.parsed).toBe(8);
+    same(second, fresh);
+    expect(second.calls).toBe(3);
+    expect(Object.keys(second.results).sort()).toEqual(["t1", "t2", "t3"]);
+  });
+
+  test("a transcript that was replaced, cut short or changed before the offset is parsed from scratch", () => {
+    const cases: Record<string, (main: string, dir: string) => void> = {
+      replaced: (main, dir) => {
+        writeFileSync(join(dir, "new"), result("n1") + result("n2") + note("ddd") + result("n3") + result("n4"));
+        renameSync(join(dir, "new"), main);
+      },
+      truncated: (main) => truncateSync(main, result("t1").length),
+      edited: (main) => writeFileSync(main, readFileSync(main, "utf8").replace("t2", "u2") + result("t3")), // same inode
+    };
+    for (const [name, change] of Object.entries(cases)) {
+      const { dir, main, cache } = setup();
+      run(dir, main, cache);
+      change(main, dir);
+      const again = run(dir, main, cache);
+      const fresh = full(dir, main);
+      same({ name, ...again }, { name, ...fresh });
+      // the main transcript was read whole again; only the untouched subagent (2 rows) came from the cache
+      expect({ name, parsed: again.parsed + 2 }).toEqual({ name, parsed: fresh.parsed });
+    }
+  });
+
+  test("a corrupt cache is ignored", () => {
+    const { dir, main, cache } = setup();
+    run(dir, main, cache);
+    for (const f of readdirSync(cache)) writeFileSync(join(cache, f), "\x00garbage\xff not a pickle");
+    const again = run(dir, main, cache); // run() already demands an empty stderr
+    same(again, full(dir, main));
+    expect(again.parsed).toBe(5);
+  });
+});
