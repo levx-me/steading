@@ -552,8 +552,11 @@ for r in s.every:
       { type: "user", timestamp: at(5), message: { content: [{ type: "tool_result", tool_use_id: "tk2" }] } },
     ]);
     agent("p2", { description: "Parent two", toolUseId: "t2", spawnDepth: 1 }, [{ type: "user", timestamp: at(40), message: { content: "go" } }]);
-    agent("k1", { description: "Kid", toolUseId: "tk1", spawnDepth: 2, parentAgentId: "p1" }, [{ type: "user", timestamp: at(30), message: { content: "go" } }]);
-    agent("g1", { description: "Grandkid", toolUseId: "tg1", spawnDepth: 3, parentAgentId: "k1" }, [{ type: "user", timestamp: at(20), message: { content: "go" } }]);
+    agent("k1", { description: "Kid", agentType: "foreman-builder", toolUseId: "tk1", spawnDepth: 2, parentAgentId: "p1" }, [
+      { type: "user", timestamp: at(30), message: { content: "go" } },
+      { type: "assistant", timestamp: at(29), message: { content: [{ type: "text", text: "Reading the **spec**" }] } },
+    ]);
+    agent("g1", { description: "Grandkid", name: "scout-a", agentType: "foreman-scout", toolUseId: "tg1", spawnDepth: 3, parentAgentId: "k1" }, [{ type: "user", timestamp: at(20), message: { content: "go" } }]);
     agent("k2", { description: "Done kid", toolUseId: "tk2", spawnDepth: 2, parentAgentId: "p1" }, [{ type: "user", timestamp: at(25), message: { content: "go" } }]);
     writeFileSync(main, JSON.stringify({ type: "user", timestamp: now, message: { content: "hi" } }) + "\n");
     const check = `
@@ -564,7 +567,8 @@ v.background = lambda fn, *a: fn(*a)
 s = v.Agents(); s.session, s.looked = sys.argv[2], time.time()
 s.read_main(); s.refresh()
 print(*(r.id for r in reversed(s.runs)))  # top down, as drawn
-print(" | ".join(r.label() for r in reversed(s.runs) if r.id in ("k1", "g1")))  # branch lines
+print(" | ".join(r.label() for r in reversed(s.runs) if r.id in ("k1", "g1")))  # name and what it is doing, on branch lines
+print(" | ".join(r.subline()[0].strip() for r in reversed(s.runs) if r.id in ("k1", "g1")))  # the work it was given
 p1 = next(r for r in s.runs if r.id == "p1")
 print(*(k.id for k in p1.team), "|", v.ANSI.sub("", v.team_card(p1.team, 60)[0]).strip("─╭╮ "))  # its team, done ones too
 `;
@@ -572,10 +576,46 @@ print(*(k.id for k in p1.team), "|", v.ANSI.sub("", v.team_card(p1.team, 60)[0])
       env: { PATH: process.env.PATH!, STEADING_BASE: join(dir, "base") },
     });
     expect(r.stderr.toString()).toBe("");
-    const [order, branches, team] = r.stdout.toString().trim().split("\n");
+    const [order, branches, given, team] = r.stdout.toString().trim().split("\n");
     expect(order).toBe("main p2 p1 k1 g1");
-    expect(branches).toBe("  └ Kid |     └ Grandkid");
+    // The name it was called with, else its type; the doing column lines up across the list.
+    expect(branches).toBe("  └ foreman-builder  Reading the spec |     └ scout-a");
+    expect(given).toBe("Kid | Grandkid");
     expect(team).toBe("k2 k1 | team 1/2 at work"); // newest first
+  });
+
+  test("a manager waiting quietly on its workers stays listed, its workers under it", () => {
+    const { utimesSync } = require("node:fs");
+    const dir = mkdtempSync(join(tmpdir(), "steading-session-"));
+    const main = join(dir, "s1.jsonl");
+    const subs = join(dir, "s1", "subagents");
+    mkdirSync(subs, { recursive: true });
+    const go = [{ type: "user", timestamp: new Date().toISOString(), message: { content: "go" } }];
+    const agent = (id: string, meta: object) => {
+      writeFileSync(join(subs, `agent-${id}.meta.json`), JSON.stringify({ requestShape: "background", ...meta }));
+      writeFileSync(join(subs, `agent-${id}.jsonl`), go.map((o) => JSON.stringify(o)).join("\n") + "\n");
+    };
+    agent("m1", { name: "dash-quality", agentType: "foreman", description: "Dashboard quality", spawnDepth: 1 });
+    agent("w1", { agentType: "foreman-designer", description: "Template UI", spawnDepth: 2, parentAgentId: "m1" });
+    const quiet = Date.now() / 1000 - 600; // the manager has written nothing for ten minutes
+    utimesSync(join(subs, "agent-m1.jsonl"), quiet, quiet);
+    writeFileSync(main, JSON.stringify(go[0]) + "\n");
+    const check = `
+import sys, time
+from importlib.machinery import SourceFileLoader
+args = sys.argv[1:]; sys.argv = sys.argv[:1]
+v = SourceFileLoader("v", args[0]).load_module()
+v.background = lambda fn, *a: fn(*a)
+s = v.Agents(); s.session, s.looked = args[1], time.time()
+s.read_main(); s.refresh()
+print(" | ".join(r.label() for r in reversed(s.runs)))
+`;
+    const r = Bun.spawnSync(["python3", "-I", "-c", check, join(root, "bin/viewer.py"), main], {
+      env: { PATH: process.env.PATH!, STEADING_BASE: join(dir, "base") },
+    });
+    expect(r.stderr.toString()).toBe("");
+    // Names in one column, then what each is doing (main: its request), lined up after the longest name.
+    expect(r.stdout.toString().trim()).toBe(`${"main".padEnd(20)}  go |   dash-quality |   └ foreman-designer`);
   });
 
   test("the activity card shows a call that ran long with a button to its output in the jobs tab", () => {

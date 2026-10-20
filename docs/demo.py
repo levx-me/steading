@@ -302,8 +302,13 @@ def run_box(rows, accent, noun, picked=0, fade=None, state=None):
         on = at <= i < at + span
         sub = not icon and right  # an agent's second row: what it does, then (text, colour) runs
         mark = [(SPIN, colour), (" ", colour)] if icon == SPIN else [(f"{icon} " if icon else "  ", colour)]
-        left = [("   ", MUTED), *mark, (label, MUTED) if sub else (label, BRIGHT if on else TEXT, on)]
-        room = D - 2 - (3 + 2 + len(label)) - 1
+        if isinstance(label, tuple):  # an agent's first row: its name, then what it does now
+            name, doing = label
+            body = [(name, BRIGHT if on else TEXT, on), (doing, TEXT if on else MUTED)]
+        else:
+            body = [(label, MUTED) if sub else (label, BRIGHT if on else TEXT, on)]
+        left = [("   ", MUTED), *mark, *body]
+        room = D - 2 - (3 + 2 + sum(len(t) for t, *_ in body)) - 1
         if isinstance(right, list):
             width = sum(max(len(t(n)) for n in range(CYCLE)) if callable(t) else len(t) for t, _ in right)
             text(d0, first + i, left + [(" " * (room - width), MUTED), *right], end)
@@ -445,16 +450,18 @@ def scene_agents():
     section_bar(0)
     # The heartbeat scrolls left a column a second, new beats coming in at the right.
     beats, rates = heartbeat(CYCLE + D - 2)
-    row = run_box([(SPIN, AMBER, "add refresh tokens to the auth middleware", "opus-5-5"),
-                   ("", AMBER, "  ◐ Fix the last-second expiry", [("▰▰▰", GREEN), ("▱▱", DIMMED), (" 3/5  ", MUTED),
+    # Name column, then what it does now; the work it was given on the row below (bin/viewer.py AgentRun).
+    pad = lambda tree, name: f"{tree}{name}".ljust(21)
+    row = run_box([(SPIN, AMBER, (pad("", "main"), "  ◐ Fix the last-second expiry"), ""),
+                   ("", AMBER, "  auth refresh tokens", [("▰▰▰", GREEN), ("▱▱", DIMMED), (" 3/5  ", MUTED),
                                                     (lambda t: took(134 + t).rjust(6), MUTED)]),
-                   # A manager and its workers, on branch lines (bin/viewer.py Agents.refresh).
-                   (SPIN, AMBER, "  Map the auth tests", "sonnet-5-5"),
-                   ("", AMBER, "    Splitting the work in three", [(lambda t: took(38 + t).rjust(6), MUTED)]),
-                   (SPIN, AMBER, "  ├ Find every refresh call", "haiku-5-5"),
-                   ("", AMBER, "  │   Searching for refresh( in src", [(lambda t: took(21 + t).rjust(6), MUTED)]),
-                   (SPIN, AMBER, "  └ Write the rotation tests", "sonnet-5-5"),
-                   ("", AMBER, "      Writing src/auth/rotate.test.ts", [(lambda t: took(17 + t).rjust(6), MUTED)])],
+                   # A manager and its workers, on branch lines.
+                   (SPIN, AMBER, (pad("  └ ", "foreman"), "  Splitting the work in three"), ""),
+                   ("", AMBER, "      Map the auth tests", [(lambda t: took(38 + t).rjust(6), MUTED)]),
+                   (SPIN, AMBER, (pad("    ├ ", "foreman-scout"), "  Searching for refresh("), ""),
+                   ("", AMBER, "        Find every refresh call", [(lambda t: took(21 + t).rjust(6), MUTED)]),
+                   (SPIN, AMBER, (pad("    └ ", "foreman-builder"), "  Writing rotate.test.ts"), ""),
+                   ("", AMBER, "        Write the rotation tests", [(lambda t: took(17 + t).rjust(6), MUTED)])],
                   ACCENT["AGENTS"], "agents")
     rect(d0 + 3, row + 1, 11, AMBER)  # the WORKING pill, inside the run's box
     body(row, [

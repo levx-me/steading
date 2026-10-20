@@ -1192,9 +1192,6 @@ class Runs:
         shown_entries = entries[top:top + most]
         self.listed = [i for i, _, _ in shown_entries]
 
-        # Agents: model and time make one right-hand column, the text on both rows kept clear of it.
-        column = max((len(t[1]) if isinstance(t, tuple) else len(self.runs[i].top_right()))
-                     for i, _, t in shown_entries) if self.kind == "agents" else 0
         lines = []
         for i, first, label in shown_entries:
             run = self.runs[i]
@@ -1218,9 +1215,9 @@ class Runs:
             sub = not first and bool(right)
             # "➜ ✓ label<gap>right " and "  ✓ label<gap>right " both fill the line.
             fixed = 5
-            # A first row keeps the right-hand column clear; a second row only its own right
-            # side, so a row without a task bar uses that space for its text.
-            room = cols - fixed - 1 - (len(right) + 2 if sub else max(len(right), column + 2 if column else 0))
+            # Each row keeps clear only its own right side: an agent's first row (no right side)
+            # gives the whole width to its name and what it is doing.
+            room = cols - fixed - 1 - (len(right) + 2 if sub else len(right))
             label = cut(label, max(2, room))
             gap = " " * max(1, cols - fixed - cells(label) - len(right))
             # A run just added: its row starts in the section's colour and fades to the usual.
@@ -1907,7 +1904,7 @@ class Digest:
     """What a transcript says about its agent, gathered one line at a time."""
 
     def __init__(self):
-        self.model = self.effort = self.requested = ""
+        self.model = self.effort = self.requested = self.title = ""
         self.thinking_ms = 0
         self.usage = {"in": 0, "cache": 0, "out": 0}
         self.context = 0                       # input tokens of the latest request
@@ -1971,6 +1968,11 @@ class Digest:
         self.effort = row.get("effort") or self.effort
         self.requested = row.get("requestedModel") or self.requested
         self.thinking_ms = row.get("thinkingDurationMs") or self.thinking_ms
+        # The session's title: one the user set wins over Claude's own.
+        if row.get("type") == "custom-title" and row.get("customTitle"):
+            self.title, self.titled = row["customTitle"], True
+        elif row.get("type") == "ai-title" and row.get("aiTitle") and not getattr(self, "titled", False):
+            self.title = row["aiTitle"]
         msg = row.get("message") if isinstance(row.get("message"), dict) else {}
         content = msg.get("content")
         if row.get("type") == "user":
@@ -2247,7 +2249,7 @@ def team_card(team, cols):
         return []
     w = max(16, cols - 4)
     rows, shown = [], team[:TEAM_SHOWN]
-    models = [k.top_right() for k in shown]
+    models = [k.model() for k in shown]
     times = [k.state()[3] for k in shown]
     mw, tw = max(map(len, models)), max(map(len, times))
     for k, model, when in zip(shown, models, times):
@@ -2371,31 +2373,44 @@ class AgentRun(Run):
     def hash(self):
         return ""
 
-    def label(self):
-        return getattr(self, "tree_prefix", "  " * int(self.meta.get("spawnDepth") or 1)) + self.full  # under the main agent
+    def prefix(self):
+        """The tree lines before its name: it sits under the agent that started it."""
+        return getattr(self, "tree_prefix", "  " * int(self.meta.get("spawnDepth") or 1))
 
-    def subline(self):
-        """The row under its name in the list: what it is doing (the call running, else
-        its latest words, else its last call), then its tasks done (when it keeps a list)
-        and how long it has been at it, as (text, plain, shown)."""
+    def name(self):
+        """Its name as Claude Code shows it: the one it was called with, else its type."""
+        return self.meta.get("name") or self.meta.get("agentType") or "agent"
+
+    def label(self):
+        """Its first row in the list: its name, then what it is doing, the doing column
+        lined up across the list the way Claude Code's agent view does."""
+        width = max((len(r.prefix() + r.name()) for r in getattr(self.deck, "runs", [])
+                     if isinstance(r, AgentRun)), default=0)
+        head = self.prefix() + self.name()
+        return f"{head}{' ' * (width - len(head))}  {self.doing()}".rstrip()
+
+    def doing(self):
+        """What it is doing now: the call running, else its latest words, else its last call."""
         self.count()
         d = self.digest
-        working = [subject for subject, st in d.tasks.values() if st == "in_progress"]
-        if isinstance(self, MainRun) and self.deck.agent_status == "blocked":
-            doing = "waiting for you"
-        elif isinstance(self, MainRun):
-            # The main agent: the task it has in hand, else what was last asked of it. Steadier
-            # than its latest call or words, which change every few seconds.
-            asked = next((l.strip() for l in (d.request or "").splitlines() if l.strip()), "")
-            doing = f"◐ {working[0]}" if working else asked
-        elif d.open or (d.last_tool and not d.says):
+        if d.open or (d.last_tool and not d.says):
             name, what, _ = list(d.open.values())[-1] if d.open else d.last_tool
-            doing = what.splitlines()[0] if what else name
-        else:
-            # Its first line of words, without markdown marks.
-            lines = [re.sub(r"[*_`#>]+", "", l).strip() for l in (d.says or "").splitlines()]
-            doing = next((l for l in lines if l), "")
-        indent = getattr(self, "tree_cont", None) or " " * (len(self.label()) - len(self.label().lstrip(" ")) + 2)
+            return what.splitlines()[0] if what else name
+        # Its first line of words, without markdown marks.
+        lines = [re.sub(r"[*_`#>]+", "", l).strip() for l in (d.says or "").splitlines()]
+        return next((l for l in lines if l), "")
+
+    def given(self):
+        """The work it was given, as the call that started it described it."""
+        return self.full
+
+    def subline(self):
+        """The row under its name in the list: the work it was given, then its tasks done
+        (when it keeps a list) and how long it has been at it, as (text, plain, shown)."""
+        self.count()
+        d = self.digest
+        indent = getattr(self, "tree_cont", None) or " " * (len(self.prefix()) + 2)
+        doing = self.given()
         plain = shown = ""
         if d.tasks:
             done, total = sum(1 for _, st in d.tasks.values() if st == "completed"), len(d.tasks)
@@ -2405,10 +2420,15 @@ class AgentRun(Run):
         age = self.age()
         return indent + doing, plain + age, shown + f"{fg(MUTED_RGB)}{age}"
 
-    def top_right(self):
-        """Its model, at the right of its first row in the list."""
+    def model(self):
+        """Its model, short: opus-5-5."""
         self.count()
         return re.sub(r"-\d{8}$", "", (self.digest.model or self.digest.requested or "").replace("claude-", ""))
+
+    def top_right(self):
+        """Nothing at the right of its first row: the doing text takes the width (its model
+        is in the detail)."""
+        return ""
 
     def age(self):
         """How long it has been at work (the list shows only those at work)."""
@@ -2466,7 +2486,7 @@ class AgentRun(Run):
         self.task_open = None
         head = status_block(name, colour, icon, since, self.stamps, self.cols) + team_card(getattr(self, "team", []), self.cols)
         task_rows = []
-        title = self.label().strip() if isinstance(self, MainRun) else self.full
+        title = self.given()
         out = head + dashboard(self.digest, self.cols, isinstance(self, MainRun), title,
                                links, focus, window, task_rows)
         if window:  # the top the card settled on, the cursor's call in view
@@ -2546,8 +2566,27 @@ class MainRun(AgentRun):
     def ended(self):
         return ""
 
-    def label(self):
-        return self.deck.title or "main agent"
+    def name(self):
+        return "main"
+
+    def prefix(self):
+        return ""
+
+    def doing(self):
+        """The task it has in hand, else what was last asked of it: steadier than its latest
+        call or words, which change every few seconds."""
+        self.count()
+        d = self.digest
+        if self.deck.agent_status == "blocked":
+            return "waiting for you"
+        working = [subject for subject, st in d.tasks.values() if st == "in_progress"]
+        asked = next((l.strip() for l in (d.request or "").splitlines() if l.strip()), "")
+        return f"◐ {working[0]}" if working else asked
+
+    def given(self):
+        """The session's title (the transcript's, then herdr's label for the pane)."""
+        self.count()
+        return self.digest.title or self.deck.title or "main agent"
 
     def age(self):
         """How long the current turn has run: since the latest request, while working."""
@@ -2562,7 +2601,7 @@ class MainRun(AgentRun):
         return f"{DIM}  main agent · {state} · {at_work} subagent{'s' * (at_work != 1)} at work{RESET}"
 
     def command(self, cols):
-        return [f"{BOLD}{line}{RESET}" for line in textwrap.wrap(self.label(), max(10, cols))[:2]]
+        return [f"{BOLD}{line}{RESET}" for line in textwrap.wrap(self.given(), max(10, cols))[:2]]
 
 
 class Agents(Runs):
@@ -2687,6 +2726,13 @@ class Agents(Runs):
         # A subagent's own subagents hang off it with branch lines (├ └, │ carrying on past
         # a branch that has more below it), so a manager and its workers read as one group.
         working = [r for r in self.every if r.status()[1] == AMBER_RGB]
+        # A manager waiting on its workers writes nothing while it waits, so it reads as
+        # quiet; it stays listed while any of its subagents works, so they hang under it.
+        for r in list(working):
+            up = r.parent()
+            while up and up not in working:
+                working.append(up)
+                up = up.parent()
         ids = {r.id for r in working}
         def under(pid, lead=""):
             kids = sorted((r for r in working if (r.meta.get("parentAgentId") if r.meta.get("parentAgentId") in ids else None) == pid),
