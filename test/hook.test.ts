@@ -535,7 +535,7 @@ for r in s.every:
     ]);
   });
 
-  test("a subagent's subagent sits under it on a branch line, ends by its parent's answer, and shows in its team", () => {
+  test("a subagent's subagent sits under it on a branch line, ends by its parent's answer, and leaves its team card", () => {
     const dir = mkdtempSync(join(tmpdir(), "steading-session-"));
     const main = join(dir, "s1.jsonl");
     const subs = join(dir, "s1", "subagents");
@@ -570,7 +570,7 @@ print(*(r.id for r in reversed(s.runs)))  # top down, as drawn
 print(" | ".join(r.label() for r in reversed(s.runs) if r.id in ("k1", "g1")))  # name and what it is doing, on branch lines
 print(" | ".join(r.subline()[0].strip() for r in reversed(s.runs) if r.id in ("k1", "g1")))  # the work it was given
 p1 = next(r for r in s.runs if r.id == "p1")
-print(*(k.id for k in p1.team), "|", v.ANSI.sub("", v.team_card(p1.team, 60)[0]).strip("─╭╮ "))  # its team, done ones too
+print(*(k.id for k in p1.team), "|", v.ANSI.sub("", v.team_card(p1.team, 60)[0]).strip("─╭╮ "))  # its subagents still there
 `;
     const r = Bun.spawnSync(["python3", "-I", "-c", check, join(root, "bin/viewer.py"), main], {
       env: { PATH: process.env.PATH!, STEADING_BASE: join(dir, "base") },
@@ -581,7 +581,7 @@ print(*(k.id for k in p1.team), "|", v.ANSI.sub("", v.team_card(p1.team, 60)[0])
     // The name it was called with, else its type; the doing column lines up across the list.
     expect(branches).toBe("  └ foreman-builder  Reading the spec |     └ scout-a");
     expect(given).toBe("Kid | Grandkid");
-    expect(team).toBe("k2 k1 | team 1/2 at work"); // newest first
+    expect(team).toBe("k1 | subagents 1/1 at work"); // k2 reported back, so it has gone
   });
 
   test("a manager waiting quietly on its workers stays listed, its workers under it", () => {

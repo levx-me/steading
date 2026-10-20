@@ -471,7 +471,7 @@ def scene_agents():
         [(" ", AMBER), (lambda t: beats[t:t + D - 6], AMBER)],
         [(" 8m ago", MUTED), ("now".rjust(D - 13), MUTED)],
         [],
-        *card("team 1/1 at work", [[(SPIN, AMBER), (" Map the auth tests", TEXT), (lambda t: f"sonnet-5-5  {took(38 + t):>6}".rjust(D - 8 - 20), MUTED)]]),
+        *card("subagents 1/1 at work", [[(SPIN, AMBER), (" foreman", TEXT), (lambda t: f"sonnet-5-5  {took(38 + t):>6}".rjust(D - 8 - 20), MUTED)]]),
         *card("session", [[("add refresh tokens to the auth middleware", BRIGHT, True)]]),
         *card("model", [
             [(" opus-5-5 ", BRIGHT), ("  ", MUTED), (" medium ", AMBER), ("  ✻ thought 1.3s", MUTED)],

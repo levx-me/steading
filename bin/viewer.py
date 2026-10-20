@@ -2300,11 +2300,12 @@ def dashboard(d, cols, main, title="", links=None, focus=None, window=None, task
 
 RESUME_SECS = 10  # a subagent writing this long after its "done" notification has been resumed
 TEAM_SHOWN = 8  # subagents in an agent's team card, newest first
+ALIVE_SECS = 1800  # a subagent that never reported back and has been quiet this long is gone
 
 
 def team_card(team, cols):
-    """The subagents an agent started (a manager's workers, the main agent's subagents),
-    newest first: at work or done, what each was given, its model and time."""
+    """The subagents an agent started that are still there (a manager's workers, the main
+    agent's subagents), newest first: each one's name, its model and time."""
     if not team:
         return []
     w = max(16, cols - 4)
@@ -2315,12 +2316,12 @@ def team_card(team, cols):
     for k, model, when in zip(shown, models, times):
         icon, rgb = k.status()
         right = f"{model:<{mw}}  {when:>{tw}}".strip()  # model and time in columns
-        text = cut(k.full, max(4, w - 2 - len(right) - 2))
+        text = cut(k.name(), max(4, w - 2 - len(right) - 2))
         rows.append(f"{fg(rgb)}{icon}{RESET} {text}{' ' * max(2, w - 2 - cells(text) - len(right))}{fg(MUTED_RGB)}{right}{RESET}")
     if len(team) > TEAM_SHOWN:
         rows.append(f"{fg(MUTED_RGB)}  {len(team) - TEAM_SHOWN} more{RESET}")
     working = sum(1 for k in team if k.status()[1] == AMBER_RGB)
-    return card(f"team {working}/{len(team)} at work", rows, cols)
+    return card(f"subagents {working}/{len(team)} at work", rows, cols)
 
 
 TASK_STATES = {"completed": ("✓", GREEN_RGB, "done"), "in_progress": ("◐", AMBER_RGB, "in progress")}
@@ -2820,10 +2821,19 @@ class Agents(Runs):
                 out += [r] + under(r.id, below)
             return out
         runs = under(None)[::-1] + ([self.main] if self.session else [])
-        # Each agent's team: the subagents it started, at work or done, for its detail.
+        # Each agent's team, for its detail: the subagents it started that are still there.
+        # One that reported back has gone; one that never did and has been quiet for long is gone too.
+        def alive(k):
+            if k.ended():
+                return False
+            try:
+                return time.time() - os.path.getmtime(k.path) < ALIVE_SECS
+            except OSError:
+                return False
         for r in self.every + ([self.main] if self.main else []):
             mine = None if isinstance(r, MainRun) else r.id
-            r.team = sorted((k for k in self.every if k.meta.get("parentAgentId") == mine), key=lambda k: -k.first)
+            r.team = sorted((k for k in self.every if k.meta.get("parentAgentId") == mine and alive(k)),
+                            key=lambda k: -k.first)
         # New: a subagent never seen before. (An ended one can show as at work for a moment
         # until the main transcript is read; coming back is not being new.)
         ever = getattr(self, "ever", None)
