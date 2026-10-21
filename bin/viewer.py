@@ -974,6 +974,10 @@ class Runs:
     def find(self, backwards):
         if not self.query:
             return
+        if self.part == "head":  # the search is over the log: started on the command lines, it lands there
+            self.switch_part()
+            run = self.runs[self.tab]
+            self.plain = run.plain() if run.lines() is not None else [""]  # the log's lines, before the next frame
         q = self.query
         fold = q.islower()
         lines = [l.lower() for l in self.plain] if fold else self.plain
@@ -1031,21 +1035,19 @@ class Runs:
             run.plain() if loaded is not None else [""]
         head = self.run_list(outer)
         box = len(head)
-        if self.search is not None:
-            info = f"{fg(ACCENT[self.kind])}{'?' if self.back else '/'}{RESET}{self.search}▏"
-        else:
-            # (not while selecting in the command lines themselves: the line would shift under the cursor)
-            mode = ("-- VISUAL LINE -- " if self.linewise else "-- VISUAL -- ") \
-                if self.anchor and self.part != "head" else ""
-            note = f"{fg(AMBER_RGB)}{self.msg}{RESET}  " if self.msg else ""
-            info = f"{BOLD}{mode}{RESET}{note}{run.info()}"
+        # (the search being typed sits on the key bar at the bottom, as in vim, so nothing up here moves;
+        # no selection mode while selecting in the command lines themselves: the line would shift under the cursor)
+        mode = ("-- VISUAL LINE -- " if self.linewise else "-- VISUAL -- ") \
+            if self.anchor and self.part != "head" else ""
+        note = f"{fg(AMBER_RGB)}{self.msg}{RESET}  " if self.msg else ""
+        info = f"{BOLD}{mode}{RESET}{note}{run.info()}"
         # The run's own lines above its log: command, info, commit (agents have none).
         reported = self.kind in REPORTED and not isinstance(run, (AgentRun, ServerRun))
         if reported:
             head_lines = self.header(run, cols, log_plain)  # badge, then (maybe) a summary
             extras = head_lines[:1] + run.command(cols) + head_lines[1:]
-            if self.search is not None or self.msg or (self.anchor and self.part != "head"):
-                extras.append(info)  # a search being typed, a note, the selection mode
+            if self.msg or (self.anchor and self.part != "head"):
+                extras.append(info)  # a note, the selection mode
         else:
             extras = [] if isinstance(run, AgentRun) else [*run.command(cols), info]
         if run.hash():  # the whole hash, on its own line so a narrow pane does not cut it
@@ -3253,6 +3255,10 @@ class Deck:
         key_rgb, what_rgb = (BRIGHT_RGB, MUTED_RGB) if FOCUS["pane"] else (DIMMED_RGB, DIMMED_RGB)
         pairs = [("j/k", "move"), ("space", "change"), ("esc", "close")] if self.settings_open else view.hints()
         hints = "  ".join(f"{fg(key_rgb)}{key} {fg(what_rgb)}{what}" for key, what in pairs)
+        if getattr(view, "search", None) is not None and not self.settings_open:
+            # A search being typed: on the bottom row, as in vim, with enter / esc after it.
+            typed = f"{fg(ACCENT[view.kind])}{'?' if view.back else '/'}{fg(BRIGHT_RGB)}{view.search}▏"
+            hints = f"{typed}   {hints}"
         out += [f"\033[{rows};1H", bg(STRIP_RGB), " ", fit(hints, cols - 1), bg(STRIP_RGB), "\033[K", RESET]
         frame = "".join(out)
         if frame == self.last_frame:  # nothing changed: leave the screen alone

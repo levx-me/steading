@@ -998,6 +998,44 @@ print(*[r.n for r in t.runs])
   });
 });
 
+describe("search in a run's output", () => {
+  test("typing a search leaves the header alone, and the search lands in the log even from the command lines", () => {
+    const { mkdtempSync, writeFileSync, mkdirSync } = require("node:fs");
+    const { tmpdir } = require("node:os");
+    const dir = mkdtempSync(join(tmpdir(), "steading-search-"));
+    const run = join(dir, "test", "runs", "1");
+    mkdirSync(run, { recursive: true });
+    const now = String(Math.floor(Date.now() / 1000));
+    for (const [f, v] of [["cmd", "bun test"], ["rc", "0"], ["start", now], ["end", now], ["cwd", "/tmp"]]) writeFileSync(join(run, f), v + "\n");
+    writeFileSync(join(run, "log"), ["alpha", "beta", "needle here", "gamma"].join("\n") + "\n");
+    const check = `
+import sys, time
+from importlib.machinery import SourceFileLoader
+args = sys.argv[1:]; sys.argv = sys.argv[:1]
+v = SourceFileLoader("v", args[0]).load_module()
+v.background = lambda fn, *a: fn(*a)
+t = v.Runs("test")
+for _ in range(40):
+    t.refresh(); t.frame(50, 30); time.sleep(0.05)
+    if t.runs and t.plain and "gamma" in t.plain[-1]: break
+show = lambda: [v.ANSI.sub("", l) for l in t.frame(50, 30)[0]]
+t.focus, t.follow = "log", False
+t.switch_part()                      # the cursor on the command lines
+print(t.part)
+before = show()
+for k in "/nee": t.key(k)
+print(show() == before)              # nothing in the box moved while typing
+t.key("\\r")
+print(t.part, t.plain[t.cy])         # found in the log
+`;
+    const r = Bun.spawnSync(["python3", "-I", "-c", check, join(root, "bin/viewer.py")], {
+      env: { PATH: process.env.PATH!, STEADING_BASE: dir },
+    });
+    expect(r.stderr.toString()).toBe("");
+    expect(r.stdout.toString().trim().split("\n")).toEqual(["head", "True", "log needle here"]);
+  });
+});
+
 describe("a long log line", () => {
   test("unfolds under itself while the cursor is on it, stays put while selecting, and clicks below it land on their own lines", () => {
     const { mkdtempSync, writeFileSync, mkdirSync } = require("node:fs");
