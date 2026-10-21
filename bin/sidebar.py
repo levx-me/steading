@@ -9,7 +9,7 @@ context use, as herdr pane tokens for its sidebar, with or without a deck open.
   $tasks   its task list: a bar and done/total, from ~/.claude/tasks/session-<id>
 
 It also names the pane and its tab after the session's title, when that changes. While
-subagents work it sets $crew ("⠿ N") on the pane and its workspace, lapsing 90 s after the last one.
+subagents work, bin/crew spins $crew ("⠋ N") on the pane and its workspace.
 
 Tool calls report at most every 3 seconds; the end of a turn always reports."""
 import json
@@ -28,8 +28,8 @@ herdr = os.environ.get("HERDR_BIN_PATH", "herdr")
 if event.get("agent_id"):
     # A subagent at work. herdr reads Claude's state off the screen, so a session whose main turn
     # has ended reads idle while its subagents still work, and it takes no state reports for
-    # Claude. Show the crew instead: $crew on the agent's row and its workspace's row, for as
-    # long as subagents keep working (the tokens lapse 90 s after the last tool call).
+    # Claude. Show the crew instead: a spinning $crew on the agent's row and its workspace's row,
+    # for as long as subagents keep working.
     crew_stamp = os.path.join(state, "crew")
     try:
         if time.time() - os.path.getmtime(crew_stamp) < 5:
@@ -39,21 +39,9 @@ if event.get("agent_id"):
     os.makedirs(state, exist_ok=True)
     open(crew_stamp, "w").close()
     folder = event.get("transcript_path", "")[:-len(".jsonl")] + "/subagents"
-    try:
-        busy = sum(1 for f in os.listdir(folder)
-                   if f.endswith(".jsonl") and time.time() - os.path.getmtime(os.path.join(folder, f)) < 90)
-    except OSError:
-        busy = 1
-    value, ttl = f"⠿ {max(busy, 1)}", "90000"
-    try:
-        subprocess.run([herdr, "pane", "report-metadata", pane, "--source", "steading-crew",
-                        "--token", f"crew={value}", "--ttl-ms", ttl], capture_output=True, timeout=5)
-        out = subprocess.run([herdr, "pane", "get", pane], capture_output=True, text=True, timeout=5).stdout
-        space = json.loads(out)["result"]["pane"]["workspace_id"]
-        subprocess.run([herdr, "workspace", "report-metadata", space, "--source", f"steading-crew-{pane}",
-                        "--token", f"crew={value}", "--ttl-ms", ttl], capture_output=True, timeout=5)
-    except (OSError, subprocess.TimeoutExpired, ValueError, KeyError):
-        pass
+    # bin/crew spins the token while they work and exits once they are all quiet (one per pane).
+    subprocess.Popen([sys.executable, "-I", os.path.join(os.path.dirname(os.path.abspath(__file__)), "crew"), pane, folder],
+                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
     sys.exit(0)
 
 stamp = os.path.join(state, "sidebar")

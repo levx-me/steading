@@ -1,0 +1,81 @@
+#!/usr/bin/env python3
+"""crew PANE SUBAGENTS_DIR: spin $crew ("⠋ N", the deck's spinner) on the agent's pane and its
+workspace in herdr's sidebar while N of its subagents work.
+
+Started by bin/sidebar.py on a subagent's tool call; one per pane (a pid file in the deck's state
+dir). Every frame goes straight to herdr's socket (~8 a second, far lighter than the CLI). It
+recounts the subagents writing their transcripts once a second, and after 90 s with none it
+clears the tokens and exits. Each report lapses in 3 s, so a crash leaves nothing behind."""
+import json, os, socket, sys, time
+
+FRAMES = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+QUIET = 90  # seconds without a subagent writing before it stops
+
+
+def call(method, params):
+    s = socket.socket(socket.AF_UNIX)
+    s.settimeout(2)
+    s.connect(os.environ["HERDR_SOCKET_PATH"])
+    s.sendall((json.dumps({"id": "steading-crew", "method": method, "params": params}) + "\n").encode())
+    buf = b""
+    while not buf.endswith(b"\n"):
+        chunk = s.recv(65536)
+        if not chunk:
+            break
+        buf += chunk
+    s.close()
+    return json.loads(buf or b"{}").get("result", {})
+
+
+def busy(folder):
+    try:
+        return sum(1 for f in os.listdir(folder) if f.endswith(".jsonl")
+                   and time.time() - os.path.getmtime(os.path.join(folder, f)) < QUIET)
+    except OSError:
+        return 0
+
+
+def report(pane, space, value, ttl=3000):
+    tokens = {"crew": value}
+    call("pane.report_metadata", {"pane_id": pane, "source": "steading-crew", "tokens": tokens, "ttl_ms": ttl})
+    if space:
+        call("workspace.report_metadata", {"workspace_id": space, "source": f"steading-crew-{pane}",
+                                           "tokens": tokens, "ttl_ms": ttl})
+
+
+def main(pane, folder):
+    space = call("pane.get", {"pane_id": pane}).get("pane", {}).get("workspace_id")
+    n, counted, frame = busy(folder), 0.0, 0
+    while True:
+        if time.time() - counted >= 1:
+            n, counted = busy(folder), time.time()
+            if not n:
+                report(pane, space, None)  # null clears the token
+                return
+        report(pane, space, f"{FRAMES[frame % len(FRAMES)]} {n}")
+        frame += 1
+        time.sleep(0.125)
+
+
+if __name__ == "__main__":
+    pane, folder = sys.argv[1], sys.argv[2]
+    state = os.path.join(os.environ.get("TMPDIR", "/tmp"), "steading", pane.replace(":", "_").replace("/", "_"))
+    os.makedirs(state, exist_ok=True)
+    pidfile = os.path.join(state, "crew.pid")
+    try:  # one spinner per pane
+        os.kill(int(open(pidfile).read()), 0)
+        sys.exit(0)
+    except (OSError, ValueError):
+        pass
+    with open(pidfile, "w") as f:
+        f.write(str(os.getpid()))
+    try:
+        main(pane, folder)
+    except (OSError, ValueError, KeyError):
+        pass
+    finally:
+        try:
+            if open(pidfile).read() == str(os.getpid()):
+                os.remove(pidfile)
+        except OSError:
+            pass
