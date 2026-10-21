@@ -29,7 +29,7 @@ case ${1:-} in
     elif alive "$(deck_of "$pane")"; then
       herdr pane close "$(deck_of "$pane")" >/dev/null
     else
-      open_beside "$pane" "$cwd"
+      STEADING_REPLACE=1 open_beside "$pane" "$cwd"
       # Opened by hand: the focus goes to the deck (it opens without, for runs and agent starts).
       side=$(cat "$state/$(printf '%s' "$pane" | tr ':/' '__')/placement" 2>/dev/null)
       herdr pane focus --pane "$pane" --direction "${side:-right}" >/dev/null 2>&1
