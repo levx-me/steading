@@ -851,8 +851,8 @@ describe("herdr sidebar tokens", () => {
     const all = readFileSync(join(dir, "calls"), "utf8").trim().split("\n");
     const calls = all.filter((c) => c.includes("--source steading "));
     expect(calls.length).toBe(1);
-    // A subagent at work while the main turn may be idle: "⚙ N" on the pane, lapsing on its own.
-    expect(all.some((c) => c.startsWith("pane report-metadata w1:p1 --source steading-crew --token crew=⚙ 1 --ttl-ms 90000"))).toBe(true);
+    // A subagent at work while the main turn may be idle: "⠿ N" on the pane, lapsing on its own.
+    expect(all.some((c) => c.startsWith("pane report-metadata w1:p1 --source steading-crew --token crew=⠿ 1 --ttl-ms 90000"))).toBe(true);
     // 170k of 200k: 85%, past 80%, so it goes out as $ctxhot.
     expect(calls[0]).toContain("--token repo=");
     expect(calls[0]).toContain("1 changed");

@@ -9,7 +9,7 @@ context use, as herdr pane tokens for its sidebar, with or without a deck open.
   $tasks   its task list: a bar and done/total, from ~/.claude/tasks/session-<id>
 
 It also names the pane and its tab after the session's title, when that changes. While
-subagents work it sets $crew ("⚙ N") on the pane and its workspace, lapsing 90 s after the last one.
+subagents work it sets $crew ("⠿ N") on the pane and its workspace, lapsing 90 s after the last one.
 
 Tool calls report at most every 3 seconds; the end of a turn always reports."""
 import json
@@ -44,7 +44,7 @@ if event.get("agent_id"):
                    if f.endswith(".jsonl") and time.time() - os.path.getmtime(os.path.join(folder, f)) < 90)
     except OSError:
         busy = 1
-    value, ttl = f"⚙ {max(busy, 1)}", "90000"
+    value, ttl = f"⠿ {max(busy, 1)}", "90000"
     try:
         subprocess.run([herdr, "pane", "report-metadata", pane, "--source", "steading-crew",
                         "--token", f"crew={value}", "--ttl-ms", ttl], capture_output=True, timeout=5)
