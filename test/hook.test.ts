@@ -822,6 +822,30 @@ esac
   }, 30000);
 });
 
+describe("the crew spinner", () => {
+  test("counts the main agent while its turn runs plus the subagents writing lately", () => {
+    const check = `
+import importlib.util, importlib.machinery, os, sys, tempfile, time
+spec = importlib.util.spec_from_loader("crew", importlib.machinery.SourceFileLoader("crew", sys.argv[1]))
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+state, folder = tempfile.mkdtemp(), tempfile.mkdtemp()
+out = [m.at_work(state, folder)]                                     # nobody
+open(os.path.join(state, "main-busy"), "w").close(); out.append(m.at_work(state, folder))   # the main turn
+for n in "ab": open(os.path.join(folder, f"agent-{n}.jsonl"), "w").close()
+out.append(m.at_work(state, folder))                                 # main + 2 subagents
+os.remove(os.path.join(state, "main-busy")); out.append(m.at_work(state, folder))           # turn over
+for f in os.listdir(folder): os.utime(os.path.join(folder, f), (time.time() - 200,) * 2)
+out.append(m.at_work(state, folder))                                 # all quiet
+open(os.path.join(state, "main-busy"), "w").close(); os.utime(os.path.join(state, "main-busy"), (time.time() - 700,) * 2)
+out.append(m.at_work(state, folder))                                 # a mark left by a turn that never stopped
+print(*out)
+`;
+    const r = Bun.spawnSync(["python3", "-I", "-c", check, join(root, "bin/crew")]);
+    expect(r.stderr.toString()).toBe("");
+    expect(r.stdout.toString().trim()).toBe("0 1 3 2 0 0");
+  });
+});
+
 describe("herdr sidebar tokens", () => {
   test("the hook reports the agent's repository, context use and tasks, once per 3s; a subagent starts the $crew spinner", () => {
     const { mkdtempSync, writeFileSync, readFileSync, existsSync, chmodSync } = require("node:fs");

@@ -25,6 +25,33 @@ if os.environ.get("HERDR_ENV") != "1" or not pane:
 state = os.path.join(os.environ.get("TMPDIR", "/tmp"), "steading", pane.replace(":", "_").replace("/", "_"))
 herdr = os.environ.get("HERDR_BIN_PATH", "herdr")
 
+# The main agent's turn, as Claude Code's own hooks see it: herdr reads Claude off the screen and
+# calls it idle while a tool runs. A request or a tool call marks the turn; its end clears it.
+lead_mark = os.path.join(state, "main-busy")
+if not event.get("agent_id"):
+    if event.get("hook_event_name") == "Stop":
+        try:
+            os.remove(lead_mark)
+        except OSError:
+            pass
+    else:
+        os.makedirs(state, exist_ok=True)
+        open(lead_mark, "w").close()
+        if event.get("hook_event_name") == "UserPromptSubmit":
+            subprocess.Popen([sys.executable, "-I", os.path.join(os.path.dirname(os.path.abspath(__file__)), "crew"), pane,
+                              event.get("transcript_path", "")[:-len(".jsonl")] + "/subagents"],
+                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                             start_new_session=True)
+            sys.exit(0)
+
+
+def spin():
+    """bin/crew spins $crew while agents work here and exits once none does (one per pane)."""
+    folder = event.get("transcript_path", "")[:-len(".jsonl")] + "/subagents"
+    subprocess.Popen([sys.executable, "-I", os.path.join(os.path.dirname(os.path.abspath(__file__)), "crew"), pane, folder],
+                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+
+
 if event.get("agent_id"):
     # A subagent at work. herdr reads Claude's state off the screen, so a session whose main turn
     # has ended reads idle while its subagents still work, and it takes no state reports for
@@ -38,10 +65,7 @@ if event.get("agent_id"):
         pass
     os.makedirs(state, exist_ok=True)
     open(crew_stamp, "w").close()
-    folder = event.get("transcript_path", "")[:-len(".jsonl")] + "/subagents"
-    # bin/crew spins the token while they work and exits once they are all quiet (one per pane).
-    subprocess.Popen([sys.executable, "-I", os.path.join(os.path.dirname(os.path.abspath(__file__)), "crew"), pane, folder],
-                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+    spin()
     sys.exit(0)
 
 stamp = os.path.join(state, "sidebar")
@@ -52,6 +76,8 @@ except OSError:
     pass
 os.makedirs(state, exist_ok=True)
 open(stamp, "w").close()
+if event.get("hook_event_name") != "Stop":
+    spin()  # the main agent at work counts too
 
 os.environ.setdefault("STEADING_BASE", state)
 from importlib.machinery import SourceFileLoader  # noqa: E402

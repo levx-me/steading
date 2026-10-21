@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """crew PANE SUBAGENTS_DIR: spin $crew ("⠋ N", the deck's spinner) on the agent's pane and its
-workspace in herdr's sidebar while N of its subagents work.
+workspace in herdr's sidebar while N agents work there: the main agent (while its turn runs)
+plus its subagents.
 
-Started by bin/sidebar.py on a subagent's tool call; one per pane (a pid file in the deck's state
-dir). Every frame goes straight to herdr's socket (~8 a second, far lighter than the CLI). It
-recounts the subagents writing their transcripts once a second, and after 90 s with none it
-clears the tokens and exits. Each report lapses in 3 s, so a crash leaves nothing behind."""
+Started by bin/sidebar.py on a tool call, the main agent's or a subagent's; one per pane (a pid
+file in the deck's state dir). Every frame goes straight to herdr's socket (~8 a second, far
+lighter than the CLI). It recounts once a second (subagents that wrote their transcripts in the
+last 90 s, plus the main agent while its turn runs), and once none is at work it clears the tokens
+and exits. Each report lapses in 3 s, so a crash leaves nothing behind."""
 import json, os, socket, sys, time
 
 FRAMES = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
@@ -43,12 +45,23 @@ def report(pane, space, value, ttl=3000):
                                            "tokens": tokens, "ttl_ms": ttl})
 
 
-def main(pane, folder):
+def at_work(state, folder):
+    """Subagents at work, plus the main agent while its turn runs (bin/sidebar.py marks it from
+    Claude Code's own hooks; herdr reads Claude off the screen and calls it idle while a tool runs).
+    A mark older than 10 minutes is a turn that ended without its Stop hook."""
+    try:
+        lead = time.time() - os.path.getmtime(os.path.join(state, "main-busy")) < 600
+    except OSError:
+        lead = False
+    return busy(folder) + lead
+
+
+def main(pane, folder, state):
     space = call("pane.get", {"pane_id": pane}).get("pane", {}).get("workspace_id")
-    n, counted, frame = busy(folder), 0.0, 0
+    n, counted, frame = at_work(state, folder), 0.0, 0
     while True:
         if time.time() - counted >= 1:
-            n, counted = busy(folder), time.time()
+            n, counted = at_work(state, folder), time.time()
             if not n:
                 report(pane, space, None)  # null clears the token
                 return
@@ -70,7 +83,7 @@ if __name__ == "__main__":
     with open(pidfile, "w") as f:
         f.write(str(os.getpid()))
     try:
-        main(pane, folder)
+        main(pane, folder, state)
     except (OSError, ValueError, KeyError):
         pass
     finally:
