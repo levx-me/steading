@@ -8,7 +8,8 @@ context use, as herdr pane tokens for its sidebar, with or without a deck open.
   $ctxhot  the same from 80% on, so a ui.sidebar.agents.rows layout can colour it
   $tasks   its task list: a bar and done/total, from ~/.claude/tasks/session-<id>
 
-It also names the pane and its tab after the session's title, when that changes.
+It also names the pane and its tab after the session's title, when that changes. While
+subagents work it sets $crew ("⚙ N") on the pane and its workspace, lapsing 90 s after the last one.
 
 Tool calls report at most every 3 seconds; the end of a turn always reports."""
 import json
@@ -19,10 +20,42 @@ import time
 
 event = json.loads(sys.stdin.read() or "{}")
 pane = os.environ.get("HERDR_PANE_ID", "")
-if os.environ.get("HERDR_ENV") != "1" or not pane or event.get("agent_id"):
-    sys.exit(0)  # outside herdr, or a subagent (its context is not the pane's agent's)
-
+if os.environ.get("HERDR_ENV") != "1" or not pane:
+    sys.exit(0)  # outside herdr
 state = os.path.join(os.environ.get("TMPDIR", "/tmp"), "steading", pane.replace(":", "_").replace("/", "_"))
+herdr = os.environ.get("HERDR_BIN_PATH", "herdr")
+
+if event.get("agent_id"):
+    # A subagent at work. herdr reads Claude's state off the screen, so a session whose main turn
+    # has ended reads idle while its subagents still work, and it takes no state reports for
+    # Claude. Show the crew instead: $crew on the agent's row and its workspace's row, for as
+    # long as subagents keep working (the tokens lapse 90 s after the last tool call).
+    crew_stamp = os.path.join(state, "crew")
+    try:
+        if time.time() - os.path.getmtime(crew_stamp) < 5:
+            sys.exit(0)
+    except OSError:
+        pass
+    os.makedirs(state, exist_ok=True)
+    open(crew_stamp, "w").close()
+    folder = event.get("transcript_path", "")[:-len(".jsonl")] + "/subagents"
+    try:
+        busy = sum(1 for f in os.listdir(folder)
+                   if f.endswith(".jsonl") and time.time() - os.path.getmtime(os.path.join(folder, f)) < 90)
+    except OSError:
+        busy = 1
+    value, ttl = f"⚙ {max(busy, 1)}", "90000"
+    try:
+        subprocess.run([herdr, "pane", "report-metadata", pane, "--source", "steading-crew",
+                        "--token", f"crew={value}", "--ttl-ms", ttl], capture_output=True, timeout=5)
+        out = subprocess.run([herdr, "pane", "get", pane], capture_output=True, text=True, timeout=5).stdout
+        space = json.loads(out)["result"]["pane"]["workspace_id"]
+        subprocess.run([herdr, "workspace", "report-metadata", space, "--source", f"steading-crew-{pane}",
+                        "--token", f"crew={value}", "--ttl-ms", ttl], capture_output=True, timeout=5)
+    except (OSError, subprocess.TimeoutExpired, ValueError, KeyError):
+        pass
+    sys.exit(0)
+
 stamp = os.path.join(state, "sidebar")
 try:
     if event.get("hook_event_name") != "Stop" and event.get("tool_name") not in ("TaskCreate", "TaskUpdate") and time.time() - os.path.getmtime(stamp) < 3:
@@ -130,7 +163,6 @@ try:
 except OSError:
     before = ""
 if d.title and d.title != before:
-    herdr = os.environ.get("HERDR_BIN_PATH", "herdr")
     try:
         subprocess.run([herdr, "pane", "rename", pane, d.title], capture_output=True, timeout=5)
         out = subprocess.run([herdr, "pane", "get", pane], capture_output=True, text=True, timeout=5).stdout
