@@ -823,7 +823,7 @@ esac
 });
 
 describe("herdr sidebar tokens", () => {
-  test("the hook reports the agent's repository, context use and tasks, once per 3s, and skips subagents", () => {
+  test("the hook reports the agent's repository, context use and tasks, once per 3s; a subagent reports only $crew", () => {
     const { mkdtempSync, writeFileSync, readFileSync, existsSync, chmodSync } = require("node:fs");
     const { tmpdir } = require("node:os");
     const dir = mkdtempSync(join(tmpdir(), "steading-sidebar-"));
@@ -847,9 +847,12 @@ describe("herdr sidebar tokens", () => {
     const event = { hook_event_name: "PostToolUse", session_id: "abcd1234-0000", cwd: join(dir, "repo"), transcript_path: transcript };
     hook(event);
     hook(event); // within 3s: skipped
-    hook({ ...event, agent_id: "sub" }); // a subagent: skipped
-    const calls = readFileSync(join(dir, "calls"), "utf8").trim().split("\n");
+    hook({ ...event, agent_id: "sub" }); // a subagent: only the crew token
+    const all = readFileSync(join(dir, "calls"), "utf8").trim().split("\n");
+    const calls = all.filter((c) => c.includes("--source steading "));
     expect(calls.length).toBe(1);
+    // A subagent at work while the main turn may be idle: "⚙ N" on the pane, lapsing on its own.
+    expect(all.some((c) => c.startsWith("pane report-metadata w1:p1 --source steading-crew --token crew=⚙ 1 --ttl-ms 90000"))).toBe(true);
     // 170k of 200k: 85%, past 80%, so it goes out as $ctxhot.
     expect(calls[0]).toContain("--token repo=");
     expect(calls[0]).toContain("1 changed");
@@ -857,7 +860,7 @@ describe("herdr sidebar tokens", () => {
     expect(calls[0]).toContain("--clear-token ctx --token ctxhot=▰▰▰▰▱ 85%");
     expect(calls[0]).toContain("--token tasks=▰▰▱▱▱ 1/3");
     hook({ ...event, hook_event_name: "Stop" }); // the end of a turn always reports
-    expect(readFileSync(join(dir, "calls"), "utf8").trim().split("\n").length).toBe(2);
+    expect(readFileSync(join(dir, "calls"), "utf8").trim().split("\n").filter((c) => c.includes("--source steading ")).length).toBe(2);
     expect(existsSync(join(dir, "steading", "w1_p1", "sidebar"))).toBe(true);
   });
 
