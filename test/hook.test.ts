@@ -1209,3 +1209,18 @@ print(json.dumps({"parsed": n[0], "read_to": s.read_to, "results": s.results, "n
     expect(again.parsed).toBe(5);
   });
 });
+
+test("a turn whose usage has null counts is read, not a crash", () => {
+  // OpenRouter answers can carry "cache_read_input_tokens": null; one such line used to kill the
+  // deck's subagent reader and keep every later subagent off the agents list.
+  const code = `import sys, importlib.util as u
+sys.argv = ["v", "/tmp"]
+spec = u.spec_from_file_location("v", ${JSON.stringify(join(root, "bin/viewer.py"))})
+m = u.module_from_spec(spec); spec.loader.exec_module(m)
+d = m.Digest()
+d.feed({"type": "assistant", "timestamp": "2026-10-25T00:00:00Z", "message": {"id": "x", "model": "claude-opus-5-5", "content": [], "usage": {"input_tokens": 0, "output_tokens": 0, "cache_read_input_tokens": None, "cache_creation_input_tokens": None}}})
+print(d.usage["cache"], end="")`;
+  const out = Bun.spawnSync(["python3", "-I", "-c", code]);
+  expect(out.stderr.toString()).toBe("");
+  expect(out.stdout.toString()).toBe("0");
+});

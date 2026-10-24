@@ -2064,7 +2064,7 @@ class Digest:
         if row.get("type") != "assistant":
             return
         self.model = msg.get("model") or self.model
-        usage = msg.get("usage") or {}
+        usage = {k: v for k, v in (msg.get("usage") or {}).items() if v is not None}  # a null count reads as absent
         if usage and msg.get("id") not in self.seen_messages:  # one turn repeats its usage on each block
             self.seen_messages.add(msg.get("id"))
             self.usage["in"] += usage.get("input_tokens", 0)
@@ -2786,7 +2786,12 @@ class Agents(Runs):
             background(self.find_session)
         if self.session and not self.reading:
             self.reading = True
-            background(self.read_main)
+            def read():
+                try:
+                    self.read_main()
+                finally:  # an error in one read must not stop every later read
+                    self.reading = False
+            background(read)
         folder = self.session[:-len(".jsonl")] + "/subagents" if self.session else ""
         paths = glob.glob(f"{folder}/agent-*.jsonl") + glob.glob(f"{folder}/workflows/*/agent-*.jsonl") if folder else []
         # A subagent's transcript is read in the background the first time (a deck starting
@@ -2796,9 +2801,11 @@ class Agents(Runs):
         if missing and not getattr(self, "building", False):
             self.building, self.built = True, dict(getattr(self, "built", {}))
             def build(todo=missing):
-                for p in todo:
-                    self.built[p] = AgentRun(p, self)
-                self.building = False
+                try:
+                    for p in todo:
+                        self.built[p] = AgentRun(p, self)
+                finally:  # one bad transcript must not keep every later subagent off the list
+                    self.building = False
             background(build)
         keep.update(getattr(self, "built", {}))
         self.every = [keep[p] for p in paths if p in keep]
