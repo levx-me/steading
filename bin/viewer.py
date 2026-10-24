@@ -1277,7 +1277,7 @@ class Runs:
                 right = f"{branch}  {age}  {sha:7}" if branch else f"{age}  {sha:7}" if self.kind == "git" else age
                 shown = (f"{fg(DIMMED_RGB)}{branch}{fg(MUTED_RGB)}  " if branch else "") + \
                     (f"{age}  {fg(ACCENT['git'])}{sha:7}" if self.kind == "git" else
-                     f"{fg(ACCENT['agents'])}{age}" if self.kind == "agents" else age)  # agents: model in the doing blue
+                     f"{fg(BRIGHT_RGB)}{age}" if self.kind == "agents" else age)  # agents: model in white, apart from the blue doing text
             elif isinstance(label, tuple):  # a run's second row: its own text and right-hand side
                 (label, right, shown), icon, colour = label, " ", MUTED_RGB
             else:
