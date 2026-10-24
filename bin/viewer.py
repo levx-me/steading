@@ -2216,17 +2216,11 @@ def context_use(d):
     return (min(100, d.context * 100 // limit) if d.context else 0), limit
 
 
-def dashboard(d, cols, main, title="", links=None, focus=None, window=None, task_rows=None):
-    """Everything known about an agent, in cards: what it is (session or task), model
-    and usage, what it is doing and did (activity), and tasks. A card with nothing is left out."""
+def model_card(d, cols):
+    """The model card: model · effort · thinking, context, tokens, tools. It sits right under
+    the agent's state and heartbeat, so what it runs on and how full it is read first."""
     w = max(16, cols - 4)  # inside a card
-    wrap = lambda text, n=w: wrap_cells(" ".join(str(text).split()), n)
     row = lambda label, value: f"{fg(MUTED_RGB)}{label:<8}{RESET}{value}"
-    out = []
-    # What it is: the session's title (herdr's pane label), or the task a subagent was given.
-    if title:
-        out += card("session" if main else "task", [f"{BOLD}{part}{RESET}" for part in wrap(title)], cols)
-    # model · effort · thinking, context, tokens, tools
     model = (d.model or d.requested or "?").replace("claude-", "")
     chips = [f"{bg(TAB_RGB)}{fg(BRIGHT_RGB)} {model} {RESET}"]
     if d.effort:
@@ -2254,7 +2248,19 @@ def dashboard(d, cols, main, title="", links=None, focus=None, window=None, task
             line, used = (f"{line}  {item}", used + 2 + size) if used else (item, size)
         if used:
             usage.append(row("", line))
-    out += card("model", usage, cols)
+    return card("model", usage, cols)
+
+
+def dashboard(d, cols, main, title="", links=None, focus=None, window=None, task_rows=None):
+    """Everything else known about an agent, in cards (the model card sits above, by its
+    state): what it is (session or task), what it is doing and did (activity), and tasks.
+    A card with nothing is left out."""
+    w = max(16, cols - 4)  # inside a card
+    wrap = lambda text, n=w: wrap_cells(" ".join(str(text).split()), n)
+    out = []
+    # What it is: the session's title (herdr's pane label), or the task a subagent was given.
+    if title:
+        out += card("session" if main else "task", [f"{BOLD}{part}{RESET}" for part in wrap(title)], cols)
     # Activity: what it did, newest first: the last few, or unfolded a window ({top, at, rows}) on all of it, the cursor's call lit. Long
     # phrases wrap in full rather than being cut.
     # A call that ran long has a button to its output in the jobs tab.
@@ -2585,7 +2591,8 @@ class AgentRun(Run):
             self.controls = []
             return task_story(self.digest, self.task_open, self.cols)
         self.task_open = None
-        head = status_block(name, colour, icon, since, self.stamps, self.cols) + team_card(getattr(self, "team", []), self.cols)
+        head = (status_block(name, colour, icon, since, self.stamps, self.cols) + model_card(self.digest, self.cols)
+                + team_card(getattr(self, "team", []), self.cols))
         task_rows = []
         title = self.given()
         out = head + dashboard(self.digest, self.cols, isinstance(self, MainRun), title,

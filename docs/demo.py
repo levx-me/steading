@@ -471,8 +471,6 @@ def scene_agents():
         [(" ", AMBER), (lambda t: beats[t:t + D - 6], AMBER)],
         [(" 8m ago", MUTED), ("now".rjust(D - 13), MUTED)],
         [],
-        *card("subagents 1/1 at work", [[(SPIN, AMBER), (" foreman", TEXT), (lambda t: f"sonnet-5-5  {took(38 + t):>6}".rjust(D - 8 - 20), MUTED)]]),
-        *card("session", [[("add refresh tokens to the auth middleware", BRIGHT, True)]]),
         *card("model", [
             [(" opus-5-5 ", BRIGHT), ("  ", MUTED), (" medium ", AMBER), ("  ✻ thought 1.3s", MUTED)],
             [("context ", MUTED), *bar([(8, GREEN)], 24), (" 34%", GREEN), (" 68k/200k", MUTED)],
@@ -481,6 +479,8 @@ def scene_agents():
             [("tools   ", MUTED), *bar([(9, GREEN), (6, BLUE), (5, AMBER), (2, CYAN)], 22)],
             [("        ", MUTED), ("■ ", GREEN), ("run 9  ", MUTED), ("■ ", BLUE), ("read 6  ", MUTED),
              ("■ ", AMBER), ("edit 5  ", MUTED), ("■ ", CYAN), ("search 2", MUTED)]]),
+        *card("subagents 1/1 at work", [[(SPIN, AMBER), (" foreman", TEXT), (lambda t: f"sonnet-5-5  {took(38 + t):>6}".rjust(D - 8 - 20), MUTED)]]),
+        *card("session", [[("add refresh tokens to the auth middleware", BRIGHT, True)]]),
         *card("activity", [
             [(SPIN, AMBER), (" Run the auth tests", BRIGHT), (lambda t: f"{12 + t}s".rjust(D - 8 - 20), MUTED)],
             [("✓ ", GREEN), ("Wait for the API to answer", MUTED), (" " * (D - 8 - 2 - 26 - 11), MUTED),
