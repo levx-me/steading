@@ -82,6 +82,9 @@ if event.get("hook_event_name") != "Stop":
 os.environ.setdefault("STEADING_BASE", state)
 from importlib.machinery import SourceFileLoader  # noqa: E402
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # -I leaves the script's folder out
+from tasklist import task_folder  # noqa: E402
+
 v = SourceFileLoader("viewer", os.path.join(os.path.dirname(os.path.abspath(__file__)), "viewer.py")).load_module()
 
 # The repository: as the git tab's border shows it.
@@ -106,39 +109,6 @@ if d.context:
     pct, _ = v.context_use(d)
     filled = min(5, round(pct / 20))
     ctx = f"{'▰' * filled}{'▱' * (5 - filled)} {pct}%"
-
-def task_folder(session):
-    """Where Claude Code keeps this session's task list (one JSON file per task):
-    ~/.claude/tasks/<team>. With agent teams on, the team is named after the process,
-    not the conversation, so a resumed conversation's list is under the team made when
-    its process started: found from the process's record (~/.claude/sessions/<pid>.json,
-    its start and cwd) and the team's (~/.claude/teams/<team>/config.json, made then)."""
-    home = os.path.expanduser("~/.claude")
-    own = os.path.join(home, "tasks", f"session-{session[:8]}")
-    started = cwd = None
-    for name in os.listdir(os.path.join(home, "sessions")) if os.path.isdir(os.path.join(home, "sessions")) else []:
-        if name.endswith(".json"):
-            try:
-                with open(os.path.join(home, "sessions", name)) as f:
-                    rec = json.load(f)
-            except (OSError, ValueError):
-                continue
-            if rec.get("sessionId") == session and (started is None or rec.get("startedAt", 0) > started):
-                started, cwd = rec.get("startedAt", 0), rec.get("cwd")
-    best = None
-    if started:
-        for team in os.listdir(os.path.join(home, "teams")) if os.path.isdir(os.path.join(home, "teams")) else []:
-            try:
-                with open(os.path.join(home, "teams", team, "config.json")) as f:
-                    conf = json.load(f)
-            except (OSError, ValueError):
-                continue
-            gap = abs(conf.get("createdAt", 0) - started)
-            lead = next((m for m in conf.get("members", []) if m.get("name") == "team-lead"), {})
-            if gap < 15_000 and lead.get("cwd") in (cwd, None) and (best is None or gap < best[0]):
-                best = (gap, os.path.join(home, "tasks", team))
-    return best[1] if best and os.path.isdir(best[1]) else own
-
 
 # The task list (TaskCreate/TaskUpdate).
 tasks = []

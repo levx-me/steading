@@ -888,6 +888,46 @@ describe("herdr sidebar tokens", () => {
     expect(existsSync(join(dir, "steading", "w1_p1", "sidebar"))).toBe(true);
   });
 
+  test("the deck's tasks come from Claude Code's folder, the talk only tells their story", () => {
+    const { mkdtempSync, writeFileSync, mkdirSync, chmodSync } = require("node:fs");
+    const { tmpdir } = require("node:os");
+    const dir = mkdtempSync(join(tmpdir(), "steading-decktasks-"));
+    const home = join(dir, "home");
+    // The transcript made 19 tasks over two process lists; the folder holds the real two.
+    const create = (subject: string) => JSON.stringify({ type: "assistant", timestamp: new Date().toISOString(),
+      message: { id: subject, content: [{ type: "tool_use", id: "u" + subject, name: "TaskCreate", input: { subject } }] } });
+    const subjects = [...Array(17).keys()].map((i) => `old task ${i}`).concat(["new task a", "new task b"]);
+    const projects = join(home, ".claude", "projects", "p");
+    mkdirSync(projects, { recursive: true });
+    writeFileSync(join(projects, "abcd1234-0000.jsonl"), subjects.map(create).join("\n") + "\n");
+    const tasks = join(home, ".claude", "tasks", "session-abcd1234");
+    mkdirSync(tasks, { recursive: true });
+    [["new task a", "completed"], ["new task b", "in_progress"]].forEach(([subject, status], i) =>
+      writeFileSync(join(tasks, `${i + 1}.json`), JSON.stringify({ id: String(i + 1), subject, status })));
+    writeFileSync(join(dir, "herdr"), `#!/bin/sh\necho '{"result":{"pane":{"agent_session":{"agent":"claude","value":"abcd1234-0000"}}}}'\n`);
+    chmodSync(join(dir, "herdr"), 0o755);
+    const check = `
+import sys
+from importlib.machinery import SourceFileLoader
+args = sys.argv[1:]; sys.argv = sys.argv[:1]
+v = SourceFileLoader("v", args[0]).load_module()
+v.background = lambda fn, *a: fn(*a)
+a = v.Agents()
+a.find_session(); a.read_main()
+d = a.digest
+print(len(d.tasks), len(d.listed()), sorted(s for _, s in d.listed().values()))
+print(len(d.story("1")), len(d.story("2")) )
+a.session = ""; a.digest = v.Digest(); a.find_session()
+`;
+    const r = Bun.spawnSync(["python3", "-I", "-c", check, join(root, "bin/viewer.py")], {
+      env: { PATH: process.env.PATH!, HOME: home, STEADING_BASE: join(dir, "w1_p1"), HERDR_BIN_PATH: join(dir, "herdr") },
+    });
+    expect(r.stderr.toString()).toBe("");
+    const [counts, story] = r.stdout.toString().trim().split("\n");
+    expect(counts).toBe("19 2 ['completed', 'in_progress']");
+    expect(story).toBe("1 1");
+  });
+
   test("a resumed conversation's tasks are found under the team its process started", () => {
     const { mkdtempSync, writeFileSync, readFileSync, mkdirSync, chmodSync } = require("node:fs");
     const { tmpdir } = require("node:os");

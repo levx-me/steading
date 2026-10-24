@@ -45,6 +45,9 @@ import tty
 import unicodedata
 import urllib.parse
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # -I leaves the script's folder out
+from tasklist import read_tasks  # noqa: E402
+
 BASE = sys.argv[1] if len(sys.argv) > 1 else os.environ["STEADING_BASE"]  # plugin panes pass it in the env
 SERVERS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "servers")
 SECTIONS = ["agents", "jobs", "servers", "build", "test", "git", "deploy"]
@@ -1997,6 +2000,26 @@ class Digest:
         self.task_waiting = []                 # events waiting for the next thing Claude says
         self.results = {}                      # tool call id -> failed?, for the calls it got answers to
 
+    disk = None  # the real task list [(id, subject, status)] from Claude Code's folder; None: go by the talk
+
+    def listed(self):
+        """The tasks to show: Claude Code's own list when read from disk (the talk keeps every
+        older process's list too), else what the talk built. {id: [subject, status]}."""
+        if self.disk is None:
+            return self.tasks
+        return {tid: [subject, st] for tid, subject, st in self.disk}
+
+    def story(self, tid):
+        """A task's story in the talk. Ids restart with each process, so a disk task finds its
+        story by subject when the same id in the talk is another task."""
+        if self.disk is None:
+            return self.task_log.get(tid, [])
+        subject = self.listed().get(tid, ["", ""])[0]
+        if tid in self.tasks and self.tasks[tid][0] == subject:
+            return self.task_log.get(tid, [])
+        same = [t for t, (s, _) in self.tasks.items() if s == subject]
+        return self.task_log.get(same[-1], []) if same else []
+
     def task_id_from(self, block):
         """A TaskCreate's result names the id the task got ("Task #4 created"): the list
         restarts with each process, so the order of calls alone can be wrong."""
@@ -2290,9 +2313,10 @@ def dashboard(d, cols, main, title="", links=None, focus=None, window=None, task
     if activity:
         out += card("activity", activity, cols)
     # tasks
-    if d.tasks:
-        done = sum(1 for _, st in d.tasks.values() if st == "completed")
-        items, todo = list(d.tasks.items()), []
+    listed = d.listed()
+    if listed:
+        done = sum(1 for _, st in listed.values() if st == "completed")
+        items, todo = list(listed.items()), []
         # A long list keeps what is left in full; the done ones fold into a count.
         if len(items) > 8 and done:
             todo.append(f"{fg(GREEN_RGB)}✓{RESET} {fg(MUTED_RGB)}{done} done{RESET}")
@@ -2306,7 +2330,7 @@ def dashboard(d, cols, main, title="", links=None, focus=None, window=None, task
                 line = f"{mark if n == 0 else ' '}{RESET} {part}"
                 todo.append(bg(ACTIVE_RGB) + line.replace(RESET, RESET + bg(ACTIVE_RGB)) + " " * max(0, w - visible_len(line)) + RESET
                             if lit else line)
-        out += card(f"tasks {done}/{len(d.tasks)}", todo, cols)
+        out += card(f"tasks {done}/{len(listed)}", todo, cols)
     return out
 
 
@@ -2342,11 +2366,11 @@ TASK_STATES = {"completed": ("✓", GREEN_RGB, "done"), "in_progress": ("◐", A
 def task_story(d, tid, cols):
     """One task's story in the talk, oldest first: when it was made and the request it came
     from, what Claude said as it started and finished it, and where Claude named it."""
-    subject, st = d.tasks[tid]
+    subject, st = d.listed()[tid]
     icon, rgb, state = TASK_STATES.get(st, ("○", MUTED_RGB, "pending"))
     w = max(16, cols - 4)
     lines, said = [], None
-    for when, what, who, text in d.task_log.get(tid, []):
+    for when, what, who, text in d.story(tid):
         # Its own lines kept (lists, paragraphs), markdown marks left out.
         text = "\n".join(" ".join(l.split()) for l in re.sub(r"[*_`#>]+", "", text or "").splitlines() if l.strip())
         stamp = time.strftime("%H:%M", time.localtime(when)) if when else "     "
@@ -2489,8 +2513,8 @@ class AgentRun(Run):
         indent = getattr(self, "tree_cont", None) or " " * (len(self.prefix()) + 2)
         doing = self.given()
         plain = shown = ""
-        if d.tasks:
-            done, total = sum(1 for _, st in d.tasks.values() if st == "completed"), len(d.tasks)
+        if d.listed():
+            done, total = sum(1 for _, st in d.listed().values() if st == "completed"), len(d.listed())
             filled = round(5 * done / total)
             plain = f"{'▰' * filled}{'▱' * (5 - filled)} {done}/{total}  "
             shown = f"{fg(GREEN_RGB)}{'▰' * filled}{fg(DIMMED_RGB)}{'▱' * (5 - filled)} {fg(MUTED_RGB)}{done}/{total}  "
@@ -2557,7 +2581,7 @@ class AgentRun(Run):
             at = max(0, min(getattr(self, "activity_at", 0), total - 1))
             window = {"top": max(0, getattr(self, "activity_top", 0)), "at": at,
                       "rows": getattr(self, "activity_rows", 10)}  # rows of the card, not calls: they wrap
-        if getattr(self, "task_open", None) in self.digest.tasks:  # one task's story, in place of the cards
+        if getattr(self, "task_open", None) in self.digest.listed():  # one task's story, in place of the cards
             self.controls = []
             return task_story(self.digest, self.task_open, self.cols)
         self.task_open = None
@@ -2656,7 +2680,7 @@ class MainRun(AgentRun):
         d = self.digest
         if self.deck.agent_status == "blocked":
             return "waiting for you"
-        working = [subject for subject, st in d.tasks.values() if st == "in_progress"]
+        working = [subject for subject, st in d.listed().values() if st == "in_progress"]
         asked = next((l.strip() for l in (d.request or "").splitlines() if l.strip()), "")
         return f"◐ {working[0]}" if working else asked
 
@@ -2722,6 +2746,8 @@ class Agents(Runs):
             self.notified_at = {}
             self.digest = Digest()
             self.cached = ""
+        if session:  # the real task list, as often as the session is looked for
+            self.digest.disk = read_tasks(os.path.basename(session)[:-len(".jsonl")])
 
     def read_main(self):
         """What the main transcript has said since the last read: answers to Agent calls
