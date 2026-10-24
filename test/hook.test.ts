@@ -1264,3 +1264,15 @@ print(d.usage["cache"], end="")`;
   expect(out.stderr.toString()).toBe("");
   expect(out.stdout.toString()).toBe("0");
 });
+
+test("an agent's first row ends with its model, and its effort when set", () => {
+  const code = `import sys, types, importlib.util as u
+sys.argv = ["v", "/tmp"]
+spec = u.spec_from_file_location("v", ${JSON.stringify(join(root, "bin/viewer.py"))})
+m = u.module_from_spec(spec); spec.loader.exec_module(m)
+run = lambda effort: types.SimpleNamespace(model=lambda: "opus-5-5", digest=types.SimpleNamespace(effort=effort))
+print(m.AgentRun.top_right(run("high")) + "|" + m.AgentRun.top_right(run("")), end="")`;
+  const out = Bun.spawnSync(["python3", "-I", "-c", code]);
+  expect(out.stderr.toString()).toBe("");
+  expect(out.stdout.toString()).toBe("opus-5-5 · high|opus-5-5");
+});

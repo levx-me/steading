@@ -450,17 +450,18 @@ def scene_agents():
     section_bar(0)
     # The heartbeat scrolls left a column a second, new beats coming in at the right.
     beats, rates = heartbeat(CYCLE + D - 2)
-    # Name column, then what it does now; the work it was given on the row below (bin/viewer.py AgentRun).
+    # Name column, then what it does now, its model (and effort) at the right; the work it was given
+    # on the row below (bin/viewer.py AgentRun).
     pad = lambda tree, name: f"{tree}{name}".ljust(21)
-    row = run_box([(SPIN, AMBER, (pad("", "main"), "  ◐ Fix the last-second expiry"), ""),
+    row = run_box([(SPIN, AMBER, (pad("", "main"), "  ◐ Fix expiry"), [("opus-5-5 · high", ACCENT["AGENTS"])]),
                    ("", AMBER, "  auth refresh tokens", [("▰▰▰", GREEN), ("▱▱", DIMMED), (" 3/5  ", MUTED),
                                                     (lambda t: took(134 + t).rjust(6), MUTED)]),
                    # A manager and its workers, on branch lines.
-                   (SPIN, AMBER, (pad("  └ ", "foreman"), "  Splitting the work in three"), ""),
+                   (SPIN, AMBER, (pad("  └ ", "foreman"), "  Splitting work"), [("sonnet-5-5", ACCENT["AGENTS"])]),
                    ("", AMBER, "      Map the auth tests", [(lambda t: took(38 + t).rjust(6), MUTED)]),
-                   (SPIN, AMBER, (pad("    ├ ", "foreman-scout"), "  Searching for refresh("), ""),
+                   (SPIN, AMBER, (pad("    ├ ", "foreman-scout"), "  Searching"), [("haiku-5-5", ACCENT["AGENTS"])]),
                    ("", AMBER, "        Find every refresh call", [(lambda t: took(21 + t).rjust(6), MUTED)]),
-                   (SPIN, AMBER, (pad("    └ ", "foreman-builder"), "  Writing rotate.test.ts"), ""),
+                   (SPIN, AMBER, (pad("    └ ", "foreman-builder"), "  Writing tests"), [("sonnet-5-5", ACCENT["AGENTS"])]),
                    ("", AMBER, "        Write the rotation tests", [(lambda t: took(17 + t).rjust(6), MUTED)])],
                   ACCENT["AGENTS"], "agents")
     rect(d0 + 3, row + 1, 11, AMBER)  # the WORKING pill, inside the run's box

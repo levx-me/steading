@@ -1276,7 +1276,8 @@ class Runs:
                     branch = cut(branch, max(8, cols // 4))
                 right = f"{branch}  {age}  {sha:7}" if branch else f"{age}  {sha:7}" if self.kind == "git" else age
                 shown = (f"{fg(DIMMED_RGB)}{branch}{fg(MUTED_RGB)}  " if branch else "") + \
-                    (f"{age}  {fg(ACCENT['git'])}{sha:7}" if self.kind == "git" else age)
+                    (f"{age}  {fg(ACCENT['git'])}{sha:7}" if self.kind == "git" else
+                     f"{fg(ACCENT['agents'])}{age}" if self.kind == "agents" else age)  # agents: model in the doing blue
             elif isinstance(label, tuple):  # a run's second row: its own text and right-hand side
                 (label, right, shown), icon, colour = label, " ", MUTED_RGB
             else:
@@ -2533,9 +2534,9 @@ class AgentRun(Run):
         return re.sub(r"-\d{8}$", "", (self.digest.model or self.digest.requested or "").replace("claude-", ""))
 
     def top_right(self):
-        """Nothing at the right of its first row: the doing text takes the width (its model
-        is in the detail)."""
-        return ""
+        """At the right of its first row: its model, and its effort when one is set."""
+        model, effort = self.model(), self.digest.effort
+        return f"{model} · {effort}" if model and effort else model
 
     def age(self):
         """How long it has been at work (the list shows only those at work)."""
