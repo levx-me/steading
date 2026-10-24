@@ -995,18 +995,23 @@ a.key("\\r"); show()  # open it again, then a click on its "← task" border goe
 top = next(i for i, l in enumerate(a.plain) if "← task" in l)
 a.click(a.body_row + top - a.offset, 5); show(); show()
 print(a.story())
+a.key("\\r"); show(); a.focus = "list"; show()  # the story shows while the list has the focus too: its "← task" still goes back
+top = next(i for i, l in enumerate(a.plain) if "← task" in l)
+a.click(a.body_row + top - a.offset, 5); show()
+print(a.runs[a.tab].task_open)
 `;
     const r = Bun.spawnSync(["python3", "-I", "-c", check, join(root, "bin/viewer.py"), main], {
       env: { PATH: process.env.PATH!, STEADING_BASE: join(dir, "base") },
     });
     expect(r.stderr.toString()).toBe("");
-    const [story, back, clicked] = r.stdout.toString().trim().split("\n");
+    const [story, back, clicked, clickedFromList] = r.stdout.toString().trim().split("\n");
     for (const part of ["← task · done", "created | you fix the back button", "created | Claude On it.",
                         "started | Claude Keeping the scroll position on back.",
                         "mentioned | Claude Fix the back button is in review now.", "done | Claude Shipped."])
       expect(story).toContain(part);
     expect(back).toBe("None task:4");
     expect(clicked).toBe("None");
+    expect(clickedFromList).toBe("None");
   });
 });
 

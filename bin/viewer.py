@@ -3054,8 +3054,10 @@ class Agents(Runs):
             self.focus = "list"
             return
         line = self.offset + row - getattr(self, "body_row", 99)
-        if self.story():  # a task's story: a click on its "← task" border goes back
+        if self.runs and getattr(self.runs[self.tab], "task_open", None):  # a task's story, wherever the
+            # keyboard is (it shows while the list has the focus too): a click on its "← task" border goes back
             if 0 <= line < len(self.plain) and "← task" in self.plain[line]:
+                self.focus = "log"
                 self.key("\x1b")
             return
         for n, (key, at) in enumerate(self.controls()):
