@@ -489,12 +489,12 @@ def scene_agents():
             [("✓ ", GREEN), ("Editing src/middleware/auth.ts", MUTED)],
             [("✓ ", GREEN), ("Reading src/auth/refresh.ts", MUTED)],
             [(" ▾ 18 more ", ACCENT["AGENTS"], False, None, TAB)]]),
-        *card("tasks 3/5", [
-            [("✓ ", GREEN), ("Add the refresh-token store", TEXT)],
-            [("✓ ", GREEN), ("Rotate on every refresh", TEXT)],
-            [("✓ ", GREEN), ("Detect a reused token", TEXT)],
+        *card("tasks 3/5", [  # what is left first, then the done ones, newest first (bin/viewer.py Digest.listed)
             [("◐ ", AMBER), ("Fix the last-second expiry", TEXT)],
-            [("○ ", MUTED), ("Document the flow", TEXT)]]),
+            [("○ ", MUTED), ("Document the flow", TEXT)],
+            [("✓ ", GREEN), ("Detect a reused token", TEXT)],
+            [("✓ ", GREEN), ("Rotate on every refresh", TEXT)],
+            [("✓ ", GREEN), ("Add the refresh-token store", TEXT)]]),
     ])
     hints([("L", "side"), ("[ ]", "sections"), (",", "settings"), ("ctrl+c", "close")])
 

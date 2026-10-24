@@ -2006,9 +2006,13 @@ class Digest:
     def listed(self):
         """The tasks to show: Claude Code's own list when read from disk (the talk keeps every
         older process's list too), else what the talk built. {id: [subject, status]}."""
-        if self.disk is None:
-            return self.tasks
-        return {tid: [subject, st] for tid, subject, st in self.disk}
+        tasks = self.tasks if self.disk is None else {tid: [subject, st] for tid, subject, st in self.disk}
+        # What is left on top (doing, then to do), the done ones after; newest first in each:
+        # the higher id, or for ids that are not numbers the one added later.
+        rank = {"in_progress": 0, "pending": 1}
+        order = sorted(enumerate(tasks), key=lambda it: (rank.get(tasks[it[1]][1], 2),
+                                                         -int(it[1]) if it[1].isdigit() else 0, -it[0]))
+        return {tid: tasks[tid] for _, tid in order}
 
     def story(self, tid):
         """A task's story in the talk. Ids restart with each process, so a disk task finds its

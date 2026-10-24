@@ -1276,3 +1276,16 @@ print(m.AgentRun.top_right(run("high")) + "|" + m.AgentRun.top_right(run("")), e
   expect(out.stderr.toString()).toBe("");
   expect(out.stdout.toString()).toBe("opus-5-5 · high|opus-5-5");
 });
+
+test("tasks list what is left first, then the done ones, newest first in each", () => {
+  const code = `import sys, importlib.util as u
+sys.argv = ["v", "/tmp"]
+spec = u.spec_from_file_location("v", ${JSON.stringify(join(root, "bin/viewer.py"))})
+m = u.module_from_spec(spec); spec.loader.exec_module(m)
+d = m.Digest()
+d.disk = [("1", "a", "completed"), ("2", "b", "pending"), ("3", "c", "in_progress"), ("4", "d", "completed"), ("5", "e", "pending"), ("10", "f", "in_progress")]
+print(" ".join(d.listed()), end="")`;
+  const out = Bun.spawnSync(["python3", "-I", "-c", code]);
+  expect(out.stderr.toString()).toBe("");
+  expect(out.stdout.toString()).toBe("10 3 5 2 4 1");
+});
