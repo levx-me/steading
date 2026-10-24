@@ -2328,9 +2328,9 @@ def dashboard(d, cols, main, title="", links=None, focus=None, window=None, task
     if listed:
         done = sum(1 for _, st in listed.values() if st == "completed")
         items, todo = list(listed.items()), []
-        # A long list keeps what is left in full; the done ones fold into a count.
-        if len(items) > 8 and done:
-            todo.append(f"{fg(GREEN_RGB)}✓{RESET} {fg(MUTED_RGB)}{done} done{RESET}")
+        # A long list keeps what is left in full and leaves the done ones out: the title's
+        # done/total already counts them. All done: they stay, so the card is not empty.
+        if len(items) > 8 and 0 < done < len(items):
             items = [t for t in items if t[1][1] != "completed"]
         for tid, (subject, st) in items:
             mark = {"completed": f"{fg(GREEN_RGB)}✓", "in_progress": f"{fg(AMBER_RGB)}◐"}.get(st, f"{fg(MUTED_RGB)}○")
