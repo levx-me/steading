@@ -86,15 +86,6 @@ rows = [
 ]
 ```
 
-## Security notes
-
-- Routed tests and builds are returned to Claude Code as **approved** (`permissionDecision: "allow"`),
-  so they do not ask for permission. Your deny and ask rules still apply. `npm test` and
-  `npm run build` run whatever `package.json` says: if you do not want those auto-approved, remove
-  them from the patterns in `bin/hook`.
-- Git commands, deploys and jobs are never rewritten or approved by Steading.
-- Run logs stay in `$TMPDIR`; nothing leaves the machine.
-
 ### Exact context percent (optional)
 
 The window size is not in the transcript, so `$ctx` and the deck's context bar are estimated
@@ -107,6 +98,15 @@ input=$(cat)   # the statusline's stdin
 sid=$(printf %s "$input" | jq -r .session_id); d="${TMPDIR:-/tmp}/steading/statusline"
 mkdir -p "$d" && printf %s "$input" > "$d/$sid.json.$$" && mv "$d/$sid.json.$$" "$d/$sid.json"
 ```
+
+## Security notes
+
+- Routed tests and builds are returned to Claude Code as **approved** (`permissionDecision: "allow"`),
+  so they do not ask for permission. Your deny and ask rules still apply. `npm test` and
+  `npm run build` run whatever `package.json` says: if you do not want those auto-approved, remove
+  them from the patterns in `bin/hook`.
+- Git commands, deploys and jobs are never rewritten or approved by Steading.
+- Run logs stay in `$TMPDIR`; nothing leaves the machine.
 
 ## Development
 

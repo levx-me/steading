@@ -78,6 +78,19 @@ rows = [
 ]
 ```
 
+### 정확한 컨텍스트 퍼센트 (선택)
+
+컨텍스트 창 크기는 트랜스크립트에 없어서 `$ctx`와 덱의 컨텍스트 막대는 추정값입니다
+(200K, 모델 이름에 `[1m]`이 있거나 사용량이 200K를 넘으면 1M). Claude Code는 상태줄 명령에 실제 값을
+넘겨 줍니다. 상태줄 명령이 그 JSON을 세션별로 저장하면 덱과 사이드바가 그 값을 씁니다(10분 이내일 때).
+상태줄 명령에 다음을 추가하세요:
+
+```sh
+input=$(cat)   # 상태줄의 stdin
+sid=$(printf %s "$input" | jq -r .session_id); d="${TMPDIR:-/tmp}/steading/statusline"
+mkdir -p "$d" && printf %s "$input" > "$d/$sid.json.$$" && mv "$d/$sid.json.$$" "$d/$sid.json"
+```
+
 ## 보안 참고
 
 - deck으로 넘긴 테스트와 빌드는 Claude Code에 **승인됨**(`permissionDecision: "allow"`)으로 돌려주므로
@@ -97,16 +110,3 @@ bun test
 
 체크아웃한 저장소로 플러그인을 설치하면 `bun test` 자체도 deck에서 실행됩니다. deck의 모양이 바뀌면
 README 미리보기를 다시 만드세요: `python3 docs/demo.py > docs/demo.svg`.
-
-### 정확한 컨텍스트 퍼센트 (선택)
-
-컨텍스트 창 크기는 트랜스크립트에 없어서 `$ctx`와 덱의 컨텍스트 막대는 추정값입니다
-(200K, 모델 이름에 `[1m]`이 있거나 사용량이 200K를 넘으면 1M). Claude Code는 상태줄 명령에 실제 값을
-넘겨 줍니다. 상태줄 명령이 그 JSON을 세션별로 저장하면 덱과 사이드바가 그 값을 씁니다(10분 이내일 때).
-상태줄 명령에 다음을 추가하세요:
-
-```sh
-input=$(cat)   # 상태줄의 stdin
-sid=$(printf %s "$input" | jq -r .session_id); d="${TMPDIR:-/tmp}/steading/statusline"
-mkdir -p "$d" && printf %s "$input" > "$d/$sid.json.$$" && mv "$d/$sid.json.$$" "$d/$sid.json"
-```
