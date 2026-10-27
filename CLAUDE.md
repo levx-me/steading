@@ -18,4 +18,6 @@ Claude Code hooks (`bin/hook`, `bin/record`, `bin/open`) and herdr events (`bin/
 
   Check it renders (`xmllint --noout docs/demo.svg`, and look at a scene) before committing.
 - Run the tests (`bun test`) and read the whole summary, failures included, before committing.
+  The full suite takes about 40 seconds: while working, run only the tests you touch
+  (`bun test -t "<name>"`), and the full suite once, right before the commit.
 - Editing `bin/viewer.py` restarts every open deck with the new code: a crash closes all of them.
