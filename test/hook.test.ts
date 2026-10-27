@@ -889,6 +889,37 @@ describe("herdr sidebar tokens", () => {
     expect(existsSync(join(dir, "steading", "w1_p1", "sidebar"))).toBe(true);
   });
 
+  test("the workspace's third Spaces row names its dev servers and running jobs, with guides, and lapses on its own", () => {
+    const { mkdtempSync, writeFileSync, readFileSync, mkdirSync, chmodSync } = require("node:fs");
+    const { tmpdir } = require("node:os");
+    const dir = mkdtempSync(join(tmpdir(), "steading-wsrun-"));
+    writeFileSync(join(dir, "herdr"), `#!/bin/sh
+echo "$@" >> ${dir}/calls
+[ "$1 $2" = "pane get" ] && echo '{"result":{"pane":{"workspace_id":"w1","tab_id":"w1:t1"}}}'
+exit 0
+`);
+    chmodSync(join(dir, "herdr"), 0o755);
+    Bun.spawnSync(["git", "init", "-q", join(dir, "repo")]);
+    // A job that has run for a minute and not ended.
+    const run = join(dir, "steading", "w1_p1", "jobs", "runs", "1");
+    mkdirSync(run, { recursive: true });
+    writeFileSync(join(run, "start"), String(Math.floor(Date.now() / 1000) - 60));
+    const env = { PATH: process.env.PATH!, HOME: join(dir, "home"), TMPDIR: dir, HERDR_ENV: "1", HERDR_PANE_ID: "w1:p1", HERDR_BIN_PATH: join(dir, "herdr") };
+    const hook = () => Bun.spawnSync(["python3", "-I", join(root, "bin/sidebar.py")], { env,
+      stdin: Buffer.from(JSON.stringify({ hook_event_name: "Stop", session_id: "abcd1234-0000", cwd: join(dir, "repo") })) });
+    hook();
+    const calls = () => readFileSync(join(dir, "calls"), "utf8").trim().split("\n").filter((c) => c.startsWith("workspace report-metadata"));
+    const [repo, runs] = calls();
+    expect(repo).toContain("--token wstree=├");
+    expect(runs).toContain("--ttl-ms 150000");
+    expect(runs).toContain("--token wstree2=└ --token wsrun=⏳ 1 job");
+    writeFileSync(join(run, "end"), String(Math.floor(Date.now() / 1000))); // the job ends: the row goes
+    hook();
+    const [repo2, runs2] = calls().slice(2);
+    expect(repo2).toContain("--token wstree=└");
+    expect(runs2).toContain("--clear-token wstree2 --clear-token wsrun");
+  });
+
   test("the deck's tasks come from Claude Code's folder, the talk only tells their story", () => {
     const { mkdtempSync, writeFileSync, mkdirSync, chmodSync } = require("node:fs");
     const { tmpdir } = require("node:os");

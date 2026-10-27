@@ -61,12 +61,17 @@ agent's repository and context use to herdr as pane tokens, with or without a de
   a token of their own, so a layout can colour them apart from the text. `STEADING_SIDEBAR_TREE=0` turns them off.
 - `$wstree`, `$wsrepo`: workspace tokens for the Spaces panel's second row (herdr's own `branch` cannot take
   a guide): `└` and `$repo`'s text, with `$wsrepostate` for `$repostate`'s. With several agents in one workspace the last report wins.
+- `$wsrun`, `$wstree2`: the Spaces panel's third row, what runs in the workspace: the ports of its dev servers (as the deck's
+  servers section finds them) and the long jobs still going, `▶ :3000 :5173 · ⏳ 1 job`; empty, so the row goes, when nothing runs. `$wstree`
+  becomes `├` while it shows. It is reported with a 2.5 minute lifetime and renewed by every hook run (at most every 3 s, and at the end of a turn),
+  so a server stopped while the agent is idle drops off by itself; a server left running while the agent idles longer disappears until the next hook.
 
 Show them in herdr's agents list with a row layout in `~/.config/herdr/config.toml`:
 
 ```toml
 [ui.sidebar.spaces]
-rows = [["state_icon", "workspace"], [{ token = "$wstree", fg = "#ffffff" }, { token = "$wsrepo", dim = true }, { token = "$wsrepostate", dim = true }]]
+rows = [["state_icon", "workspace"], [{ token = "$wstree", fg = "#ffffff" }, { token = "$wsrepo", dim = true }, { token = "$wsrepostate", dim = true }],
+        [{ token = "$wstree2", fg = "#ffffff" }, { token = "$wsrun", fg = "#98c379" }]]
 
 [ui.sidebar.agents]
 rows = [

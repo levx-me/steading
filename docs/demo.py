@@ -163,13 +163,18 @@ out.append(f'<text x="{W / 2:.0f}" y="{TOP / 2 + 5}" fill="{MUTED}" text-anchor=
 # sidebar of spaces and agents on the left. Example workspaces, not real ones.
 side = -SB
 text(side, -1, [("spaces", MUTED)], -1)
-spaces = [("◐", AMBER, "app", "feat/refresh", True), ("○", MUTED, "api", "main", False),
-          ("○", MUTED, "web", "dev", False), ("○", MUTED, "docs", "main", False)]
-for i, (icon, colour, name, branch, on) in enumerate(spaces):
+spaces = [("◐", AMBER, "app", "feat/refresh", "▶ :3000 :5173 · 1 job", True), ("○", MUTED, "api", "main", "", False),
+          ("○", MUTED, "web", "dev", "", False), ("○", MUTED, "docs", "main", "", False)]
+r = 1
+for icon, colour, name, branch, running, on in spaces:
+    n = 3 if running else 2  # a third row, $wsrun, while servers or long jobs run there
     if on:
-        rect(side, 1 + 2 * i, SB - 1, ACTIVE, rows=2)
-    text(side, 1 + 2 * i, [(icon + " ", colour), (name, BRIGHT if on else TEXT)], -1)
-    text(side, 2 + 2 * i, [("└", BRIGHT), (" · " + branch, BLUE)], -1)
+        rect(side, r, SB - 1, ACTIVE, rows=n)
+    text(side, r, [(icon + " ", colour), (name, BRIGHT if on else TEXT)], -1)
+    text(side, r + 1, [("├" if running else "└", BRIGHT), (" · " + branch, BLUE)], -1)
+    if running:
+        text(side, r + 2, [("└", BRIGHT), (" · " + running, GREEN)], -1)
+    r += n
 text(side, 12, [("new", DIMMED), ("● ".rjust(SB - 8), BLUE), ("menu", DIMMED)], -1)
 line(side, 13.5, -1, 13.5, ACTIVE)
 text(side, 14, [("agents", MUTED), ("priority".rjust(SB - 7), MUTED)], -1)

@@ -7,23 +7,25 @@
 <circle cx="60" cy="19.0" r="6" fill="#28c840"/>
 <text x="762" y="24.0" fill="#787f8c" text-anchor="middle">herdr</text>
 <text x="14.0" y="65.7" textLength="50.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">spaces</text>
-<rect x="14.0" y="90.0" width="218.4" height="38.0" rx="0" fill="#3e4451"/>
+<rect x="14.0" y="90.0" width="218.4" height="57.0" rx="0" fill="#3e4451"/>
 <text x="14.0" y="103.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">◐</text>
 <text x="30.8" y="103.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">app</text>
-<text x="14.0" y="122.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">└</text>
+<text x="14.0" y="122.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">├</text>
 <text x="30.8" y="122.7" textLength="117.6" lengthAdjust="spacingAndGlyphs" fill="#7aa2c8">· feat/refresh</text>
-<text x="14.0" y="141.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">○</text>
-<text x="30.8" y="141.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#abb2bf">api</text>
-<text x="14.0" y="160.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">└</text>
-<text x="30.8" y="160.7" textLength="50.4" lengthAdjust="spacingAndGlyphs" fill="#7aa2c8">· main</text>
-<text x="14.0" y="179.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">○</text>
-<text x="30.8" y="179.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#abb2bf">web</text>
-<text x="14.0" y="198.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">└</text>
-<text x="30.8" y="198.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#7aa2c8">· dev</text>
-<text x="14.0" y="217.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">○</text>
-<text x="30.8" y="217.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#abb2bf">docs</text>
-<text x="14.0" y="236.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">└</text>
-<text x="30.8" y="236.7" textLength="50.4" lengthAdjust="spacingAndGlyphs" fill="#7aa2c8">· main</text>
+<text x="14.0" y="141.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">└</text>
+<text x="30.8" y="141.7" textLength="193.2" lengthAdjust="spacingAndGlyphs" fill="#98b17d">· ▶ :3000 :5173 · 1 job</text>
+<text x="14.0" y="160.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">○</text>
+<text x="30.8" y="160.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#abb2bf">api</text>
+<text x="14.0" y="179.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">└</text>
+<text x="30.8" y="179.7" textLength="50.4" lengthAdjust="spacingAndGlyphs" fill="#7aa2c8">· main</text>
+<text x="14.0" y="198.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">○</text>
+<text x="30.8" y="198.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#abb2bf">web</text>
+<text x="14.0" y="217.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">└</text>
+<text x="30.8" y="217.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#7aa2c8">· dev</text>
+<text x="14.0" y="236.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">○</text>
+<text x="30.8" y="236.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#abb2bf">docs</text>
+<text x="14.0" y="255.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">└</text>
+<text x="30.8" y="255.7" textLength="50.4" lengthAdjust="spacingAndGlyphs" fill="#7aa2c8">· main</text>
 <text x="14.0" y="312.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#585e69">new</text>
 <text x="182.0" y="312.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#7aa2c8">●</text>
 <text x="198.8" y="312.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#585e69">menu</text>
