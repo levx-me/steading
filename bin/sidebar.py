@@ -14,7 +14,6 @@ It also names the pane and its tab after the session's title, when that changes.
 subagents work, bin/crew spins $crew ("⠋ N") on the pane and its workspace.
 
 Tool calls report at most every 3 seconds; the end of a turn always reports."""
-import glob
 import json
 import os
 import shutil
@@ -30,7 +29,6 @@ if os.environ.get("STEADING_SIDEBAR_ICONS") == "0":
 # Tree guides ("├", "└" on the last row shown) as the tokens $tree1..3, one per row of ROWS, in
 # white before the row's text in ~/.config/herdr/config.toml. STEADING_SIDEBAR_TREE=0 turns them off.
 ROWS = [("repo", "repostate"), ("model", "ctx", "ctxhot"), ("tasks",)]
-RUN_TTL_MS = 150_000  # a server can stop with no hook to say so: $wsrun lapses unless the next hook renews it
 TREE = os.environ.get("STEADING_SIDEBAR_TREE") != "0"
 
 event = json.loads(sys.stdin.read() or "{}")
@@ -116,6 +114,7 @@ os.environ.setdefault("STEADING_BASE", state)
 from importlib.machinery import SourceFileLoader  # noqa: E402
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # -I leaves the script's folder out
+import steading_run  # noqa: E402
 from tasklist import task_folder  # noqa: E402
 
 v = SourceFileLoader("viewer", os.path.join(os.path.dirname(os.path.abspath(__file__)), "viewer.py")).load_module()
@@ -191,22 +190,20 @@ try:
     space = json.loads(subprocess.run([herdr, "pane", "get", pane], capture_output=True, text=True,
                                       timeout=5).stdout)["result"]["pane"]["workspace_id"]
     # The third row, what runs here: the servers' ports and the jobs still going, as the deck lists them.
-    shells = [sh for _, w, sh, _ in v.herdr_panes(True) if w == space]
-    try:
-        out = subprocess.run([os.path.join(os.path.dirname(os.path.abspath(__file__)), "servers"), v.read(os.path.join(state, "root")) or cwd, *shells],
-                             capture_output=True, text=True, timeout=5).stdout
-    except (OSError, subprocess.TimeoutExpired):
-        out = ""
-    ports = sorted({int(l.split("\t")[0]) for l in out.splitlines() if "\t" in l})
-    jobs = [p for p in glob.glob(os.path.join(state, "jobs", "runs", "*")) if not os.path.exists(os.path.join(p, "end")) and v.Jobs.shows(p)]
-    run = " · ".join(([("▶ " + " ".join(f":{n}" for n in ports[:4]))] if ports else []) + ([f"⏳ {len(jobs)} job{'s' * (len(jobs) > 1)}"] if jobs else []))
-    # Guides for the Spaces rows [wsrepo, wsrun]: "├" on a row another follows, "└" on the last one shown.
-    ws = {"wstree": ("├" if run else "└") if TREE and values["repo"] else "", "wsrepo": values["repo"], "wsrepostate": repostate}
-    wsrun = {"wstree2": "└" if TREE and run else "", "wsrun": run}
-    for src, tokens, ttl in ((f"steading-repo-{pane}", ws, []), (f"steading-run-{pane}", wsrun, ["--ttl-ms", str(RUN_TTL_MS)])):
-        subprocess.run([herdr, "workspace", "report-metadata", space, "--source", src] + ttl
-                       + [a for k, w in tokens.items() for a in (["--token", f"{k}={w}"] if w else ["--clear-token", k])],
+    # $wstree/$wsrun/$wstree2 share one source with no lifetime: bin/steading_run.py refreshes it
+    # while something runs, since a server can stop with no hook to say so.
+    run = steading_run.compute(v, state, cwd, space)
+    has_repo = bool(values["repo"])
+    guides = steading_run.tokens(run, has_repo)
+    flat = lambda tokens: [a for k, w in tokens.items() for a in (["--token", f"{k}={w}"] if w else ["--clear-token", k])]
+    ws = {"wsrepo": values["repo"], "wsrepostate": repostate}
+    for src, tokens in ((f"steading-repo-{pane}", {**ws, "wstree": ""}), (steading_run.source(pane), guides)):
+        subprocess.run([herdr, "workspace", "report-metadata", space, "--source", src] + flat(tokens),
                        capture_output=True, timeout=5)
+    if run:
+        subprocess.Popen([sys.executable, "-I", os.path.join(os.path.dirname(os.path.abspath(__file__)), "steading_run.py"),
+                          pane, space, cwd, "1" if has_repo else "0"],
+                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
 except (OSError, subprocess.TimeoutExpired, ValueError, KeyError):
     pass
 

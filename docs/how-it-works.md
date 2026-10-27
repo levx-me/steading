@@ -65,8 +65,10 @@ agent's repository and context use to herdr as pane tokens, with or without a de
   a guide): `└` and `$repo`'s text, with `$wsrepostate` for `$repostate`'s. With several agents in one workspace the last report wins.
 - `$wsrun`, `$wstree2`: the Spaces panel's third row, what runs in the workspace: the ports of its dev servers (as the deck's
   servers section finds them) and the long jobs still going, `▶ :3000 :5173 · ⏳ 1 job`; empty, so the row goes, when nothing runs. `$wstree`
-  becomes `├` while it shows. It is reported with a 2.5 minute lifetime and renewed by every hook run (at most every 3 s, and at the end of a turn),
-  so a server stopped while the agent is idle drops off by itself; a server left running while the agent idles longer disappears until the next hook.
+  becomes `├` while it shows. `$wstree`, `$wsrun` and `$wstree2` go out together in one source with no lifetime (herdr drops a token
+  whose latest report lapses, so separate lifetimes would leave the guide open). A server can stop with no hook to say so, so whenever something
+  runs, `bin/sidebar.py` starts `bin/steading_run.py`, one per workspace: every 10 s it recomputes the row, and once nothing runs it clears
+  `$wsrun` and `$wstree2`, sets `$wstree` to `└` and exits (as it does when the workspace is gone). It outlives sessions.
 
 Show them in herdr's agents list with a row layout in `~/.config/herdr/config.toml`:
 

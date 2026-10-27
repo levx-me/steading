@@ -946,10 +946,11 @@ exit 0
     expect(calls).toContain("--token repo=\uf07b no git");
     expect(calls).toContain("--clear-token repostate");
     expect(calls).toContain("--token tree1=└");
-    expect(calls).toContain("--token wstree=└ --token wsrepo=\uf07b no git");
+    expect(calls).toContain("--token wsrepo=\uf07b no git");
+    expect(calls).toContain("--source steading-run-w1:p1 --token wstree=└ --clear-token wsrun");
   });
 
-  test("the workspace's third Spaces row names its dev servers and running jobs, with guides, and lapses on its own", () => {
+  test("the workspace's third Spaces row names its dev servers and running jobs, with guides in one source", () => {
     const { mkdtempSync, writeFileSync, readFileSync, mkdirSync, chmodSync } = require("node:fs");
     const { tmpdir } = require("node:os");
     const dir = mkdtempSync(join(tmpdir(), "steading-wsrun-"));
@@ -970,14 +971,13 @@ exit 0
     hook();
     const calls = () => readFileSync(join(dir, "calls"), "utf8").trim().split("\n").filter((c) => c.startsWith("workspace report-metadata"));
     const [repo, runs] = calls();
-    expect(repo).toContain("--token wstree=├");
-    expect(runs).toContain("--ttl-ms 150000");
-    expect(runs).toContain("--token wstree2=└ --token wsrun=⏳ 1 job");
+    expect(repo).toContain("--clear-token wstree"); // the guide lives with the row it follows, in one source
+    expect(runs).not.toContain("--ttl-ms");
+    expect(runs).toContain("--token wstree=├ --token wsrun=⏳ 1 job --token wstree2=└");
     writeFileSync(join(run, "end"), String(Math.floor(Date.now() / 1000))); // the job ends: the row goes
     hook();
     const [repo2, runs2] = calls().slice(2);
-    expect(repo2).toContain("--token wstree=└");
-    expect(runs2).toContain("--clear-token wstree2 --clear-token wsrun");
+    expect(runs2).toContain("--token wstree=└ --clear-token wsrun --clear-token wstree2");
   });
 
   test("the deck's tasks come from Claude Code's folder, the talk only tells their story", () => {
@@ -1041,6 +1041,59 @@ a.session = ""; a.digest = v.Digest(); a.find_session()
       stdin: Buffer.from(JSON.stringify({ hook_event_name: "Stop", session_id: "aaaa1111-x", cwd: dir })) });
     expect(readFileSync(join(dir, "calls"), "utf8")).toContain("--token tasks= ▰▰▱▱▱ 1/2");
   });
+});
+
+describe("the run refresher", () => {
+  test("reports wsrun with a ├ while a server runs, then clears it, sets └ and exits; one per workspace", async () => {
+    const { mkdtempSync, writeFileSync, readFileSync, mkdirSync, existsSync } = require("node:fs");
+    const { tmpdir } = require("node:os");
+    const dir = require("node:fs").realpathSync(mkdtempSync(join(tmpdir(), "steading-run-")));
+    const sock = join(dir, "herdr.sock");
+    const log = join(dir, "log");
+    writeFileSync(join(dir, "herdr"), "#!/bin/sh\nexit 0\n");
+    require("node:fs").chmodSync(join(dir, "herdr"), 0o755);
+    const fake = Bun.spawn(["python3", "-c", `
+import socketserver, sys
+class H(socketserver.StreamRequestHandler):
+    def handle(self):
+        open(sys.argv[2], "a").write(self.rfile.readline().decode())
+        self.wfile.write(b'{"result":{}}\\n')
+socketserver.UnixStreamServer(sys.argv[1], H).serve_forever()`, sock, log]);
+    for (let i = 0; i < 50 && !existsSync(sock); i++) await Bun.sleep(100);
+    const www = join(dir, "www");
+    mkdirSync(www);
+    const port = 20000 + Math.floor(Math.random() * 20000);
+    const server = Bun.spawn(["python3", "-m", "http.server", String(port)], { cwd: www, stdout: "ignore", stderr: "ignore" });
+    const env = { PATH: process.env.PATH!, TMPDIR: dir, HERDR_SOCKET_PATH: sock, HERDR_BIN_PATH: join(dir, "herdr"), STEADING_RUN_EVERY: "0.5" };
+    const refresher = () => Bun.spawn(["python3", "-I", join(root, "bin/steading_run.py"), "w1:p1", "w1", www, "1"], { env, stdout: "ignore", stderr: "ignore" });
+    try {
+      for (let i = 0; i < 50; i++) { // wait for the listener
+        if (Bun.spawnSync(["lsof", "-nP", `-iTCP:${port}`, "-sTCP:LISTEN"]).stdout.length) break;
+        await Bun.sleep(100);
+      }
+      const r1 = refresher();
+      await Bun.sleep(2500);
+      const lines = () => (existsSync(log) ? readFileSync(log, "utf8").trim().split("\n").filter(Boolean).map((l) => JSON.parse(l)) : []);
+      const last = () => lines().at(-1).params;
+      expect(last().source).toBe("steading-run-w1:p1");
+      expect(last().tokens).toEqual({ wstree: "├", wsrun: `▶ :${port}`, wstree2: "└" });
+      expect(last()).not.toHaveProperty("ttl_ms");
+      // a second one for the same workspace exits at once and reports nothing
+      const before = lines().length;
+      const r2 = refresher();
+      expect(await Promise.race([r2.exited, Bun.sleep(1500).then(() => -1)])).toBe(0);
+      expect(r1.killed || r1.exitCode === null).toBe(true);
+      server.kill();
+      await server.exited;
+      expect(await Promise.race([r1.exited, Bun.sleep(8000).then(() => -1)])).toBe(0);
+      expect(last().tokens).toEqual({ wstree: "└", wsrun: null, wstree2: null });
+      expect(existsSync(join(dir, "steading", "run-w1.pid"))).toBe(false);
+      expect(before).toBeGreaterThan(0);
+    } finally {
+      server.kill();
+      fake.kill();
+    }
+  }, 30000);
 });
 
 describe("a task's story", () => {
