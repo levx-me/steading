@@ -980,6 +980,31 @@ exit 0
     expect(runs2).toContain("--token wstree=└ --clear-token wsrun --clear-token wstree2");
   });
 
+  test("a job with no end whose output file is gone, or that started over 6 h ago, is not running", () => {
+    const { mkdtempSync, writeFileSync, mkdirSync } = require("node:fs");
+    const { tmpdir } = require("node:os");
+    const dir = mkdtempSync(join(tmpdir(), "steading-cutoff-"));
+    const now = Math.floor(Date.now() / 1000);
+    const mk = (name: string, start: number, source?: string) => {
+      mkdirSync(join(dir, name));
+      writeFileSync(join(dir, name, "start"), String(start));
+      if (source) writeFileSync(join(dir, name, "source"), source);
+    };
+    writeFileSync(join(dir, "out"), "");
+    mk("live", now - 60, join(dir, "out"));
+    mk("gone", now - 60, join(dir, "missing"));
+    mk("old", now - 7 * 3600, join(dir, "out"));
+    const check = `
+import sys
+from importlib.machinery import SourceFileLoader
+a = sys.argv[1:]; sys.argv = sys.argv[:1]
+v = SourceFileLoader("v", a[0]).load_module()
+print([v.Jobs.shows(a[1] + "/" + n) for n in ("live", "gone", "old")])`;
+    const r = Bun.spawnSync(["python3", "-I", "-c", check, join(root, "bin/viewer.py"), dir], { env: { PATH: process.env.PATH!, STEADING_BASE: dir } });
+    expect(r.stderr.toString()).toBe("");
+    expect(r.stdout.toString().trim()).toBe("[True, False, False]");
+  });
+
   test("the deck's tasks come from Claude Code's folder, the talk only tells their story", () => {
     const { mkdtempSync, writeFileSync, mkdirSync, chmodSync } = require("node:fs");
     const { tmpdir } = require("node:os");

@@ -1591,8 +1591,21 @@ class Jobs(Runs):
 
     ended = {}  # run path: how long it took, once it has ended (its files no longer change)
 
+    STALE = 6 * 3600  # no pid is recorded: a run with no end or rc counts as cut off after this
+
+    @staticmethod
+    def cut_off(path):
+        """A run with no end and no result whose output file is gone (Claude clears it when its
+        process dies or restarts), or that started over STALE seconds ago: it will never end."""
+        if os.path.exists(os.path.join(path, "end")) or os.path.exists(os.path.join(path, "rc")):
+            return False
+        src, start = read(os.path.join(path, "source")), read(os.path.join(path, "start"))
+        return bool(src and not os.path.exists(src)) or bool(start and time.time() - int(start) > Jobs.STALE)
+
     @staticmethod
     def shows(path):
+        if Jobs.cut_off(path):
+            return False
         took = Jobs.ended.get(path)
         if took is None:  # still running (or not looked at yet): read its times
             start = read(os.path.join(path, "start"))
