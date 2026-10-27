@@ -9,6 +9,10 @@
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/bin/open",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/bin/sidebar"
           }
         ]
       }

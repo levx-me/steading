@@ -29,7 +29,9 @@ herdr = os.environ.get("HERDR_BIN_PATH", "herdr")
 # calls it idle while a tool runs. A request or a tool call marks the turn; its end clears it.
 lead_mark = os.path.join(state, "main-busy")
 if not event.get("agent_id"):
-    if event.get("hook_event_name") == "Stop":
+    # A new process (startup, /restart's resume, /clear) has no turn running: a turn that /restart
+    # cut off never reached its Stop hook, so its mark would keep the crew spinner going.
+    if event.get("hook_event_name") in ("Stop", "SessionStart"):
         try:
             os.remove(lead_mark)
         except OSError:
