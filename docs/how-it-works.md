@@ -51,21 +51,29 @@ Commands run in the deck get `CI=1` (no watch modes) and `FORCE_COLOR=1`, `CLICO
 A hook (`bin/sidebar`, after each tool call and at the end of each turn) reports each
 agent's repository and context use to herdr as pane tokens, with or without a deck open:
 
-- `$repo`: the branch, commits not pushed (`↑`) or not pulled (`↓`), files not committed.
+- `$repo`: the branch, commits not pushed (`↑`) or not pulled (`↓`).
+- `$repostate`: files not committed (`3 changed`) or `clean`; its own token so it takes its own colour.
 - `$model`: the model.
 - `$ctx`: context used, a bar and a percentage; from 80% on it is `$ctxhot` instead, so
   the layout can colour it.
 - `$tasks`: the agent's task list (TaskCreate/TaskUpdate), a bar and done/total.
+- `$tree1`..`$tree3`: tree guides (`├`, and `└` on the last row shown; empty for a row that is empty) in
+  a token of their own, so a layout can colour them apart from the text. `STEADING_SIDEBAR_TREE=0` turns them off.
+- `$wstree`, `$wsrepo`: workspace tokens for the Spaces panel's second row (herdr's own `branch` cannot take
+  a guide): `└` and `$repo`'s text, with `$wsrepostate` for `$repostate`'s. With several agents in one workspace the last report wins.
 
 Show them in herdr's agents list with a row layout in `~/.config/herdr/config.toml`:
 
 ```toml
+[ui.sidebar.spaces]
+rows = [["state_icon", "workspace"], [{ token = "$wstree", fg = "#ffffff" }, { token = "$wsrepo", dim = true }, { token = "$wsrepostate", dim = true }]]
+
 [ui.sidebar.agents]
 rows = [
   ["state_icon", { token = "workspace", bold = true }, "tab"],
-  [{ token = "$repo", dim = true }],
-  [{ token = "$model", dim = true }, { token = "$ctx", dim = true }, { token = "$ctxhot", fg = "#e06c75", bold = true }],
-  [{ token = "$tasks", dim = true }],
+  [{ token = "$tree1", fg = "#ffffff" }, { token = "$repo", dim = true }, { token = "$repostate", dim = true }],
+  [{ token = "$tree2", fg = "#ffffff" }, { token = "$model", dim = true }, { token = "$ctx", dim = true }, { token = "$ctxhot", fg = "#e06c75", bold = true }],
+  [{ token = "$tree3", fg = "#ffffff" }, { token = "$tasks", dim = true }],
 ]
 ```
 

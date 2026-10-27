@@ -169,24 +169,24 @@ for i, (icon, colour, name, branch, on) in enumerate(spaces):
     if on:
         rect(side, 1 + 2 * i, SB - 1, ACTIVE, rows=2)
     text(side, 1 + 2 * i, [(icon + " ", colour), (name, BRIGHT if on else TEXT)], -1)
-    text(side, 2 + 2 * i, [("  " + branch, BLUE)], -1)
+    text(side, 2 + 2 * i, [("└", BRIGHT), (" · " + branch, BLUE)], -1)
 text(side, 12, [("new", DIMMED), ("● ".rjust(SB - 8), BLUE), ("menu", DIMMED)], -1)
 line(side, 13.5, -1, 13.5, ACTIVE)
 text(side, 14, [("agents", MUTED), ("priority".rjust(SB - 7), MUTED)], -1)
 # Agent rows as Steading lays them out: each agent's repository ($repo) and model and
 # context use ($ctx, or $ctxhot in red from 80%) and tasks ($tasks), reported by its hook (bin/sidebar).
-crew = [("app", "feature", "◐", AMBER, "feat/refresh · 3 changed", "opus-5-5", "▰▰▱▱▱ 34%", False, "▰▰▰▱▱ 3/5", True),
+crew = [("app", "feature", "◐", AMBER, "feat/auth · 3 changed", "opus-5-5", "▰▰▱▱▱ 34%", False, "▰▰▰▱▱ 3/5", True),
         ("api", "main", "○", GREEN, "main ↑2 · clean", "sonnet-5-5", "▰▰▰▱▱ 58%", False, "", False),
         ("web", "dev", "!", RED, "dev ↓1 · 1 changed", "opus-5-5", "▰▰▰▰▱ 86%", True, "▰▱▱▱▱ 1/4", False),
         ("docs", "main", "○", GREEN, "main · clean", "haiku-5-5", "▰▱▱▱▱ 12%", False, "", False)]
 row = 16
 for name, tab, icon, colour, repo, model, ctx, hot, tasks, on in crew:
-    # Tree guides: "├ " before each row, "└ " before the last one shown (bin/sidebar's TREE).
-    lines = [[(icon + " ", colour), (name, BRIGHT, True), (" · " + tab, MUTED)], [("├ " + repo, MUTED)],
-             [("├ " + model + " · ", MUTED), (ctx, RED, True) if hot else (ctx, MUTED)]]
-    lines += [[("└ " + tasks, MUTED)]] if tasks else []
-    if not tasks:
-        lines[-1][0] = ("└" + lines[-1][0][0][1:], MUTED)
+    # Tree guides are tokens of their own in white ($tree1..3), herdr joins tokens with " · ".
+    def guide(last):
+        return [("└" if last else "├", BRIGHT), (" · ", MUTED)]
+    lines = [[(icon + " ", colour), (name, BRIGHT, True), (" · " + tab, MUTED)], guide(False) + [(repo.partition(" · ")[0], BLUE), (" · " + repo.partition(" · ")[2], MUTED)],
+             guide(not tasks) + [(model + " · ", MUTED), (ctx, RED, True) if hot else (ctx, MUTED)]]
+    lines += [guide(True) + [(tasks, MUTED)]] if tasks else []
     if on:
         rect(side, row, SB - 1, ACTIVE, rows=len(lines))
     for n, spans in enumerate(lines):

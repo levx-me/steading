@@ -879,10 +879,11 @@ describe("herdr sidebar tokens", () => {
     expect(all.some((c) => c.includes("--token repo=") && c !== calls[0])).toBe(false);
     // 170k of 200k: 85%, past 80%, so it goes out as $ctxhot.
     expect(calls[0]).toContain("--token repo=");
-    expect(calls[0]).toContain("1 changed");
-    expect(calls[0]).toContain("--token model=├ 󰚩 opus-5-5");
+    expect(calls[0]).toContain("--token repostate=1 changed");
+    expect(calls[0]).toContain("--token model=󰚩 opus-5-5");
     expect(calls[0]).toContain("--clear-token ctx --token ctxhot=󰍛 ▰▰▰▰▱ 85%");
-    expect(calls[0]).toContain("--token tasks=└  ▰▰▱▱▱ 1/3");
+    expect(calls[0]).toContain("--token tasks= ▰▰▱▱▱ 1/3");
+    expect(calls[0]).toContain("--token tree1=├ --token tree2=├ --token tree3=└");
     hook({ ...event, hook_event_name: "Stop" }); // the end of a turn always reports
     expect(readFileSync(join(dir, "calls"), "utf8").trim().split("\n").filter((c) => c.includes("--source steading ")).length).toBe(2);
     expect(existsSync(join(dir, "steading", "w1_p1", "sidebar"))).toBe(true);
@@ -947,7 +948,7 @@ a.session = ""; a.digest = v.Digest(); a.find_session()
     const env = { PATH: process.env.PATH!, HOME: join(dir, "home"), TMPDIR: dir, HERDR_ENV: "1", HERDR_PANE_ID: "w1:p1", HERDR_BIN_PATH: join(dir, "herdr") };
     Bun.spawnSync(["python3", "-I", join(root, "bin/sidebar.py")], { env,
       stdin: Buffer.from(JSON.stringify({ hook_event_name: "Stop", session_id: "aaaa1111-x", cwd: dir })) });
-    expect(readFileSync(join(dir, "calls"), "utf8")).toContain("--token tasks=└  ▰▰▱▱▱ 1/2");
+    expect(readFileSync(join(dir, "calls"), "utf8")).toContain("--token tasks= ▰▰▱▱▱ 1/2");
   });
 });
 

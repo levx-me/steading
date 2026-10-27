@@ -2,7 +2,8 @@
 background with the hook's event on stdin: the agent's repository and
 context use, as herdr pane tokens for its sidebar, with or without a deck open.
 
-  $repo    the branch, commits not pushed (↑) or not pulled (↓), files not committed
+  $repo    the branch, commits not pushed (↑) or not pulled (↓)
+  $repostate  files not committed ("1 changed") or "clean"
   $model   the model
   $ctx     context used: a bar and a percentage, below 80%
   $ctxhot  the same from 80% on, so a ui.sidebar.agents.rows layout can colour it
@@ -23,9 +24,9 @@ import time
 ICONS = {"repo": "\ue725", "model": "\U000f06a9", "ctx": "\U000f035b", "ctxhot": "\U000f035b", "tasks": "\uf4a0"}
 if os.environ.get("STEADING_SIDEBAR_ICONS") == "0":
     ICONS = {}
-# Tree guides ("├ ", "└ " on the last row shown) before the first token of each row of the
-# agent's lines, as the layout in ~/.config/herdr/config.toml sets them. STEADING_SIDEBAR_TREE=0 off.
-ROWS = [("repo",), ("model", "ctx", "ctxhot"), ("tasks",)]
+# Tree guides ("├", "└" on the last row shown) as the tokens $tree1..3, one per row of ROWS, in
+# white before the row's text in ~/.config/herdr/config.toml. STEADING_SIDEBAR_TREE=0 turns them off.
+ROWS = [("repo", "repostate"), ("model", "ctx", "ctxhot"), ("tasks",)]
 TREE = os.environ.get("STEADING_SIDEBAR_TREE") != "0"
 
 event = json.loads(sys.stdin.read() or "{}")
@@ -101,7 +102,7 @@ v = SourceFileLoader("viewer", os.path.join(os.path.dirname(os.path.abspath(__fi
 
 # The repository: as the git tab's border shows it.
 cwd = event.get("cwd") or os.getcwd()
-repo = v.ANSI.sub("", v.repo_state(cwd)).strip()
+repo, _, repostate = v.ANSI.sub("", v.repo_state(cwd)).strip().partition(" · ")  # "main ↑2", "1 changed"
 
 # The context: the latest request's tokens, from the end of the transcript.
 d = v.Digest()
@@ -142,21 +143,27 @@ if tasks:
 
 args = [os.environ.get("HERDR_BIN_PATH", "herdr"), "pane", "report-metadata", pane, "--source", "steading"]
 hot = ctx and v.context_use(d)[0] >= 80
-values = {"repo": repo, "model": model, "ctx": "" if hot else ctx, "ctxhot": ctx if hot else "", "tasks": bar}
+values = {"repo": repo, "model": model, "ctx": "" if hot else ctx, "ctxhot": ctx if hot else "", "tasks": bar, "repostate": repostate}
 shown = [r for r in ROWS if any(values[n] for n in r)]
-for row in shown:
-    first = True
-    for name in row:
-        if values[name]:
-            values[name] = ICONS.get(name, "") and ICONS[name] + " " + values[name] or values[name]
-            if TREE and first:
-                values[name] = ("└ " if row is shown[-1] else "├ ") + values[name]
-            first = False
+for name in values:
+    if values[name] and ICONS.get(name):
+        values[name] = ICONS[name] + " " + values[name]
+# Tree guides are tokens of their own (herdr colours a token as a whole): $tree1..3 for the rows.
+for i, row in enumerate(ROWS, 1):
+    values[f"tree{i}"] = (("└" if row is shown[-1] else "├") if TREE and row in shown else "")
 for name, value in values.items():
     args += ["--token", f"{name}={value}"] if value else ["--clear-token", name]
 try:
     subprocess.run(args, capture_output=True, timeout=5)
-except (OSError, subprocess.TimeoutExpired):
+    # The Spaces panel's second row ($wstree, $wsrepo): herdr's own branch/git_status can't take a
+    # guide token. The last pane to report wins when a workspace holds several.
+    space = json.loads(subprocess.run([herdr, "pane", "get", pane], capture_output=True, text=True,
+                                      timeout=5).stdout)["result"]["pane"]["workspace_id"]
+    ws = {"wstree": "└" if TREE and repo else "", "wsrepo": values["repo"], "wsrepostate": repostate}
+    subprocess.run([herdr, "workspace", "report-metadata", space, "--source", f"steading-repo-{pane}"]
+                   + [a for k, w in ws.items() for a in (["--token", f"{k}={w}"] if w else ["--clear-token", k])],
+                   capture_output=True, timeout=5)
+except (OSError, subprocess.TimeoutExpired, ValueError, KeyError):
     pass
 
 # The pane's name: the session's title (one set with /rename, else Claude's own, which changes

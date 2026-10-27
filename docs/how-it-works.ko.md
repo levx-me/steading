@@ -51,20 +51,26 @@ deck에서 실행되는 명령에는 `CI=1`(watch 모드 끔)과 `FORCE_COLOR=1`
 훅(`bin/sidebar`, 도구 호출마다와 턴이 끝날 때)이 각 에이전트의 저장소 상태와 컨텍스트 사용량을
 herdr에 pane 토큰으로 알려 줍니다. deck이 열려 있지 않아도 됩니다.
 
-- `$repo`: 브랜치, 안 올린 커밋(`↑`)과 안 받은 커밋(`↓`), 커밋 안 한 파일 수.
+- `$repo`: 브랜치, 안 올린 커밋(`↑`)과 안 받은 커밋(`↓`).
+- `$repostate`: 커밋 안 한 파일 수(`3 changed`) 또는 `clean`. 별도 토큰이라 색을 따로 줄 수 있습니다.
 - `$model`: 모델.
 - `$ctx`: 컨텍스트 사용량(막대와 퍼센트). 80%부터는 `$ctxhot`으로 바뀌어 행 구성에서 색을 줄 수 있습니다.
 - `$tasks`: 에이전트의 할 일 목록(TaskCreate/TaskUpdate), 막대와 완료/전체.
+- `$tree1`..`$tree3`: 트리 안내선(`├`, 마지막으로 보이는 행은 `└`, 빈 행은 비움). 별도 토큰이라 글자와 다른 색을 줄 수 있습니다. `STEADING_SIDEBAR_TREE=0`이면 끕니다.
+- `$wstree`, `$wsrepo`: Spaces 패널 둘째 행용 워크스페이스 토큰(herdr 기본 `branch`는 안내선을 못 붙임). `└`와 `$repo`와 같은 글(`$repostate`는 `$wsrepostate`). 한 워크스페이스에 에이전트가 여럿이면 마지막 보고가 보입니다.
 
 `~/.config/herdr/config.toml`의 행 구성으로 herdr agents 목록에 보이게 합니다.
 
 ```toml
+[ui.sidebar.spaces]
+rows = [["state_icon", "workspace"], [{ token = "$wstree", fg = "#ffffff" }, { token = "$wsrepo", dim = true }, { token = "$wsrepostate", dim = true }]]
+
 [ui.sidebar.agents]
 rows = [
   ["state_icon", { token = "workspace", bold = true }, "tab"],
-  [{ token = "$repo", dim = true }],
-  [{ token = "$model", dim = true }, { token = "$ctx", dim = true }, { token = "$ctxhot", fg = "#e06c75", bold = true }],
-  [{ token = "$tasks", dim = true }],
+  [{ token = "$tree1", fg = "#ffffff" }, { token = "$repo", dim = true }, { token = "$repostate", dim = true }],
+  [{ token = "$tree2", fg = "#ffffff" }, { token = "$model", dim = true }, { token = "$ctx", dim = true }, { token = "$ctxhot", fg = "#e06c75", bold = true }],
+  [{ token = "$tree3", fg = "#ffffff" }, { token = "$tasks", dim = true }],
 ]
 ```
 
