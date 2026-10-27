@@ -2227,9 +2227,30 @@ JOB_IDS = {}  # a job's id file: its tool call id (bin/hook writes it once)
 ACTIVITY_SHOWN = 5  # calls in the activity card before "▾ N more"
 
 
+def statusline_context(sid):
+    """(percent, window) from the JSON Claude Code gave the statusline for this session, which the
+    optional statusline hook saved (docs/how-it-works.md); None when absent, other or older than 10 minutes."""
+    path = os.path.join(tempfile.gettempdir(), "steading", "statusline", f"{sid}.json")
+    try:
+        if not sid or time.time() - os.path.getmtime(path) > 600:
+            return None
+        with open(path) as f:
+            j = json.load(f)
+        w = j["context_window"]
+        size = int(w["context_window_size"])
+        if j.get("session_id") != sid or size <= 0:
+            return None
+        return min(100, int(w["used_percentage"])), size
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+
+
 def context_use(d):
-    """(percent of the window used, the window) for a digest. A 1M-window model says so
-    in its name, or has already gone past the usual limit."""
+    """(percent of the window used, the window) for a digest. The statusline's own numbers when
+    saved; else a guess: a 1M-window model says so in its name, or has already gone past the usual limit."""
+    saved = statusline_context(getattr(d, "sid", ""))
+    if saved:
+        return saved
     limit = 1_000_000 if "[1m]" in (d.requested or "") or d.context > CONTEXT_LIMIT else CONTEXT_LIMIT
     return (min(100, d.context * 100 // limit) if d.context else 0), limit
 
@@ -2674,6 +2695,7 @@ class MainRun(AgentRun):
 
     def count(self):  # read with the main transcript (Agents.read_main)
         self.stamps, self.digest = self.deck.stamps, self.deck.digest
+        self.digest.sid = os.path.basename(self.path)[:-len(".jsonl")]  # the session id: the statusline's file is named by it
 
     def state(self):
         icon, colour = self.status()

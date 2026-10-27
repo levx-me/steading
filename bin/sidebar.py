@@ -135,6 +135,7 @@ if not repo:  # git said "not a git repository" (any other failure keeps the row
 
 # The context: the latest request's tokens, from the end of the transcript.
 d = v.Digest()
+d.sid = event.get("session_id") or ""
 try:
     with open(event.get("transcript_path", ""), "rb") as f:
         f.seek(max(0, os.path.getsize(f.name) - 400_000))

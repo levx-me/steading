@@ -885,6 +885,33 @@ print(m.at_work(sys.argv[2], tempfile.mkdtemp()))`;
   }, 30000);
 });
 
+describe("context percent from the statusline", () => {
+  const run = (setup: (dir: string) => void) => {
+    const { mkdtempSync, mkdirSync } = require("node:fs");
+    const { tmpdir } = require("node:os");
+    const dir = mkdtempSync(join(tmpdir(), "steading-ctx-"));
+    mkdirSync(join(dir, "steading", "statusline"), { recursive: true });
+    setup(join(dir, "steading", "statusline"));
+    const code = `import sys, importlib.util as u
+sys.argv = ["v", "/tmp"]
+spec = u.spec_from_file_location("v", "${join(root, "bin/viewer.py")}")
+m = u.module_from_spec(spec); spec.loader.exec_module(m)
+d = m.Digest(); d.context = 184000; d.sid = "s1"
+print(m.context_use(d), end="")`;
+    return Bun.spawnSync(["python3", "-I", "-c", code], { env: { PATH: process.env.PATH!, TMPDIR: dir } }).stdout.toString();
+  };
+  const body = (sid: string) => JSON.stringify({ session_id: sid, context_window: { context_window_size: 1000000, used_percentage: 19 } });
+  const { writeFileSync, utimesSync } = require("node:fs");
+
+  test("a fresh file of this session gives the window and percent", () =>
+    expect(run((d) => writeFileSync(join(d, "s1.json"), body("s1")))).toBe("(19, 1000000)"));
+  test("a stale file, another session's, or none falls back to the guess", () => {
+    expect(run((d) => { writeFileSync(join(d, "s1.json"), body("s1")); const old = Date.now() / 1000 - 3600; utimesSync(join(d, "s1.json"), old, old); })).toBe("(92, 200000)");
+    expect(run((d) => writeFileSync(join(d, "s1.json"), body("other")))).toBe("(92, 200000)");
+    expect(run(() => {})).toBe("(92, 200000)");
+  });
+});
+
 describe("herdr sidebar tokens", () => {
   test("the hook reports the agent's repository, context use and tasks, once per 3s; a subagent starts the $crew spinner", () => {
     const { mkdtempSync, writeFileSync, readFileSync, existsSync, chmodSync } = require("node:fs");

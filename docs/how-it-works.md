@@ -95,6 +95,19 @@ rows = [
 - Git commands, deploys and jobs are never rewritten or approved by Steading.
 - Run logs stay in `$TMPDIR`; nothing leaves the machine.
 
+### Exact context percent (optional)
+
+The window size is not in the transcript, so `$ctx` and the deck's context bar are estimated
+(200K, or 1M when the model name says `[1m]` or usage passed 200K). Claude Code does tell its
+statusline the real numbers. If your statusline command saves that JSON per session, the deck and
+sidebar use it (when under 10 minutes old); add to the command:
+
+```sh
+input=$(cat)   # the statusline's stdin
+sid=$(printf %s "$input" | jq -r .session_id); d="${TMPDIR:-/tmp}/steading/statusline"
+mkdir -p "$d" && printf %s "$input" > "$d/$sid.json.$$" && mv "$d/$sid.json.$$" "$d/$sid.json"
+```
+
 ## Development
 
 ```sh
@@ -106,3 +119,4 @@ bun test
 
 With the plugin installed from your checkout, `bun test` itself runs in the deck. When the deck's
 look changes, regenerate the README preview: `python3 docs/demo.py > docs/demo.svg`.
+
