@@ -5,13 +5,15 @@ plus its subagents.
 
 Started by bin/sidebar.py on a tool call, the main agent's or a subagent's; one per pane (a pid
 file in the deck's state dir). Every frame goes straight to herdr's socket (~8 a second, far
-lighter than the CLI). It recounts once a second (subagents that wrote their transcripts in the
-last 90 s, plus the main agent while its turn runs), and once none is at work it clears the tokens
+lighter than the CLI). It recounts once a second (the subagents between their SubagentStart and
+SubagentStop hooks, plus the main agent while its turn runs; with no markers, those that wrote
+their transcripts in the last 90 s), and once none is at work it clears the tokens
 and exits. Each report lapses in 3 s, so a crash leaves nothing behind."""
 import json, os, socket, sys, time
 
 FRAMES = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
-QUIET = 90  # seconds without a subagent writing before it stops
+QUIET = 90  # fallback, no markers: seconds without a subagent writing before it stops
+STALE = 3 * 3600  # a subagent marker older than this is a crash
 
 
 def call(method, params):
@@ -37,6 +39,27 @@ def busy(folder):
         return 0
 
 
+def live(state):
+    """Subagents between SubagentStart and SubagentStop (bin/sidebar.py keeps a marker per agent_id
+    in <state>/agents), or None when the folder is missing: a session that began before the markers.
+    A marker over 3 h old is a subagent that died without its stop: dropped."""
+    folder = os.path.join(state, "agents")
+    try:
+        names = os.listdir(folder)
+    except OSError:
+        return None
+    n = 0
+    for f in names:
+        try:
+            if time.time() - os.path.getmtime(os.path.join(folder, f)) < STALE:
+                n += 1
+            else:
+                os.remove(os.path.join(folder, f))
+        except OSError:
+            pass
+    return n
+
+
 def report(pane, space, value, ttl=3000):
     tokens = {"crew": value}
     call("pane.report_metadata", {"pane_id": pane, "source": "steading-crew", "tokens": tokens, "ttl_ms": ttl})
@@ -53,7 +76,8 @@ def at_work(state, folder):
         lead = time.time() - os.path.getmtime(os.path.join(state, "main-busy")) < 600
     except OSError:
         lead = False
-    return busy(folder) + lead
+    n = live(state)
+    return (busy(folder) if n is None else n) + lead
 
 
 def main(pane, folder, state):

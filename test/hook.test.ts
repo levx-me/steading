@@ -846,6 +846,45 @@ print(*out)
   });
 });
 
+describe("the crew's subagent markers", () => {
+  test("start counts, stop uncounts, nested count, SessionStart clears, stale dropped", () => {
+    const { mkdtempSync, writeFileSync, chmodSync, existsSync, utimesSync } = require("node:fs");
+    const { tmpdir } = require("node:os");
+    const dir = mkdtempSync(join(tmpdir(), "steading-agents-"));
+    writeFileSync(join(dir, "herdr"), "#!/bin/sh\nexit 0\n");
+    chmodSync(join(dir, "herdr"), 0o755);
+    const env = { PATH: process.env.PATH!, HOME: join(dir, "home"), TMPDIR: dir, HERDR_ENV: "1", HERDR_PANE_ID: "w1:p1", HERDR_BIN_PATH: join(dir, "herdr") };
+    const hook = (name: string, id?: string) => Bun.spawnSync(["python3", "-I", join(root, "bin/sidebar.py")], { env,
+      stdin: Buffer.from(JSON.stringify({ hook_event_name: name, agent_id: id, cwd: dir, transcript_path: join(dir, "s.jsonl") })) });
+    const state = join(dir, "steading", "w1_p1");
+    const check = `
+import importlib.util, importlib.machinery, sys, tempfile
+spec = importlib.util.spec_from_loader("crew", importlib.machinery.SourceFileLoader("crew", sys.argv[1]))
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+print(m.at_work(sys.argv[2], tempfile.mkdtemp()))`;
+    const count = () => Bun.spawnSync(["python3", "-I", "-c", check, join(root, "bin/crew"), state]).stdout.toString().trim();
+    hook("SessionStart");
+    expect(count()).toBe("0");
+    hook("SubagentStart", "pm");
+    expect(count()).toBe("1");
+    hook("SubagentStart", "worker"); // nested, same pane
+    expect(count()).toBe("2");
+    hook("SubagentStop", "worker");
+    expect(count()).toBe("1");
+    hook("SubagentStop", "pm");
+    expect(count()).toBe("0");
+    hook("SubagentStart", "a");
+    hook("SubagentStart", "b");
+    hook("SessionStart"); // a new process has none running
+    expect(count()).toBe("0");
+    hook("SubagentStart", "old");
+    const old = (Date.now() - 4 * 3600 * 1000) / 1000;
+    utimesSync(join(state, "agents", "old"), old, old);
+    expect(count()).toBe("0");
+    expect(existsSync(join(state, "agents", "old"))).toBe(false);
+  }, 30000);
+});
+
 describe("herdr sidebar tokens", () => {
   test("the hook reports the agent's repository, context use and tasks, once per 3s; a subagent starts the $crew spinner", () => {
     const { mkdtempSync, writeFileSync, readFileSync, existsSync, chmodSync } = require("node:fs");

@@ -57,6 +57,7 @@ agent's repository and context use to herdr as pane tokens, with or without a de
 - `$ctx`: context used, a bar and a percentage; from 80% on it is `$ctxhot` instead, so
   the layout can colour it.
 - `$tasks`: the agent's task list (TaskCreate/TaskUpdate), a bar and done/total.
+- `$crew`: a spinner and a count (`⠋ 2`) while the main turn runs and for each subagent still running, nested ones (a PM's workers) included. Subagents are counted from the SubagentStart and SubagentStop hooks (a marker per `agent_id` in the pane's state dir, cleared on SessionStart, dropped after 3 h), so a long silent tool call keeps its agent counted.
 - `$tree1`..`$tree3`: tree guides (`├`, and `└` on the last row shown; empty for a row that is empty) in
   a token of their own, so a layout can colour them apart from the text. `STEADING_SIDEBAR_TREE=0` turns them off.
 - `$wstree`, `$wsrepo`: workspace tokens for the Spaces panel's second row (herdr's own `branch` cannot take
