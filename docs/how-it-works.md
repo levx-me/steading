@@ -53,6 +53,7 @@ agent's repository and context use to herdr as pane tokens, with or without a de
 
 - `$repo`: the branch, commits not pushed (`↑`) or not pulled (`↓`).
 - `$repostate`: files not committed (`3 changed`) or `clean`; its own token so it takes its own colour.
+  In a folder outside any git repository `$repo` reads ` no git` (a folder icon) and `$repostate` is empty.
 - `$model`: the model.
 - `$ctx`: context used, a bar and a percentage; from 80% on it is `$ctxhot` instead, so
   the layout can colour it.

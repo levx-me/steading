@@ -4,6 +4,7 @@ context use, as herdr pane tokens for its sidebar, with or without a deck open.
 
   $repo    the branch, commits not pushed (↑) or not pulled (↓)
   $repostate  files not committed ("1 changed") or "clean"
+              (a folder outside any git repository: $repo is "no git", $repostate empty)
   $model   the model
   $ctx     context used: a bar and a percentage, below 80%
   $ctxhot  the same from 80% on, so a ui.sidebar.agents.rows layout can colour it
@@ -23,7 +24,7 @@ import time
 
 # Nerd Font icon before each token's value (JetBrainsMono Nerd Font); change them here.
 # STEADING_SIDEBAR_ICONS=0 turns them off.
-ICONS = {"repo": "\ue725", "model": "\U000f06a9", "ctx": "\U000f035b", "ctxhot": "\U000f035b", "tasks": "\uf4a0"}
+ICONS = {"repo": "\ue725", "model": "\U000f06a9", "ctx": "\U000f035b", "ctxhot": "\U000f035b", "tasks": "\uf4a0", "nogit": "\uf07b"}
 if os.environ.get("STEADING_SIDEBAR_ICONS") == "0":
     ICONS = {}
 # Tree guides ("├", "└" on the last row shown) as the tokens $tree1..3, one per row of ROWS, in
@@ -123,6 +124,15 @@ v = SourceFileLoader("viewer", os.path.join(os.path.dirname(os.path.abspath(__fi
 cwd = event.get("cwd") or os.getcwd()
 repo, _, repostate = v.ANSI.sub("", v.repo_state(cwd)).strip().partition(" · ")  # "main ↑2", "1 changed"
 
+nogit = False
+if not repo:  # git said "not a git repository" (any other failure keeps the row empty)
+    try:
+        r = subprocess.run(["git", "-C", cwd, "rev-parse"], capture_output=True, text=True, timeout=5, env={**os.environ, "LC_ALL": "C"})
+        nogit = r.returncode != 0 and "not a git repository" in r.stderr
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+    repo = "no git" if nogit else ""
+
 # The context: the latest request's tokens, from the end of the transcript.
 d = v.Digest()
 try:
@@ -167,6 +177,8 @@ shown = [r for r in ROWS if any(values[n] for n in r)]
 for name in values:
     if values[name] and ICONS.get(name):
         values[name] = ICONS[name] + " " + values[name]
+if nogit:
+    values["repo"] = (ICONS["nogit"] + " " if "nogit" in ICONS else "") + "no git"
 # Tree guides are tokens of their own (herdr colours a token as a whole): $tree1..3 for the rows.
 for i, row in enumerate(ROWS, 1):
     values[f"tree{i}"] = (("└" if row is shown[-1] else "├") if TREE and row in shown else "")
@@ -189,7 +201,7 @@ try:
     jobs = [p for p in glob.glob(os.path.join(state, "jobs", "runs", "*")) if not os.path.exists(os.path.join(p, "end")) and v.Jobs.shows(p)]
     run = " · ".join(([("▶ " + " ".join(f":{n}" for n in ports[:4]))] if ports else []) + ([f"⏳ {len(jobs)} job{'s' * (len(jobs) > 1)}"] if jobs else []))
     # Guides for the Spaces rows [wsrepo, wsrun]: "├" on a row another follows, "└" on the last one shown.
-    ws = {"wstree": ("├" if run else "└") if TREE and repo else "", "wsrepo": values["repo"], "wsrepostate": repostate}
+    ws = {"wstree": ("├" if run else "└") if TREE and values["repo"] else "", "wsrepo": values["repo"], "wsrepostate": repostate}
     wsrun = {"wstree2": "└" if TREE and run else "", "wsrun": run}
     for src, tokens, ttl in ((f"steading-repo-{pane}", ws, []), (f"steading-run-{pane}", wsrun, ["--ttl-ms", str(RUN_TTL_MS)])):
         subprocess.run([herdr, "workspace", "report-metadata", space, "--source", src] + ttl

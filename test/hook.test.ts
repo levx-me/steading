@@ -928,6 +928,27 @@ describe("herdr sidebar tokens", () => {
     expect(existsSync(join(dir, "steading", "w1_p1", "sidebar"))).toBe(true);
   });
 
+  test("outside a git repository $repo and $wsrepo say \"no git\" with a folder icon, and the guide stays", () => {
+    const { mkdtempSync, writeFileSync, readFileSync, chmodSync, mkdirSync } = require("node:fs");
+    const { tmpdir } = require("node:os");
+    const dir = mkdtempSync(join(tmpdir(), "steading-nogit-"));
+    writeFileSync(join(dir, "herdr"), `#!/bin/sh
+echo "$@" >> ${dir}/calls
+[ "$1 $2" = "pane get" ] && echo '{"result":{"pane":{"workspace_id":"w1","tab_id":"w1:t1"}}}'
+exit 0
+`);
+    chmodSync(join(dir, "herdr"), 0o755);
+    mkdirSync(join(dir, "plain"));
+    const env = { PATH: process.env.PATH!, HOME: join(dir, "home"), TMPDIR: dir, HERDR_ENV: "1", HERDR_PANE_ID: "w1:p1", HERDR_BIN_PATH: join(dir, "herdr"), GIT_CEILING_DIRECTORIES: dir };
+    Bun.spawnSync(["python3", "-I", join(root, "bin/sidebar.py")], { env,
+      stdin: Buffer.from(JSON.stringify({ hook_event_name: "Stop", session_id: "abcd1234-0000", cwd: join(dir, "plain") })) });
+    const calls = readFileSync(join(dir, "calls"), "utf8");
+    expect(calls).toContain("--token repo=\uf07b no git");
+    expect(calls).toContain("--clear-token repostate");
+    expect(calls).toContain("--token tree1=└");
+    expect(calls).toContain("--token wstree=└ --token wsrepo=\uf07b no git");
+  });
+
   test("the workspace's third Spaces row names its dev servers and running jobs, with guides, and lapses on its own", () => {
     const { mkdtempSync, writeFileSync, readFileSync, mkdirSync, chmodSync } = require("node:fs");
     const { tmpdir } = require("node:os");
