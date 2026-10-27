@@ -18,6 +18,12 @@ import subprocess
 import sys
 import time
 
+# Nerd Font icon before each token's value (JetBrainsMono Nerd Font); change them here.
+# STEADING_SIDEBAR_ICONS=0 turns them off.
+ICONS = {"repo": "\ue725", "model": "\U000f06a9", "ctx": "\U000f035b", "ctxhot": "\U000f035b", "tasks": "\uf4a0"}
+if os.environ.get("STEADING_SIDEBAR_ICONS") == "0":
+    ICONS = {}
+
 event = json.loads(sys.stdin.read() or "{}")
 pane = os.environ.get("HERDR_PANE_ID", "")
 if os.environ.get("HERDR_ENV") != "1" or not pane:
@@ -133,7 +139,7 @@ if tasks:
 args = [os.environ.get("HERDR_BIN_PATH", "herdr"), "pane", "report-metadata", pane, "--source", "steading"]
 hot = ctx and v.context_use(d)[0] >= 80
 for name, value in (("repo", repo), ("model", model), ("ctx", "" if hot else ctx), ("ctxhot", ctx if hot else ""), ("tasks", bar)):
-    args += ["--token", f"{name}={value}"] if value else ["--clear-token", name]
+    args += ["--token", f"{name}={ICONS[name] + ' ' if name in ICONS else ''}{value}"] if value else ["--clear-token", name]
 try:
     subprocess.run(args, capture_output=True, timeout=5)
 except (OSError, subprocess.TimeoutExpired):
