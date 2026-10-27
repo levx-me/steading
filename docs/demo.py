@@ -181,9 +181,12 @@ crew = [("app", "feature", "◐", AMBER, "feat/refresh · 3 changed", "opus-5-5"
         ("docs", "main", "○", GREEN, "main · clean", "haiku-5-5", "▰▱▱▱▱ 12%", False, "", False)]
 row = 16
 for name, tab, icon, colour, repo, model, ctx, hot, tasks, on in crew:
-    lines = [[(icon + " ", colour), (name, BRIGHT, True), (" · " + tab, MUTED)], [("  " + repo, MUTED)],
-             [("  " + model + " · ", MUTED), (ctx, RED, True) if hot else (ctx, MUTED)]]
-    lines += [[("  " + tasks, MUTED)]] if tasks else []
+    # Tree guides: "├ " before each row, "└ " before the last one shown (bin/sidebar's TREE).
+    lines = [[(icon + " ", colour), (name, BRIGHT, True), (" · " + tab, MUTED)], [("├ " + repo, MUTED)],
+             [("├ " + model + " · ", MUTED), (ctx, RED, True) if hot else (ctx, MUTED)]]
+    lines += [[("└ " + tasks, MUTED)]] if tasks else []
+    if not tasks:
+        lines[-1][0] = ("└" + lines[-1][0][0][1:], MUTED)
     if on:
         rect(side, row, SB - 1, ACTIVE, rows=len(lines))
     for n, spans in enumerate(lines):

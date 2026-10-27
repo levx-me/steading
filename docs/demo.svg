@@ -30,28 +30,28 @@
 <text x="14.0" y="388.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">◐</text>
 <text x="30.8" y="388.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4" font-weight="bold">app</text>
 <text x="64.4" y="388.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">· feature</text>
-<text x="30.8" y="407.7" textLength="201.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">feat/refresh · 3 changed</text>
-<text x="30.8" y="426.7" textLength="84.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">opus-5-5 ·</text>
+<text x="14.0" y="407.7" textLength="218.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">├ feat/refresh · 3 changed</text>
+<text x="14.0" y="426.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">├ opus-5-5 ·</text>
 <text x="123.2" y="426.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">▰▰▱▱▱ 34%</text>
-<text x="30.8" y="445.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">▰▰▰▱▱ 3/5</text>
+<text x="14.0" y="445.7" textLength="92.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">└ ▰▰▰▱▱ 3/5</text>
 <text x="14.0" y="464.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#98b17d">○</text>
 <text x="30.8" y="464.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4" font-weight="bold">api</text>
 <text x="64.4" y="464.7" textLength="50.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">· main</text>
-<text x="30.8" y="483.7" textLength="126.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">main ↑2 · clean</text>
-<text x="30.8" y="502.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">sonnet-5-5 ·</text>
+<text x="14.0" y="483.7" textLength="142.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">├ main ↑2 · clean</text>
+<text x="14.0" y="502.7" textLength="117.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">└ sonnet-5-5 ·</text>
 <text x="140.0" y="502.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">▰▰▰▱▱ 58%</text>
 <text x="14.0" y="521.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d0868d">!</text>
 <text x="30.8" y="521.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4" font-weight="bold">web</text>
 <text x="64.4" y="521.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">· dev</text>
-<text x="30.8" y="540.7" textLength="151.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">dev ↓1 · 1 changed</text>
-<text x="30.8" y="559.7" textLength="84.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">opus-5-5 ·</text>
+<text x="14.0" y="540.7" textLength="168.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">├ dev ↓1 · 1 changed</text>
+<text x="14.0" y="559.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">├ opus-5-5 ·</text>
 <text x="123.2" y="559.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#d0868d" font-weight="bold">▰▰▰▰▱ 86%</text>
-<text x="30.8" y="578.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">▰▱▱▱▱ 1/4</text>
+<text x="14.0" y="578.7" textLength="92.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">└ ▰▱▱▱▱ 1/4</text>
 <text x="14.0" y="597.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#98b17d">○</text>
 <text x="30.8" y="597.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4" font-weight="bold">docs</text>
 <text x="72.8" y="597.7" textLength="50.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">· main</text>
-<text x="30.8" y="616.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">main · clean</text>
-<text x="30.8" y="635.7" textLength="92.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">haiku-5-5 ·</text>
+<text x="14.0" y="616.7" textLength="117.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">├ main · clean</text>
+<text x="14.0" y="635.7" textLength="109.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">└ haiku-5-5 ·</text>
 <text x="131.6" y="635.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">▰▱▱▱▱ 12%</text>
 <text x="215.6" y="806.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">«</text>
 <rect x="240.8" y="52.0" width="1268.4" height="19.0" rx="0" fill="#21252b"/>
