@@ -8,7 +8,7 @@ dir; run: steading_run.py PANE WORKSPACE CWD HAS_REPO). Every 10 s it recomputes
 three tokens in one source with no lifetime, the same one the hooks use, so the two agree. Once
 nothing runs it clears $wsrun and $wstree2, sets $wstree to "└", and exits, as it does when the
 workspace is gone (herdr answers with an error). Servers outlive sessions: nothing else stops it."""
-import glob, json, os, socket, subprocess, sys, time
+import glob, json, os, shutil, socket, subprocess, sys, time
 from importlib.machinery import SourceFileLoader
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -18,6 +18,38 @@ EVERY = float(os.environ.get("STEADING_RUN_EVERY", "10"))
 
 def source(pane):
     return f"steading-run-{pane}"
+
+
+def _sent_file(state, src):
+    return os.path.join(state, "sent", src.replace(":", "_").replace("/", "_") + ".json")
+
+
+def same_as_sent(state, src, tokens):
+    """True when the last report for this source went out with these very tokens: herdr redraws the
+    sidebar on every report, so an unchanged one is skipped."""
+    try:
+        with open(_sent_file(state, src)) as f:
+            return json.load(f) == tokens
+    except (OSError, ValueError):
+        return False
+
+
+def mark_sent(state, src, tokens):
+    """Remember a report that succeeded (atomic write). Call it only after the report went through."""
+    path = _sent_file(state, src)
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        tmp = f"{path}.{os.getpid()}"
+        with open(tmp, "w") as f:
+            json.dump(tokens, f)
+        os.replace(tmp, path)
+    except OSError:
+        pass
+
+
+def forget_sent(state):
+    """A new session, or a herdr restart: the next report must go out whatever was sent before."""
+    shutil.rmtree(os.path.join(state, "sent"), ignore_errors=True)
 
 
 def compute(v, state, cwd, space):
@@ -56,17 +88,23 @@ def call(method, params):
     return reply["result"]
 
 
-def report(pane, space, run, has_repo):
-    call("workspace.report_metadata", {"workspace_id": space, "source": source(pane),
-                                       "tokens": {k: v or None for k, v in tokens(run, has_repo).items()}})
+def report(pane, space, run, has_repo, state, force=False):
+    """Skipped when it repeats the last one sent (the first report of a refresher is never skipped)."""
+    sent = {k: v or None for k, v in tokens(run, has_repo).items()}
+    if not force and same_as_sent(state, source(pane), sent):
+        return
+    call("workspace.report_metadata", {"workspace_id": space, "source": source(pane), "tokens": sent})
+    mark_sent(state, source(pane), sent)
 
 
 def main(pane, space, cwd, has_repo, state):
     v = SourceFileLoader("viewer", os.path.join(HERE, "viewer.py")).load_module()
+    first = True
     while True:
         time.sleep(EVERY)
         run = compute(v, state, cwd, space)
-        report(pane, space, run, has_repo)
+        report(pane, space, run, has_repo, state, force=first)
+        first = False
         if not run:
             return
 

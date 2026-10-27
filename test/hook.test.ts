@@ -923,8 +923,17 @@ describe("herdr sidebar tokens", () => {
     expect(calls[0]).toContain("--clear-token ctx --token ctxhot=󰍛 ▰▰▰▰▱ 85%");
     expect(calls[0]).toContain("--token tasks= ▰▰▱▱▱ 1/3");
     expect(calls[0]).toContain("--token tree1=├ --token tree2=├ --token tree3=└");
-    hook({ ...event, hook_event_name: "Stop" }); // the end of a turn always reports
-    expect(readFileSync(join(dir, "calls"), "utf8").trim().split("\n").filter((c) => c.includes("--source steading ")).length).toBe(2);
+    const pane = () => readFileSync(join(dir, "calls"), "utf8").trim().split("\n").filter((c) => c.includes("--source steading ")).length;
+    hook({ ...event, hook_event_name: "Stop" }); // the end of a turn is not throttled, but unchanged values are not re-sent
+    expect(pane()).toBe(1);
+    writeFileSync(join(tasks, "3.json"), JSON.stringify({ id: "3", subject: "t", status: "completed" }));
+    hook({ ...event, hook_event_name: "Stop" }); // a changed value goes out
+    expect(pane()).toBe(2);
+    hook({ ...event, hook_event_name: "Stop" });
+    expect(pane()).toBe(2);
+    require("node:fs").rmSync(join(dir, "steading", "w1_p1", "sidebar")); // (SessionStart is throttled like a tool call)
+    hook({ ...event, hook_event_name: "SessionStart" }); // a new session: the cache is cleared
+    expect(pane()).toBe(3);
     expect(existsSync(join(dir, "steading", "w1_p1", "sidebar"))).toBe(true);
   });
 
@@ -976,7 +985,8 @@ exit 0
     expect(runs).toContain("--token wstree=├ --token wsrun=⏳ 1 job --token wstree2=└");
     writeFileSync(join(run, "end"), String(Math.floor(Date.now() / 1000))); // the job ends: the row goes
     hook();
-    const [repo2, runs2] = calls().slice(2);
+    expect(calls().length).toBe(3); // the repository source is unchanged, so only the run source goes out again
+    const runs2 = calls()[2];
     expect(runs2).toContain("--token wstree=└ --clear-token wsrun --clear-token wstree2");
   });
 
@@ -1103,6 +1113,7 @@ socketserver.UnixStreamServer(sys.argv[1], H).serve_forever()`, sock, log]);
       expect(last().source).toBe("steading-run-w1:p1");
       expect(last().tokens).toEqual({ wstree: "├", wsrun: `▶ :${port}`, wstree2: "└" });
       expect(last()).not.toHaveProperty("ttl_ms");
+      expect(lines().length).toBe(1); // 5 refreshes, one report: unchanged values are not re-sent
       // a second one for the same workspace exits at once and reports nothing
       const before = lines().length;
       const r2 = refresher();

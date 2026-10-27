@@ -64,6 +64,7 @@ elif not event.get("agent_id"):
             pass
         if event.get("hook_event_name") == "SessionStart":  # its subagents died with the old process
             shutil.rmtree(agents, ignore_errors=True)
+            shutil.rmtree(os.path.join(state, "sent"), ignore_errors=True)  # the next reports go out in full
             os.makedirs(agents, exist_ok=True)
     else:
         os.makedirs(state, exist_ok=True)
@@ -183,8 +184,20 @@ for i, row in enumerate(ROWS, 1):
     values[f"tree{i}"] = (("└" if row is shown[-1] else "├") if TREE and row in shown else "")
 for name, value in values.items():
     args += ["--token", f"{name}={value}"] if value else ["--clear-token", name]
+
+
+def send(src, tokens, cmd):
+    """Report only what differs from the last report that went through for this source: each one
+    makes herdr redraw the sidebar."""
+    tokens = {k: w or None for k, w in tokens.items()}  # the refresher's form, so the two compare
+    if steading_run.same_as_sent(state, src, tokens):
+        return
+    if subprocess.run(cmd, capture_output=True, timeout=5).returncode == 0:
+        steading_run.mark_sent(state, src, tokens)
+
+
 try:
-    subprocess.run(args, capture_output=True, timeout=5)
+    send("pane-steading", values, args)
     # The Spaces panel's second row ($wstree, $wsrepo): herdr's own branch/git_status can't take a
     # guide token. The last pane to report wins when a workspace holds several.
     space = json.loads(subprocess.run([herdr, "pane", "get", pane], capture_output=True, text=True,
@@ -198,8 +211,7 @@ try:
     flat = lambda tokens: [a for k, w in tokens.items() for a in (["--token", f"{k}={w}"] if w else ["--clear-token", k])]
     ws = {"wsrepo": values["repo"], "wsrepostate": repostate}
     for src, tokens in ((f"steading-repo-{pane}", {**ws, "wstree": ""}), (steading_run.source(pane), guides)):
-        subprocess.run([herdr, "workspace", "report-metadata", space, "--source", src] + flat(tokens),
-                       capture_output=True, timeout=5)
+        send(src, tokens, [herdr, "workspace", "report-metadata", space, "--source", src] + flat(tokens))
     if run:
         subprocess.Popen([sys.executable, "-I", os.path.join(os.path.dirname(os.path.abspath(__file__)), "steading_run.py"),
                           pane, space, cwd, "1" if has_repo else "0"],
