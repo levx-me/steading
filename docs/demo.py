@@ -689,7 +689,7 @@ def scene_system():
     session, server = ACCENT["AGENTS"], GREEN
     procs = [  # pid, program, command, user, MemB, Cpu%, colour of a marked row
         (41233, "node", ":3000 · next dev --turbopack", "you", "612M", 38.2, server),
-        (40108, "▾ claude.exe", "app · claude", "you", "1.2G", 21.4, session),
+        (40108, "▾ claude", "app · claude", "you", "1.2G", 21.4, session),
         (41530, "  node", "vitest run", "you", "380M", 12.0, None),
         (41501, "  node", "npx @playwright/mcp", "you", "212M", 4.1, None),
         (41522, "  zsh", "zsh -c npm test", "you", "6M", 0.3, None),
@@ -697,7 +697,7 @@ def scene_system():
         (41302, "workerd", ":8787 · wrangler dev", "you", "143M", 7.1, server),
         (41250, "anvil", ":8545 · anvil --block-time 2", "you", "96M", 4.3, server),
         (3035, "herdr", "/Users/you/.local/bin/herdr", "you", "62M", 3.9, None),
-        (40987, "▸ claude.exe", "api · claude --resume", "you", "731M", 3.1, session),
+        (40987, "▸ claude", "api · claude --resume", "you", "731M", 3.1, session),
         (659, "Google Chrome", "/Applications/Google Chrome.app", "you", "558M", 2.8, None),
         (41410, "esbuild", "esbuild --service=0.25.5", "you", "38M", 2.2, None),
         (1127, "Code Helper (R", "/Applications/Visual Studio Code.app", "you", "402M", 1.9, None),

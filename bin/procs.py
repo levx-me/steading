@@ -54,6 +54,18 @@ def is_claude(p):
     return p.name in ("claude", "claude.exe") and os.path.basename(p.args.split(" ", 1)[0]) == "claude"
 
 
+def program(p):
+    """The Program column's name: the executable's, less a trailing .exe (the Claude Code binary is
+    claude.exe); but a multi-call binary run under another name (Claude's bundled search shows as
+    claude.exe with argv0 ugrep) goes by that name. Only a bare argv0 counts, so a path, a login
+    shell's "-zsh" or a name cut by spaces in a path is never taken for one."""
+    name = p.name[:-4] if p.name.endswith(".exe") and os.name != "nt" else p.name
+    argv0 = p.args.split(" ", 1)[0]
+    if argv0 and "/" not in argv0 and not argv0.startswith("-") and argv0 not in (name, p.name):
+        return argv0
+    return name
+
+
 def children(procs):
     """{pid: [its children's pids]}."""
     kids = {}

@@ -102,11 +102,14 @@ and other reads stay out.
 **Shows** the machine: CPU in all and a small bar for each core, the load average, memory used of
 the total, and on a Mac with [macmon](https://github.com/vladkens/macmon) the GPU, power and CPU and
 GPU temperatures. Under them, every process as btop lists them (Pid, Program, Command, User, MemB,
-Cpu%), busiest first, with a selected row that `j` `k` move and that stays on its process as the list
-re-sorts. `s` sorts by memory instead, `u` shows only your own processes. A Claude session is one row
+Cpu%), busiest first, with a selected row that `j` `k` move. As in btop it is a row: when the list
+re-sorts, it holds whichever process lands there, and the list scrolls only with your keys and wheel.
+The one exception: a session you unfold with `enter` keeps the cursor through re-sorts, the scroll
+keeping it and its rows in view, until you fold it, move the cursor, or it ends. `s` sorts by memory instead, `u` shows only your own processes. A Claude session is one row
 in the agents' colour, the folder it runs in before its command and the CPU and memory of everything
 under it (MCP servers, node, shells) summed; `enter` unfolds it. A dev server of the project is never part of a session: it and what it
-started keep green rows of their own, with its port. `K` ends the selected process after a `y` (SIGTERM; on a session, its claude only):
+started keep green rows of their own, with its port. `K` ends the selected process after a `y` (SIGTERM; on a session, its claude only), the one
+selected when `K` was pressed, and only if that pid is still the same process:
 the one thing in the deck that changes anything. It is sampled every 2s while the tab is shown, one
 deck sampling for all that show it, never in the background, and the tab is never marked new.
 

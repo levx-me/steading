@@ -56,7 +56,7 @@ import unicodedata
 import urllib.parse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # -I leaves the script's folder out
-from procs import Proc, printable, read_ps, sessions  # noqa: E402
+from procs import Proc, printable, program, read_ps, sessions  # noqa: E402
 from tasklist import read_tasks  # noqa: E402
 
 BASE = sys.argv[1] if len(sys.argv) > 1 else os.environ["STEADING_BASE"]  # plugin panes pass it in the env
@@ -3306,6 +3306,12 @@ def install_hint(platform, have, os_release=""):
     return "sudo apt install btop · sudo dnf install btop · sudo pacman -S btop"
 
 
+def identity(pid):
+    """What tells a process from a later one given the same pid: its start time and name ("" once
+    it has ended)."""
+    return output(["ps", "-o", "lstart=,ucomm=", "-p", str(pid)]).strip()
+
+
 def size(n):
     return f"{n / 2**30:.1f}G" if n >= 2**30 else f"{n / 2**20:.0f}M" if n >= 2**20 else f"{n / 2**10:.0f}K"
 
@@ -3327,9 +3333,14 @@ class System:
         self.sampled_at, self.sampling, self.was, self.shared_at = 0.0, False, None, 0.0
         self.by, self.mine = "cpu", False  # s: by cpu or memory; u: this user's processes only
         self.unfolded = set()              # Claude sessions showing what runs under them
-        self.pick, self.at, self.top = None, 0, 0  # the selected pid, its row, the first row shown
+        # The selection is a row, as in btop: after a re-sort it is whatever process lands there. The
+        # first row shown moves only with the user's keys and wheel, so a re-sort never scrolls.
+        self.at, self.top, self.room = 0, 0, 1  # the selected row, the first row shown, how many show
+        # But a session just unfolded with enter is followed by its pid, its rows kept in view, until it
+        # is folded, the user moves the cursor, or it ends.
+        self.following = None
         self.listed, self.shown = [], 0    # the rows as last drawn, and how many showed
-        self.confirm = None                # (pid, name) to end, asked in the hint line until the next key
+        self.confirm = None                # (pid, name, identity) to end, asked in the hint line until the next key
         self.note = ("", 0)                # a word in the hint line (what K did), until its time
 
     def refresh(self):
@@ -3443,10 +3454,10 @@ class System:
             p = procs[pid]
             if pid in found and depth == 0:
                 members = [pid] + [k for k in found[pid] if k in procs]
-                return Row(pid, 0, p.name, f"{s['labels'].get(pid) or 'claude'} · {p.args}", p.user,
+                return Row(pid, 0, program(p), f"{s['labels'].get(pid) or 'claude'} · {p.args}", p.user,
                            sum(procs[k].rss for k in members), sum(cpu.get(k, 0.0) for k in members), "claude", pid in self.unfolded)
             server = pid in ports
-            return Row(pid, depth, p.name, f":{ports[pid]} · {p.args}" if server else p.args, p.user, p.rss,
+            return Row(pid, depth, program(p), f":{ports[pid]} · {p.args}" if server else p.args, p.user, p.rss,
                        cpu.get(pid, 0.0), "server" if server else "", False)
         order = (lambda r: -r.cpu) if self.by == "cpu" else (lambda r: -r.rss)
         top = sorted((row(pid) for pid, p in procs.items() if pid not in inside and (not self.mine or p.uid == me)), key=order)
@@ -3458,19 +3469,35 @@ class System:
         return listed
 
     def place(self, room):
-        """Keep the selection on its pid across samples (gone: on the row where it was) and in view."""
-        pids = [r.pid for r in self.listed]
-        if self.pick in pids:
-            self.at = pids.index(self.pick)
-        else:
-            self.at = max(0, min(self.at, len(pids) - 1))
-            self.pick = pids[self.at] if pids else None
-        self.top = max(0, min(self.top, self.at, len(pids) - room), self.at - room + 1)
+        """A new sample (or a smaller pane) moves neither the selected row nor the scroll; both are
+        only kept within the list when it shrinks. A followed session keeps the cursor, and the scroll
+        moves just enough to show it and as many of its rows under it as fit."""
+        self.room = room
+        heads = [i for i, r in enumerate(self.listed) if r.depth == 0 and r.pid == self.following]
+        if self.following and not heads:  # it has ended (or is no longer listed): rows again
+            self.following = None
+        if heads:
+            self.at = heads[0]
+            block = 1
+            while self.at + block < len(self.listed) and self.listed[self.at + block].depth:
+                block += 1
+            self.top = min(self.top, self.at)
+            self.top = max(self.top, self.at + min(block, room) - room)
+        self.top = max(0, min(self.top, len(self.listed) - room))
+        self.at = max(0, min(self.at, len(self.listed) - 1))
+
+    def toggle(self, pid):
+        """Fold or unfold a session; one unfolded is followed."""
+        self.unfolded ^= {pid}
+        self.following = pid if pid in self.unfolded else None
 
     def move(self, to):
+        """The user moves the selection: the scroll follows it into view, and a followed session is
+        let go."""
+        self.following = None
         if self.listed:
             self.at = max(0, min(to, len(self.listed) - 1))
-            self.pick = self.listed[self.at].pid
+            self.top = max(0, min(self.top, self.at), self.at - self.room + 1)
 
     def frame(self, cols, rows):
         """The machine card, then the processes card filling the pane, then the button for btop."""
@@ -3560,19 +3587,24 @@ class System:
 
     def key(self, k):
         if self.confirm:  # y ends it; any other key keeps it
-            (pid, name), self.confirm = self.confirm, None
-            return self.kill(pid, name) if k == "y" else self.say(f"kept {pid} {name}")
+            (pid, name, was), self.confirm = self.confirm, None
+            if k != "y":
+                return self.say(f"kept {pid} {name}")
+            if identity(pid) != was:  # ended, or the pid now names another process
+                return self.say(f"{pid} {name} is no longer that process: not ended")
+            return self.kill(pid, name)
         r = self.listed[self.at] if self.listed else None
         if k in ("j", "k"):
             self.move(self.at + (1 if k == "j" else -1))
         elif k in ("g", "G"):
             self.move(0 if k == "g" else len(self.listed) - 1)
         elif k in ("\r", "\n", "l") and r and r.kind == "claude":
-            self.unfolded ^= {r.pid}
+            self.toggle(r.pid)
         elif k == "h" and r:  # fold the session the row is in
             while self.at > 0 and self.listed[self.at].depth:
                 self.move(self.at - 1)
             self.unfolded.discard(self.listed[self.at].pid)
+            self.following = None
         elif k == "o":
             self.open_tools()
         elif k == "s":
@@ -3580,7 +3612,7 @@ class System:
         elif k == "u":
             self.mine = not self.mine
         elif k == "K" and r:
-            self.confirm = (r.pid, r.name)
+            self.confirm = (r.pid, r.name, identity(r.pid))  # the process shown now, whatever lands on the row later
 
     def kill(self, pid, name):
         """SIGTERM to pid; what came of it in the hint line. Never the deck itself, nor pid 1 or below
@@ -3606,7 +3638,7 @@ class System:
         if 0 <= i < self.shown:
             self.move(self.top + i)
             if self.listed[self.at].kind == "claude":
-                self.unfolded ^= {self.pick}
+                self.toggle(self.listed[self.at].pid)
 
     def wheel(self, down, row=0):
         self.move(self.at + (3 if down else -3))

@@ -1564,12 +1564,20 @@ garbage"""), m.lsof_cwds("p101\\nfcwd\\nn/Users/me/work/steading\\np202\\nfcwd\\
                   "404": ["evil", "404", "1", 501, "levx", 0, 1024 * 1024, 0.01, "x ?]0;pwned? ?y"] }, // control characters never reach the screen
                 { "101": "steading", "202": "/" }]));
 
-  test("a Claude session is its claude and all under it; Chrome's claude.exe helper and a nested claude are not sessions", () =>
+  test("a Claude session is its claude and all under it; Chrome's claude.exe helper, its bundled ugrep and a nested claude are not sessions", () =>
     expect(py(`P = lambda name, pid, ppid, args: procs.Proc(name, pid, ppid, 501, "me", 0.0, 0, 0.0, args)
 table = {p.pid: p for p in [P("zsh", "9", "1", "-zsh"), P("claude.exe", "10", "9", "claude"), P("node", "11", "10", "node mcp.js"),
-         P("zsh", "12", "11", "zsh -c x"), P("claude", "13", "12", "claude -p hi"), P("claude.exe", "20", "1", "/x/claude.exe --chrome-native-host")]}
+         P("zsh", "12", "11", "zsh -c x"), P("claude", "13", "12", "claude -p hi"), P("claude.exe", "20", "1", "/x/claude.exe --chrome-native-host"),
+         P("claude.exe", "30", "1", "ugrep -r foo .")]}
 print(json.dumps([{k: sorted(v) for k, v in procs.sessions(table).items()}, procs.usage_text(13.0, 0.66 * 2**30), procs.usage_text(2.4, 0)]))`))
       .toEqual([{ "10": ["11", "12", "13"] }, "15% 0.7G", "0% 0.0G"]));
+
+  test("the Program column: .exe dropped, a multi-call binary by its argv0, never a path, a login shell's dash or a cut name", () =>
+    expect(py(`P = lambda name, args: procs.Proc(name, "1", "0", 501, "me", 0.0, 0, 0.0, args)
+print(json.dumps([procs.program(p) for p in [P("claude.exe", "claude --resume x"), P("claude.exe", "ugrep -r foo ."),
+      P("claude.exe", "/x/claude-code/bin/claude.exe --chrome-native-host"), P("zsh", "-zsh"), P("node", "node server.js"),
+      P("Google Chrome He", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome Helper"), P("Python", "/opt/bin/python3.12 x.py")]]))`))
+      .toEqual(["claude", "ugrep", "claude", "zsh", "node", "Google Chrome He", "Python"]));
 
   test("install hints: brew for btop and macmon on macOS, the distro's btop on Linux, never macmon off macOS", () =>
     expect(py(`h = m.install_hint
@@ -1586,6 +1594,7 @@ print(json.dumps([h("darwin", set()), h("darwin", {"btop"}), h("darwin", {"btop"
     `claude.exe   101     1 ${me} me    3.0 1024 0:01.00 claude`,
     `node         201   101 ${me} me   30.0 4096 0:01.00 node mcp.js`,
     `zsh          202   201 ${me} me    1.0 1024 0:01.00 zsh -c ls`,
+    `claude.exe   203   101 ${me} me    0.0    0 0:00.00 ugrep -r foo .`,
     `claude.exe   102     1 ${me} me    9.0 2048 0:02.00 claude --resume x`,
     `claude.exe   103     1 ${me} me   40.0 2048 0:02.00 /Users/me/claude-code/bin/claude.exe --chrome-native-host`,
     `node         555   202 ${me} me   20.0 8192 0:09.00 node server.js`,
@@ -1615,34 +1624,38 @@ print(json.dumps(plain()))`, { PATH: `${bin}:/usr/bin:/bin` });
     }
   });
 
-  test("every process listed, a session one row summed over what runs under it (its dev servers apart), unfolded with enter; u and s", () => {
+  test("every process listed, a session one row summed over what runs under it (its dev servers apart), unfolded with enter; u and s; the selection a row, the scroll fixed", () => {
     const bin = fakeBin({ ps: PS });
-    const [byCpu, unfolded, mine, byMem, session, kept, gone]: any[] = py(`m.PLATFORM = "linux"
+    const [byCpu, unfolded, mine, byMem, session, kept, fixed, gone]: any[] = py(`m.PLATFORM = "linux"
 ${SYSTEM}
 by_cpu = plain()
 s.move(pids().index("101")); s.key("\\r"); unfolded = plain()
 s.key("\\r"); s.key("u"); plain(); mine = pids(); s.key("u")
 s.key("s"); plain(); by_mem = pids()
 session = [l for l in s.frame(90, 40)[0] if " 101 " in m.ANSI.sub("", l)][0]
-s.key("s"); plain(); s.move(pids().index("555")); s.key("s"); plain(); kept = [s.pick, pids()[s.at]]
-s.stats["procs"].pop("555"); at = s.at; plain(); gone = [s.pick, s.at == at]
-print(json.dumps([by_cpu, unfolded, mine, by_mem, session, kept, gone]))`, { PATH: `${bin}:/usr/bin:/bin` });
+s.key("s"); plain(); s.move(pids().index("555")); s.key("s"); plain(); kept = [pids()[s.at], s.at]
+s.listed = s.rows(); s.place(2); s.move(4); s.key("s"); s.listed = s.rows(); s.place(2); fixed = [s.top, s.at]
+for pid in ("556", "103", "102"):
+    s.stats["procs"].pop(pid)
+s.listed = s.rows(); s.place(2); gone = [s.top, s.at, pids()[s.at]]
+print(json.dumps([by_cpu, unfolded, mine, by_mem, session, kept, fixed, gone]))`, { PATH: `${bin}:/usr/bin:/bin` });
     const rows = (ls: string[]) => ls.filter(l => /^\d+ /.test(l));
     expect(rows(byCpu).map(l => l.split(" ")[0])).toEqual(["777", "103", "101", "555", "102", "556"]);
     const row = (ls: string[], pid: string) => rows(ls).find(l => l.startsWith(pid + " "))!;
-    expect(row(byCpu, "101")).toMatch(/^101 ▸ claude\.exe +alpha · claude +me +6M +34\.0$/); // 3 + 30 + 1, 1K + 4K + 1K
+    expect(row(byCpu, "101")).toMatch(/^101 ▸ claude +alpha · claude +me +6M +34\.0$/); // 3 + 30 + 1, 1K + 4K + 1K
     expect(row(byCpu, "555")).toContain(":3000 · node server.js");
     expect(row(byCpu, "103")).not.toContain("·");
     expect(byCpu).toContainEqual(expect.stringMatching(/─ processes · 6 · all users · by cpu ─/));
     expect(byCpu).toContainEqual(expect.stringMatching(/^Pid +Program +Command +User +MemB +Cpu%$/));
     expect(rows(unfolded).map(l => l.split(/ +/).slice(0, 2).join(" ")))
-      .toEqual(["777 other", "103 claude.exe", "101 ▾", "201 node", "202 zsh", "555 node", "102 ▸", "556 node"]);
+      .toEqual(["777 other", "103 claude", "101 ▾", "201 node", "202 zsh", "203 ugrep", "555 node", "102 ▸", "556 node"]);
     expect(mine).toEqual(["103", "101", "555", "102", "556"]);
     expect(byMem).toEqual(["777", "555", "101", "102", "103", "556"]);
     expect(session).toContain("\x1b[48;2;62;68;81m"); // the selection: raised on the list's ground
     expect(session).toContain("\x1b[38;2;143;168;210m"); // a session in the agents' colour
-    expect(kept).toEqual(["555", "555"]); // re-sorting keeps the selection on its process
-    expect(gone).toEqual(["101", true]); // its process gone: the row where it was
+    expect(kept).toEqual(["102", 3]); // the selection is a row: after a re-sort, whoever lands on it
+    expect(fixed).toEqual([3, 4]); // a re-sort scrolls nothing (2 rows show, the 5th selected)
+    expect(gone).toEqual([1, 2, "555"]); // a shorter list: both kept within it
   });
 
   test("K asks in the hint line; only y sends SIGTERM, any other key (a tab's number too) keeps it; enter off a session does nothing, o opens", () => {
@@ -1658,11 +1671,43 @@ s.key("\\r"); enter = [opened[:], [k for k, _ in s.hints()][:2]]; s.key("o")
 s.key("K"); asked = m.ANSI.sub("", " ".join(k + " " + w for k, w in s.hints()))
 m.Deck.key(deck, "3"); kept = [sent[:], s.confirm, m.ANSI.sub("", s.hints()[0][0])]
 s.key("K"); s.key("y")
-s.move(pids().index("101")); s.key("K"); asked2 = s.confirm; s.key("y"); done = m.ANSI.sub("", s.hints()[0][0])
-s.confirm = ("0", "x"); s.key("y"); s.confirm = ("-1", "g"); s.key("y")  # 0 and below would signal process groups
+s.move(pids().index("101")); s.key("K"); asked2 = s.confirm[:2]; s.key("y"); done = m.ANSI.sub("", s.hints()[0][0])
+s.confirm = ("0", "x", m.identity("0")); s.key("y"); s.confirm = ("-1", "g", m.identity("-1")); s.key("y")  # 0 and below would signal process groups
 print(json.dumps([enter, opened, asked, kept, sent, asked2, done, m.ANSI.sub("", s.hints()[0][0])]))`, { PATH: `${bin}:/usr/bin:/bin` });
-    expect(out).toEqual([[[], ["K", "s"]], [1], "kill 555 node? y/n", [[], null, "kept 555 node"], [[555, 15], [101, 15]], ["101", "claude.exe"],
-                         "sent SIGTERM to 101 claude.exe", "not ending -1 g"]);
+    expect(out).toEqual([[[], ["K", "s"]], [1], "kill 555 node? y/n", [[], null, "kept 555 node"], [[555, 15], [101, 15]], ["101", "claude"],
+                         "sent SIGTERM to 101 claude", "not ending -1 g"]);
+  });
+
+  test("a session unfolded with enter is followed by its pid, its rows kept in view, until a cursor key or its end", () => {
+    const bin = fakeBin({ ps: PS });
+    const out: any[] = py(`m.PLATFORM = "linux"
+${SYSTEM}
+def look(room=3):
+    s.listed = s.rows(); s.place(room)
+    return [s.top, s.at, pids()[s.at], s.following]
+look(); s.move(2); s.key("\\r"); unfolded = look()  # 101 and its three rows: as many as fit in view
+s.by = "mem"; s.stats["procs"].pop("777"); moved = look()  # a re-sort moves the session up a row: the cursor goes with it
+s.key("j"); s.by = "cpu"; let_go = look()  # a cursor key lets it go: rows and a fixed scroll again
+s.move(pids().index("101")); s.key("\\r"); s.key("\\r"); followed = s.following  # fold, unfold: followed again
+s.stats["procs"].pop("101"); ended = look()  # it ends: rows again, the cursor on the row where it was
+print(json.dumps([unfolded, moved, let_go, followed, ended]))`, { PATH: `${bin}:/usr/bin:/bin` });
+    expect(out).toEqual([[2, 2, "101", "101"], [1, 1, "101", "101"], [1, 2, "201", null], "101", [1, 1, "555", null]]);
+  });
+
+  test("y ends the process K was pressed on, not the row's process at y; a pid that now names another process is not ended", () => {
+    const bin = fakeBin({ ps: PS });
+    const out: any[] = py(`m.PLATFORM = "linux"
+${SYSTEM}
+sent = []
+m.os.kill = lambda pid, sig: sent.append([pid, sig])
+starts = iter(["Mon 10:00 node", "Mon 10:00 node", "Mon 10:00 node", "Mon 11:30 node"])
+m.identity = lambda pid: next(starts)
+plain(); s.move(pids().index("555")); s.key("K")
+s.by = "mem"; plain()  # a new sample re-sorts: another process lands on the selected row
+s.key("y"); first = [sent[:], m.ANSI.sub("", s.hints()[0][0])]
+s.move(pids().index("555")); s.key("K"); s.key("y")  # by y, pid 555 has ended and been given to another process
+print(json.dumps([first, sent, m.ANSI.sub("", s.hints()[0][0])]))`, { PATH: `${bin}:/usr/bin:/bin` });
+    expect(out).toEqual([[[[555, 15]], "sent SIGTERM to 555 node"], [[555, 15]], "555 node is no longer that process: not ended"]);
   });
 
   test("o goes to the herdr workspace named system, or makes it: btop wide, macmon narrow beside it", () => {

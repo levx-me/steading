@@ -42,9 +42,9 @@ apply right now.
 | | `h` `j` `k` `l` at an edge | cross between them as one text; `k` on the first line or `h` on the first character goes back to the list |
 | | `esc` | cancel the selection, or back to the run list |
 | servers | `o` | open the server in the browser |
-| system | `j` `k` (or `↓` `↑`, the wheel, a click), `g` `G` | move the selected process (it stays on its process as the list re-sorts), the first, the last |
-| | `enter` `l` (or a click) on a Claude session, `h` | unfold it: what runs under it, indented below; fold it (`enter` does nothing on other rows) |
-| | `K`, then `y` | end the selected process (SIGTERM; on a Claude session, its claude only); any other key keeps it, the outcome shows in the hint line |
+| system | `j` `k` (or `↓` `↑`, the wheel, a click), `g` `G` | move the selected row (a row, as in btop: after a re-sort it holds whichever process lands there; only these keys scroll the list), the first, the last |
+| | `enter` `l` (or a click) on a Claude session, `h` | unfold it: what runs under it, indented below, and the cursor follows the session through re-sorts, the scroll keeping it and its rows in view, until you fold it, move the cursor, or it ends; fold it (`enter` does nothing on other rows) |
+| | `K`, then `y` | end the process selected when `K` was pressed (SIGTERM; on a Claude session, its claude only), even if a re-sort has moved another onto the row; if that pid has since ended or names another process, nothing is ended. Any other key keeps it; the outcome shows in the hint line |
 | | `s`, `u` | sort by CPU or memory; all users' processes or only yours |
 | | `o` (or a click on its button) | go to the herdr workspace named `system`, or make it: `btop`, and `macmon` beside it on a Mac |
 | agents | `enter`, then `j` `k`, `enter`, `esc` | in an agent's detail: move between its buttons and tasks, press one |
