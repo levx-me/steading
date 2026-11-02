@@ -42,8 +42,11 @@ apply right now.
 | | `h` `j` `k` `l` at an edge | cross between them as one text; `k` on the first line or `h` on the first character goes back to the list |
 | | `esc` | cancel the selection, or back to the run list |
 | servers | `o` | open the server in the browser |
-| system | `s`, `j` `k` (or the wheel) | sort the processes by CPU or memory, scroll them |
-| | `enter`, or a click on its button | open `btop` (and `macmon` on a Mac) in a herdr tab named `system`, or go to it when it is open |
+| system | `j` `k` (or `↓` `↑`, the wheel, a click), `g` `G` | move the selected process (it stays on its process as the list re-sorts), the first, the last |
+| | `enter` `l` (or a click) on a Claude session, `h` | unfold it: what runs under it, indented below; fold it |
+| | `K`, then `y` | end the selected process (SIGTERM; on a Claude session, its claude only); any other key keeps it, the outcome shows in the hint line |
+| | `s`, `u` | sort by CPU or memory; all users' processes or only yours |
+| | `o` (or `enter` off a session, or a click on its button) | go to the herdr workspace named `system`, or make it: `btop`, and `macmon` beside it on a Mac |
 | agents | `enter`, then `j` `k`, `enter`, `esc` | in an agent's detail: move between its buttons and tasks, press one |
 | | `enter` on a task, then `j` `k`, `ctrl+d` `ctrl+u`, `esc` or backspace | its story: when it was made and the request it came from, what Claude said as it started and finished it, and where Claude named it; `esc`, backspace or a click on `← task` goes back |
 | | on "▾ N more": `enter`, then `j` `k`, `ctrl+d` `ctrl+u`, `ctrl+f` `ctrl+b`, `ctrl+e` `ctrl+y`, `g` `G`, `esc` | the activity card unfolds and scrolls on its own, with its own cursor (vim's keys; `enter` on a long call opens its output in jobs); `esc` folds it |

@@ -9,6 +9,8 @@ context use, as herdr pane tokens for its sidebar, with or without a deck open.
   $ctx     context used: a bar and a percentage, below 80%
   $ctxhot  the same from 80% on, so a ui.sidebar.agents.rows layout can colour it
   $tasks   its task list: a bar and done/total, from ~/.claude/tasks/session-<id>
+  $usage   its CPU and memory, the session's whole process tree ("15% 0.6G"): reported every
+           10 s by bin/usage.py, which this starts when none runs
 
 It also names the pane and its tab after the session's title, when that changes. While
 subagents work, bin/crew spins $crew ("⠋ N") on the pane and its workspace.
@@ -219,6 +221,14 @@ try:
                          stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
 except (OSError, subprocess.TimeoutExpired, ValueError, KeyError):
     pass
+
+# $usage comes from bin/usage.py, one for the machine: started here when none runs.
+try:
+    with open(os.path.join(os.path.dirname(state), "usage.pid")) as f:
+        os.kill(int(f.read()), 0)
+except (OSError, ValueError):
+    subprocess.Popen([sys.executable, "-I", os.path.join(os.path.dirname(os.path.abspath(__file__)), "usage.py")],
+                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
 
 # The pane's name: the session's title (one set with /rename, else Claude's own, which changes
 # only when the talk turns to something else), so the pane and its tab read as the conversation

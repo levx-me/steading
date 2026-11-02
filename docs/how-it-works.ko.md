@@ -57,6 +57,10 @@ herdr에 pane 토큰으로 알려 줍니다. deck이 열려 있지 않아도 됩
 - `$model`: 모델.
 - `$ctx`: 컨텍스트 사용량(막대와 퍼센트). 80%부터는 `$ctxhot`으로 바뀌어 행 구성에서 색을 줄 수 있습니다.
 - `$tasks`: 에이전트의 할 일 목록(TaskCreate/TaskUpdate), 막대와 완료/전체.
+- `$usage`: 세션의 CPU와 메모리. claude 프로세스와 그 아래 전부(MCP 서버, node, 셸)를 합친 값(` 15% 0.6G`).
+  `bin/usage.py`가 맡고, 컴퓨터에 하나만 돕니다(없으면 `bin/sidebar.py`가 띄움). 10초마다 `ps`를 한 번 불러 모든 창을 계산하고,
+  CPU는 5% 단위, 메모리는 0.1 GB 단위로 반올림해 바뀔 때만 보고하므로 사이드바가 거의 다시 그려지지 않습니다.
+  claude가 끝난 창에서는 지우고, Claude를 돌리는 창이 없으면 끝납니다.
 - `$crew`: 메인 턴이 도는 동안, 그리고 아직 도는 서브에이전트마다(PM의 워커 같은 중첩 포함) 세는 스피너와 개수(`⠋ 2`). 서브에이전트는 SubagentStart/SubagentStop 훅으로 셉니다(`agent_id`별 표식을 창의 상태 폴더에 두고, SessionStart에서 비우고, 3시간이 지나면 버림). 오래 조용한 도구 호출 중에도 계속 셉니다.
 - `$tree1`..`$tree3`: 트리 안내선(`├`, 마지막으로 보이는 행은 `└`, 빈 행은 비움). 별도 토큰이라 글자와 다른 색을 줄 수 있습니다. `STEADING_SIDEBAR_TREE=0`이면 끕니다.
 - `$wstree`, `$wsrepo`: Spaces 패널 둘째 행용 워크스페이스 토큰(herdr 기본 `branch`는 안내선을 못 붙임). `└`와 `$repo`와 같은 글(`$repostate`는 `$wsrepostate`). 한 워크스페이스에 에이전트가 여럿이면 마지막 보고가 보입니다.
@@ -73,7 +77,8 @@ rows = [["state_icon", "workspace"], [{ token = "$wstree", fg = "#ffffff" }, { t
 rows = [
   ["state_icon", { token = "workspace", bold = true }, "tab"],
   [{ token = "$tree1", fg = "#ffffff" }, { token = "$repo", dim = true }, { token = "$repostate", dim = true }],
-  [{ token = "$tree2", fg = "#ffffff" }, { token = "$model", dim = true }, { token = "$ctx", dim = true }, { token = "$ctxhot", fg = "#e06c75", bold = true }],
+  [{ token = "$tree2", fg = "#ffffff" }, { token = "$model", dim = true }, { token = "$ctx", dim = true }, { token = "$ctxhot", fg = "#e06c75", bold = true },
+   { token = "$usage", dim = true }],
   [{ token = "$tree3", fg = "#ffffff" }, { token = "$tasks", dim = true }],
 ]
 ```

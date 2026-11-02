@@ -58,6 +58,10 @@ agent's repository and context use to herdr as pane tokens, with or without a de
 - `$ctx`: context used, a bar and a percentage; from 80% on it is `$ctxhot` instead, so
   the layout can colour it.
 - `$tasks`: the agent's task list (TaskCreate/TaskUpdate), a bar and done/total.
+- `$usage`: the session's CPU and memory, its claude process and everything under it (MCP servers, node,
+  shells) summed: ` 15% 0.6G`. `bin/usage.py` keeps it, one for the machine (`bin/sidebar.py` starts it when
+  none runs): every 10 s one `ps` call for all panes, CPU rounded to 5% and memory to 0.1 GB, and a report only when that
+  changes, so the sidebar seldom redraws. A pane whose claude has ended loses it; it exits once no pane runs Claude.
 - `$crew`: a spinner and a count (`⠋ 2`) while the main turn runs and for each subagent still running, nested ones (a PM's workers) included. Subagents are counted from the SubagentStart and SubagentStop hooks (a marker per `agent_id` in the pane's state dir, cleared on SessionStart, dropped after 3 h), so a long silent tool call keeps its agent counted.
 - `$tree1`..`$tree3`: tree guides (`├`, and `└` on the last row shown; empty for a row that is empty) in
   a token of their own, so a layout can colour them apart from the text. `STEADING_SIDEBAR_TREE=0` turns them off.
@@ -81,7 +85,8 @@ rows = [["state_icon", "workspace"], [{ token = "$wstree", fg = "#ffffff" }, { t
 rows = [
   ["state_icon", { token = "workspace", bold = true }, "tab"],
   [{ token = "$tree1", fg = "#ffffff" }, { token = "$repo", dim = true }, { token = "$repostate", dim = true }],
-  [{ token = "$tree2", fg = "#ffffff" }, { token = "$model", dim = true }, { token = "$ctx", dim = true }, { token = "$ctxhot", fg = "#e06c75", bold = true }],
+  [{ token = "$tree2", fg = "#ffffff" }, { token = "$model", dim = true }, { token = "$ctx", dim = true }, { token = "$ctxhot", fg = "#e06c75", bold = true },
+   { token = "$usage", dim = true }],
   [{ token = "$tree3", fg = "#ffffff" }, { token = "$tasks", dim = true }],
 ]
 ```

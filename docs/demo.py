@@ -681,19 +681,23 @@ def scene_deploy():
 
 def scene_system():
     """The machine, then every process as btop lists them, busiest first (bin/viewer.py System):
-    the agents' sessions in their colour with their folder, the servers tab's servers in green."""
+    a Claude session one row with what runs under it summed (the selected one unfolded), the
+    servers tab's servers in green."""
     section_bar(7)
     inner = D - 4  # a card the deck's width
     cut = lambda s, n: s if len(s) <= n else s[:n - 1] + "…"
     session, server = ACCENT["AGENTS"], GREEN
     procs = [  # pid, program, command, user, MemB, Cpu%, colour of a marked row
         (41233, "node", ":3000 · next dev --turbopack", "you", "612M", 38.2, server),
-        (40108, "claude.exe", "app · claude", "you", "622M", 14.6, session),
+        (40108, "▾ claude.exe", "app · claude", "you", "1.2G", 21.4, session),
+        (41530, "  node", "vitest run", "you", "380M", 12.0, None),
+        (41501, "  node", "npx @playwright/mcp", "you", "212M", 4.1, None),
+        (41522, "  zsh", "zsh -c npm test", "you", "6M", 0.3, None),
         (415, "WindowServer", "/System/Library/WindowServer", "_windowserver", "188M", 9.8, None),
         (41302, "workerd", ":8787 · wrangler dev", "you", "143M", 7.1, server),
         (41250, "anvil", ":8545 · anvil --block-time 2", "you", "96M", 4.3, server),
         (3035, "herdr", "/Users/you/.local/bin/herdr", "you", "62M", 3.9, None),
-        (40987, "claude.exe", "api · claude --resume", "you", "488M", 3.1, session),
+        (40987, "▸ claude.exe", "api · claude --resume", "you", "731M", 3.1, session),
         (659, "Google Chrome", "/Applications/Google Chrome.app", "you", "558M", 2.8, None),
         (41410, "esbuild", "esbuild --service=0.25.5", "you", "38M", 2.2, None),
         (1127, "Code Helper (R", "/Applications/Visual Studio Code.app", "you", "402M", 1.9, None),
@@ -707,32 +711,31 @@ def scene_system():
         (701, "Finder", "/System/Library/CoreServices", "you", "118M", 0.2, None),
         (433, "coreaudiod", "/usr/sbin/coreaudiod", "_coreaudiod", "14M", 0.2, None),
         (688, "Dock", "/System/Library/CoreServices", "you", "84M", 0.1, None),
-        (40990, "zsh", "-zsh", "you", "6M", 0.1, None),
-        (522, "cfprefsd", "/usr/sbin/cfprefsd agent", "you", "9M", 0.1, None),
-        (740, "Spotlight", "/System/Library/CoreServices", "you", "46M", 0.0, None),
-        (803, "ssh-agent", "/usr/bin/ssh-agent -l", "you", "3M", 0.0, None),
-        (497, "mdworker_share", "/System/Library/Frameworks", "you", "18M", 0.0, None),
     ]
+    picked = 1  # the selected row: the app session, unfolded
     rows = [[(f"{'Pid':>7} ", MUTED), (f"{'Program':<14} ", MUTED), (f"{'Command':<12} ", MUTED), (f"{'User':<8} ", MUTED),
              (f"{'MemB':>5} ", MUTED), (f"{'Cpu%':>5}", MUTED)]]
-    for pid, program, command, user, mem, cpu, mark in procs:
-        rows.append([(f"{pid:>7} ", MUTED), (f"{cut(program, 14):<14} ", mark or BRIGHT, bool(mark)),
+    for i, (pid, program, command, user, mem, cpu, mark) in enumerate(procs):
+        rows.append([(f"{pid:>7} ", MUTED), (f"{cut(program, 14):<14} ", mark or BRIGHT, bool(mark) or i == picked),
                      (f"{cut(command, 12):<12} ", mark or MUTED), (f"{cut(user, 8):<8} ", MUTED),
                      (f"{mem:>5} {cpu:>5.1f}", mark or BRIGHT)])
-    lines = [
-        *card("system · macOS", [
-            [("cpu   ", MUTED), *bar([(12, GREEN)], 32), (" 38%", GREEN), (" · 10 cores", MUTED)],
-            [("load  ", MUTED), ("4.12 3.80 3.55", TEXT)],
-            [("mem   ", MUTED), *bar([(23, AMBER)], 32), (" 71%", AMBER), (" 45.4/64 GB", MUTED)],
-            [("gpu   ", MUTED), *bar([(5, GREEN)], 32), (" 16%", GREEN)],
-            [("power ", MUTED), ("27.4 W  ", TEXT), ("cpu ", MUTED), ("71°C  ", TEXT), ("gpu ", MUTED), ("58°C", TEXT)]], inner),
-        *card("processes · 812 · by cpu", rows, inner),
-        [],
-        [(" ", MUTED), (" ⏎ open btop + macmon ", ACCENT["SYSTEM"], False, None, TAB)],
-    ]
+    cores = [62, 48, 91, 77, 35, 28, 54, 19, 12, 8]  # two efficiency cores, then the performance ones
+    level = lambda p: GREEN if p < 60 else AMBER if p < 85 else RED
+    core_rows = [[("cores " if i == 0 else "      ", MUTED)] + [r for p in cores[i:i + 6]
+                 for r in (*bar([(round(p * 4 / 100), level(p))], 4), (f"{p:>3} ", level(p)))] for i in (0, 6)]
+    machine = card("system · macOS", [
+        [("cpu   ", MUTED), *bar([(12, GREEN)], 32), (" 38%", GREEN), (" · 10 cores", MUTED)],
+        *core_rows,
+        [("load  ", MUTED), ("4.12 3.80 3.55", TEXT)],
+        [("mem   ", MUTED), *bar([(23, AMBER)], 32), (" 71%", AMBER), (" 45.4/64 GB", MUTED)],
+        [("gpu   ", MUTED), *bar([(5, GREEN)], 32), (" 16%", GREEN)],
+        [("power ", MUTED), ("27.4 W  ", TEXT), ("cpu ", MUTED), ("71°C  ", TEXT), ("gpu ", MUTED), ("58°C", TEXT)]], inner)
+    rect(d0 + 2, 1 + len(machine) + 2 + picked, inner, ACTIVE)  # under the selected row: raised, as the run lists raise theirs
+    lines = [*machine, *card("processes · 812 · all users · by cpu", rows, inner), [],
+             [(" ", MUTED), (" o open btop + macmon ", ACCENT["SYSTEM"], False, None, TAB)]]
     for i, runs_ in enumerate(lines):
         text(d0, 1 + i, runs_, end)
-    hints([("enter", "btop"), ("s", "sort by mem"), ("j/k", "scroll"), ("[ ]", "tabs")])
+    hints([("enter", "fold"), ("K", "kill"), ("s", "by mem"), ("u", "mine"), ("o", "btop"), ("[ ]", "tabs")])
 
 
 # In the order of the tabs.

@@ -99,14 +99,18 @@ and other reads stay out.
 
 ## system
 
-**Shows** the machine: CPU with the load average, memory used of the total, and on a Mac with
-[macmon](https://github.com/vladkens/macmon) the GPU, power and CPU and GPU temperatures. Under them,
-every process as btop lists them (Pid, Program, Command, User, MemB, Cpu%), busiest first; `s` sorts
-by memory instead, `j` `k` scroll. A Claude session is drawn in the agents' colour with the folder it
-runs in before its command, a dev server of the project in green with its port. It is sampled every
-2s while the tab is shown, never in the background, and the tab is never marked new.
+**Shows** the machine: CPU in all and a small bar for each core, the load average, memory used of
+the total, and on a Mac with [macmon](https://github.com/vladkens/macmon) the GPU, power and CPU and
+GPU temperatures. Under them, every process as btop lists them (Pid, Program, Command, User, MemB,
+Cpu%), busiest first, with a selected row that `j` `k` move and that stays on its process as the list
+re-sorts. `s` sorts by memory instead, `u` shows only your own processes. A Claude session is one row
+in the agents' colour, the folder it runs in before its command and the CPU and memory of everything
+under it (MCP servers, node, shells) summed; `enter` unfolds it. A dev server of the project is green,
+with its port. `K` ends the selected process after a `y` (SIGTERM; on a session, its claude only):
+the one thing in the deck that changes anything. It is sampled every 2s while the tab is shown, one
+deck sampling for all that show it, never in the background, and the tab is never marked new.
 
-**Opens** with `enter` (or a click on its button): `btop` in a herdr tab named `system`, with
-`macmon` in a pane under it on a Mac; when that tab is open, the deck goes to it. A missing tool
-shows how to install it: `brew install btop macmon` on macOS, `btop` from the distribution's
-package manager on Linux.
+**Opens** with `o` (or a click on its button): the herdr workspace named `system`, made the first
+time with `btop` wide and, on a Mac with macmon, `macmon` narrow beside it; from any deck after that,
+the deck goes there. A missing tool shows how to install it: `brew install btop macmon` on macOS,
+`btop` from the distribution's package manager on Linux.

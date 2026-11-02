@@ -5158,6 +5158,7 @@
 <text x="1374.8" y="84.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#21252b" font-weight="bold" text-decoration="underline">Y</text>
 <text x="1383.2" y="84.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#21252b" font-weight="bold">STEM</text>
 <text x="1425.2" y="84.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#21252b" font-weight="bold">·</text>
+<rect x="1022.0" y="318.0" width="470.4" height="19.0" rx="0" fill="#3e4451"/>
 <text x="1005.2" y="103.7" textLength="16.8" lengthAdjust="spacingAndGlyphs" fill="#464c58">╭─</text>
 <text x="1030.4" y="103.7" textLength="117.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">system · macOS</text>
 <text x="1156.4" y="103.7" textLength="352.8" lengthAdjust="spacingAndGlyphs" fill="#464c58">─────────────────────────────────────────╮</text>
@@ -5169,228 +5170,250 @@
 <text x="1383.2" y="122.7" textLength="84.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">· 10 cores</text>
 <text x="1500.8" y="122.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1005.2" y="141.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1022.0" y="141.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">load</text>
-<text x="1072.4" y="141.7" textLength="117.6" lengthAdjust="spacingAndGlyphs" fill="#abb2bf">4.12 3.80 3.55</text>
+<text x="1022.0" y="141.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">cores</text>
+<text x="1072.4" y="141.7" textLength="16.8" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">██</text>
+<text x="1089.2" y="141.7" textLength="16.8" lengthAdjust="spacingAndGlyphs" fill="#2c313a">░░</text>
+<text x="1114.4" y="141.7" textLength="16.8" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">62</text>
+<text x="1139.6" y="141.7" textLength="16.8" lengthAdjust="spacingAndGlyphs" fill="#98b17d">██</text>
+<text x="1156.4" y="141.7" textLength="16.8" lengthAdjust="spacingAndGlyphs" fill="#2c313a">░░</text>
+<text x="1181.6" y="141.7" textLength="16.8" lengthAdjust="spacingAndGlyphs" fill="#98b17d">48</text>
+<text x="1206.8" y="141.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#d0868d">████</text>
+<text x="1248.8" y="141.7" textLength="16.8" lengthAdjust="spacingAndGlyphs" fill="#d0868d">91</text>
+<text x="1274.0" y="141.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">███</text>
+<text x="1299.2" y="141.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#2c313a">░</text>
+<text x="1316.0" y="141.7" textLength="16.8" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">77</text>
+<text x="1341.2" y="141.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#98b17d">█</text>
+<text x="1349.6" y="141.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#2c313a">░░░</text>
+<text x="1383.2" y="141.7" textLength="16.8" lengthAdjust="spacingAndGlyphs" fill="#98b17d">35</text>
+<text x="1408.4" y="141.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#98b17d">█</text>
+<text x="1416.8" y="141.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#2c313a">░░░</text>
+<text x="1450.4" y="141.7" textLength="16.8" lengthAdjust="spacingAndGlyphs" fill="#98b17d">28</text>
 <text x="1500.8" y="141.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1005.2" y="160.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1022.0" y="160.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">mem</text>
-<text x="1072.4" y="160.7" textLength="193.2" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">███████████████████████</text>
-<text x="1265.6" y="160.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#2c313a">░░░░░░░░░</text>
-<text x="1349.6" y="160.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">71%</text>
-<text x="1383.2" y="160.7" textLength="84.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">45.4/64 GB</text>
+<text x="1072.4" y="160.7" textLength="16.8" lengthAdjust="spacingAndGlyphs" fill="#98b17d">██</text>
+<text x="1089.2" y="160.7" textLength="16.8" lengthAdjust="spacingAndGlyphs" fill="#2c313a">░░</text>
+<text x="1114.4" y="160.7" textLength="16.8" lengthAdjust="spacingAndGlyphs" fill="#98b17d">54</text>
+<text x="1139.6" y="160.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#98b17d">█</text>
+<text x="1148.0" y="160.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#2c313a">░░░</text>
+<text x="1181.6" y="160.7" textLength="16.8" lengthAdjust="spacingAndGlyphs" fill="#98b17d">19</text>
+<text x="1206.8" y="160.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#2c313a">░░░░</text>
+<text x="1248.8" y="160.7" textLength="16.8" lengthAdjust="spacingAndGlyphs" fill="#98b17d">12</text>
+<text x="1274.0" y="160.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#2c313a">░░░░</text>
+<text x="1324.4" y="160.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#98b17d">8</text>
 <text x="1500.8" y="160.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1005.2" y="179.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1022.0" y="179.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">gpu</text>
-<text x="1072.4" y="179.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#98b17d">█████</text>
-<text x="1114.4" y="179.7" textLength="226.8" lengthAdjust="spacingAndGlyphs" fill="#2c313a">░░░░░░░░░░░░░░░░░░░░░░░░░░░</text>
-<text x="1349.6" y="179.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#98b17d">16%</text>
+<text x="1022.0" y="179.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">load</text>
+<text x="1072.4" y="179.7" textLength="117.6" lengthAdjust="spacingAndGlyphs" fill="#abb2bf">4.12 3.80 3.55</text>
 <text x="1500.8" y="179.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1005.2" y="198.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1022.0" y="198.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">power</text>
-<text x="1072.4" y="198.7" textLength="50.4" lengthAdjust="spacingAndGlyphs" fill="#abb2bf">27.4 W</text>
-<text x="1139.6" y="198.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">cpu</text>
-<text x="1173.2" y="198.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#abb2bf">71°C</text>
-<text x="1223.6" y="198.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">gpu</text>
-<text x="1257.2" y="198.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#abb2bf">58°C</text>
+<text x="1022.0" y="198.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">mem</text>
+<text x="1072.4" y="198.7" textLength="193.2" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">███████████████████████</text>
+<text x="1265.6" y="198.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#2c313a">░░░░░░░░░</text>
+<text x="1349.6" y="198.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">71%</text>
+<text x="1383.2" y="198.7" textLength="84.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">45.4/64 GB</text>
 <text x="1500.8" y="198.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1005.2" y="217.7" textLength="504.0" lengthAdjust="spacingAndGlyphs" fill="#464c58">╰──────────────────────────────────────────────────────────╯</text>
-<text x="1005.2" y="236.7" textLength="16.8" lengthAdjust="spacingAndGlyphs" fill="#464c58">╭─</text>
-<text x="1030.4" y="236.7" textLength="201.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">processes · 812 · by cpu</text>
-<text x="1240.4" y="236.7" textLength="268.8" lengthAdjust="spacingAndGlyphs" fill="#464c58">───────────────────────────────╮</text>
-<text x="1005.2" y="255.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1055.6" y="255.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">Pid</text>
-<text x="1089.2" y="255.7" textLength="58.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">Program</text>
-<text x="1215.2" y="255.7" textLength="58.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">Command</text>
-<text x="1324.4" y="255.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">User</text>
-<text x="1408.4" y="255.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">MemB</text>
-<text x="1458.8" y="255.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">Cpu%</text>
-<text x="1500.8" y="255.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1005.2" y="274.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1038.8" y="274.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">41233</text>
-<text x="1089.2" y="274.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#98b17d" font-weight="bold">node</text>
-<text x="1215.2" y="274.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#98b17d">:3000 · nex…</text>
-<text x="1324.4" y="274.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">you</text>
-<text x="1408.4" y="274.7" textLength="84.0" lengthAdjust="spacingAndGlyphs" fill="#98b17d">612M  38.2</text>
-<text x="1500.8" y="274.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
+<text x="1005.2" y="217.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
+<text x="1022.0" y="217.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">gpu</text>
+<text x="1072.4" y="217.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#98b17d">█████</text>
+<text x="1114.4" y="217.7" textLength="226.8" lengthAdjust="spacingAndGlyphs" fill="#2c313a">░░░░░░░░░░░░░░░░░░░░░░░░░░░</text>
+<text x="1349.6" y="217.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#98b17d">16%</text>
+<text x="1500.8" y="217.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
+<text x="1005.2" y="236.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
+<text x="1022.0" y="236.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">power</text>
+<text x="1072.4" y="236.7" textLength="50.4" lengthAdjust="spacingAndGlyphs" fill="#abb2bf">27.4 W</text>
+<text x="1139.6" y="236.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">cpu</text>
+<text x="1173.2" y="236.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#abb2bf">71°C</text>
+<text x="1223.6" y="236.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">gpu</text>
+<text x="1257.2" y="236.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#abb2bf">58°C</text>
+<text x="1500.8" y="236.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
+<text x="1005.2" y="255.7" textLength="504.0" lengthAdjust="spacingAndGlyphs" fill="#464c58">╰──────────────────────────────────────────────────────────╯</text>
+<text x="1005.2" y="274.7" textLength="16.8" lengthAdjust="spacingAndGlyphs" fill="#464c58">╭─</text>
+<text x="1030.4" y="274.7" textLength="302.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">processes · 812 · all users · by cpu</text>
+<text x="1341.2" y="274.7" textLength="168.0" lengthAdjust="spacingAndGlyphs" fill="#464c58">───────────────────╮</text>
 <text x="1005.2" y="293.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1038.8" y="293.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">40108</text>
-<text x="1089.2" y="293.7" textLength="84.0" lengthAdjust="spacingAndGlyphs" fill="#8fa8d2" font-weight="bold">claude.exe</text>
-<text x="1215.2" y="293.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#8fa8d2">app · claude</text>
-<text x="1324.4" y="293.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">you</text>
-<text x="1408.4" y="293.7" textLength="84.0" lengthAdjust="spacingAndGlyphs" fill="#8fa8d2">622M  14.6</text>
+<text x="1055.6" y="293.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">Pid</text>
+<text x="1089.2" y="293.7" textLength="58.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">Program</text>
+<text x="1215.2" y="293.7" textLength="58.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">Command</text>
+<text x="1324.4" y="293.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">User</text>
+<text x="1408.4" y="293.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">MemB</text>
+<text x="1458.8" y="293.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">Cpu%</text>
 <text x="1500.8" y="293.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1005.2" y="312.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1055.6" y="312.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">415</text>
-<text x="1089.2" y="312.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">WindowServer</text>
-<text x="1215.2" y="312.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">/System/Lib…</text>
-<text x="1324.4" y="312.7" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">_window…</text>
-<text x="1408.4" y="312.7" textLength="84.0" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">188M   9.8</text>
+<text x="1038.8" y="312.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">41233</text>
+<text x="1089.2" y="312.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#98b17d" font-weight="bold">node</text>
+<text x="1215.2" y="312.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#98b17d">:3000 · nex…</text>
+<text x="1324.4" y="312.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">you</text>
+<text x="1408.4" y="312.7" textLength="84.0" lengthAdjust="spacingAndGlyphs" fill="#98b17d">612M  38.2</text>
 <text x="1500.8" y="312.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1005.2" y="331.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1038.8" y="331.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">41302</text>
-<text x="1089.2" y="331.7" textLength="58.8" lengthAdjust="spacingAndGlyphs" fill="#98b17d" font-weight="bold">workerd</text>
-<text x="1215.2" y="331.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#98b17d">:8787 · wra…</text>
+<text x="1038.8" y="331.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">40108</text>
+<text x="1089.2" y="331.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#8fa8d2" font-weight="bold">▾ claude.exe</text>
+<text x="1215.2" y="331.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#8fa8d2">app · claude</text>
 <text x="1324.4" y="331.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">you</text>
-<text x="1408.4" y="331.7" textLength="84.0" lengthAdjust="spacingAndGlyphs" fill="#98b17d">143M   7.1</text>
+<text x="1408.4" y="331.7" textLength="84.0" lengthAdjust="spacingAndGlyphs" fill="#8fa8d2">1.2G  21.4</text>
 <text x="1500.8" y="331.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1005.2" y="350.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1038.8" y="350.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">41250</text>
-<text x="1089.2" y="350.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#98b17d" font-weight="bold">anvil</text>
-<text x="1215.2" y="350.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#98b17d">:8545 · anv…</text>
+<text x="1038.8" y="350.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">41530</text>
+<text x="1106.0" y="350.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">node</text>
+<text x="1215.2" y="350.7" textLength="84.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">vitest run</text>
 <text x="1324.4" y="350.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">you</text>
-<text x="1416.8" y="350.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#98b17d">96M   4.3</text>
+<text x="1408.4" y="350.7" textLength="84.0" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">380M  12.0</text>
 <text x="1500.8" y="350.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1005.2" y="369.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1047.2" y="369.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">3035</text>
-<text x="1089.2" y="369.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">herdr</text>
-<text x="1215.2" y="369.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">/Users/you/…</text>
+<text x="1038.8" y="369.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">41501</text>
+<text x="1106.0" y="369.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">node</text>
+<text x="1215.2" y="369.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">npx @playwr…</text>
 <text x="1324.4" y="369.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">you</text>
-<text x="1416.8" y="369.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">62M   3.9</text>
+<text x="1408.4" y="369.7" textLength="84.0" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">212M   4.1</text>
 <text x="1500.8" y="369.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1005.2" y="388.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1038.8" y="388.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">40987</text>
-<text x="1089.2" y="388.7" textLength="84.0" lengthAdjust="spacingAndGlyphs" fill="#8fa8d2" font-weight="bold">claude.exe</text>
-<text x="1215.2" y="388.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#8fa8d2">api · claud…</text>
+<text x="1038.8" y="388.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">41522</text>
+<text x="1106.0" y="388.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">zsh</text>
+<text x="1215.2" y="388.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">zsh -c npm …</text>
 <text x="1324.4" y="388.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">you</text>
-<text x="1408.4" y="388.7" textLength="84.0" lengthAdjust="spacingAndGlyphs" fill="#8fa8d2">488M   3.1</text>
+<text x="1425.2" y="388.7" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">6M   0.3</text>
 <text x="1500.8" y="388.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1005.2" y="407.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1055.6" y="407.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">659</text>
-<text x="1089.2" y="407.7" textLength="109.2" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">Google Chrome</text>
-<text x="1215.2" y="407.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">/Applicatio…</text>
-<text x="1324.4" y="407.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">you</text>
-<text x="1408.4" y="407.7" textLength="84.0" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">558M   2.8</text>
+<text x="1055.6" y="407.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">415</text>
+<text x="1089.2" y="407.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">WindowServer</text>
+<text x="1215.2" y="407.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">/System/Lib…</text>
+<text x="1324.4" y="407.7" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">_window…</text>
+<text x="1408.4" y="407.7" textLength="84.0" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">188M   9.8</text>
 <text x="1500.8" y="407.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1005.2" y="426.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1038.8" y="426.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">41410</text>
-<text x="1089.2" y="426.7" textLength="58.8" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">esbuild</text>
-<text x="1215.2" y="426.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">esbuild --s…</text>
+<text x="1038.8" y="426.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">41302</text>
+<text x="1089.2" y="426.7" textLength="58.8" lengthAdjust="spacingAndGlyphs" fill="#98b17d" font-weight="bold">workerd</text>
+<text x="1215.2" y="426.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#98b17d">:8787 · wra…</text>
 <text x="1324.4" y="426.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">you</text>
-<text x="1416.8" y="426.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">38M   2.2</text>
+<text x="1408.4" y="426.7" textLength="84.0" lengthAdjust="spacingAndGlyphs" fill="#98b17d">143M   7.1</text>
 <text x="1500.8" y="426.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1005.2" y="445.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1047.2" y="445.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">1127</text>
-<text x="1089.2" y="445.7" textLength="117.6" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">Code Helper (R</text>
-<text x="1215.2" y="445.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">/Applicatio…</text>
+<text x="1038.8" y="445.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">41250</text>
+<text x="1089.2" y="445.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#98b17d" font-weight="bold">anvil</text>
+<text x="1215.2" y="445.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#98b17d">:8545 · anv…</text>
 <text x="1324.4" y="445.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">you</text>
-<text x="1408.4" y="445.7" textLength="84.0" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">402M   1.9</text>
+<text x="1416.8" y="445.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#98b17d">96M   4.3</text>
 <text x="1500.8" y="445.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1005.2" y="464.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1055.6" y="464.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">412</text>
-<text x="1089.2" y="464.7" textLength="84.0" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">mds_stores</text>
-<text x="1215.2" y="464.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">/System/Lib…</text>
-<text x="1324.4" y="464.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">root</text>
-<text x="1416.8" y="464.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">71M   1.4</text>
+<text x="1047.2" y="464.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">3035</text>
+<text x="1089.2" y="464.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">herdr</text>
+<text x="1215.2" y="464.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">/Users/you/…</text>
+<text x="1324.4" y="464.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">you</text>
+<text x="1416.8" y="464.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">62M   3.9</text>
 <text x="1500.8" y="464.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1005.2" y="483.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1038.8" y="483.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">41355</text>
-<text x="1089.2" y="483.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">node</text>
-<text x="1215.2" y="483.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">tsserver.js…</text>
+<text x="1038.8" y="483.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">40987</text>
+<text x="1089.2" y="483.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#8fa8d2" font-weight="bold">▸ claude.exe</text>
+<text x="1215.2" y="483.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#8fa8d2">api · claud…</text>
 <text x="1324.4" y="483.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">you</text>
-<text x="1408.4" y="483.7" textLength="84.0" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">331M   1.2</text>
+<text x="1408.4" y="483.7" textLength="84.0" lengthAdjust="spacingAndGlyphs" fill="#8fa8d2">731M   3.1</text>
 <text x="1500.8" y="483.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1005.2" y="502.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1055.6" y="502.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">871</text>
-<text x="1089.2" y="502.7" textLength="117.6" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">Slack Helper (</text>
+<text x="1055.6" y="502.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">659</text>
+<text x="1089.2" y="502.7" textLength="109.2" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">Google Chrome</text>
 <text x="1215.2" y="502.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">/Applicatio…</text>
 <text x="1324.4" y="502.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">you</text>
-<text x="1408.4" y="502.7" textLength="84.0" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">212M   0.9</text>
+<text x="1408.4" y="502.7" textLength="84.0" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">558M   2.8</text>
 <text x="1500.8" y="502.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1005.2" y="521.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1055.6" y="521.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">590</text>
-<text x="1089.2" y="521.7" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">postgres</text>
-<text x="1215.2" y="521.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">postgres -D…</text>
+<text x="1038.8" y="521.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">41410</text>
+<text x="1089.2" y="521.7" textLength="58.8" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">esbuild</text>
+<text x="1215.2" y="521.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">esbuild --s…</text>
 <text x="1324.4" y="521.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">you</text>
-<text x="1416.8" y="521.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">44M   0.7</text>
+<text x="1416.8" y="521.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">38M   2.2</text>
 <text x="1500.8" y="521.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1005.2" y="540.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1038.8" y="540.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">39874</text>
-<text x="1089.2" y="540.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">zsh</text>
-<text x="1215.2" y="540.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">-zsh</text>
+<text x="1047.2" y="540.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">1127</text>
+<text x="1089.2" y="540.7" textLength="117.6" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">Code Helper (R</text>
+<text x="1215.2" y="540.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">/Applicatio…</text>
 <text x="1324.4" y="540.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">you</text>
-<text x="1425.2" y="540.7" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">6M   0.4</text>
+<text x="1408.4" y="540.7" textLength="84.0" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">402M   1.9</text>
 <text x="1500.8" y="540.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1005.2" y="559.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1055.6" y="559.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">612</text>
-<text x="1089.2" y="559.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">redis-server</text>
-<text x="1215.2" y="559.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">redis-serve…</text>
-<text x="1324.4" y="559.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">you</text>
-<text x="1416.8" y="559.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">12M   0.3</text>
+<text x="1055.6" y="559.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">412</text>
+<text x="1089.2" y="559.7" textLength="84.0" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">mds_stores</text>
+<text x="1215.2" y="559.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">/System/Lib…</text>
+<text x="1324.4" y="559.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">root</text>
+<text x="1416.8" y="559.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">71M   1.4</text>
 <text x="1500.8" y="559.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1005.2" y="578.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1072.4" y="578.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">1</text>
-<text x="1089.2" y="578.7" textLength="58.8" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">launchd</text>
-<text x="1215.2" y="578.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">/sbin/launc…</text>
-<text x="1324.4" y="578.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">root</text>
-<text x="1416.8" y="578.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">21M   0.3</text>
+<text x="1038.8" y="578.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">41355</text>
+<text x="1089.2" y="578.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">node</text>
+<text x="1215.2" y="578.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">tsserver.js…</text>
+<text x="1324.4" y="578.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">you</text>
+<text x="1408.4" y="578.7" textLength="84.0" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">331M   1.2</text>
 <text x="1500.8" y="578.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1005.2" y="597.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1055.6" y="597.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">701</text>
-<text x="1089.2" y="597.7" textLength="50.4" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">Finder</text>
-<text x="1215.2" y="597.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">/System/Lib…</text>
+<text x="1055.6" y="597.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">871</text>
+<text x="1089.2" y="597.7" textLength="117.6" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">Slack Helper (</text>
+<text x="1215.2" y="597.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">/Applicatio…</text>
 <text x="1324.4" y="597.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">you</text>
-<text x="1408.4" y="597.7" textLength="84.0" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">118M   0.2</text>
+<text x="1408.4" y="597.7" textLength="84.0" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">212M   0.9</text>
 <text x="1500.8" y="597.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1005.2" y="616.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1055.6" y="616.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">433</text>
-<text x="1089.2" y="616.7" textLength="84.0" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">coreaudiod</text>
-<text x="1215.2" y="616.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">/usr/sbin/c…</text>
-<text x="1324.4" y="616.7" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">_coreau…</text>
-<text x="1416.8" y="616.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">14M   0.2</text>
+<text x="1055.6" y="616.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">590</text>
+<text x="1089.2" y="616.7" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">postgres</text>
+<text x="1215.2" y="616.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">postgres -D…</text>
+<text x="1324.4" y="616.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">you</text>
+<text x="1416.8" y="616.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">44M   0.7</text>
 <text x="1500.8" y="616.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1005.2" y="635.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1055.6" y="635.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">688</text>
-<text x="1089.2" y="635.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">Dock</text>
-<text x="1215.2" y="635.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">/System/Lib…</text>
+<text x="1038.8" y="635.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">39874</text>
+<text x="1089.2" y="635.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">zsh</text>
+<text x="1215.2" y="635.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">-zsh</text>
 <text x="1324.4" y="635.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">you</text>
-<text x="1416.8" y="635.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">84M   0.1</text>
+<text x="1425.2" y="635.7" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">6M   0.4</text>
 <text x="1500.8" y="635.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1005.2" y="654.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1038.8" y="654.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#787f8c">40990</text>
-<text x="1089.2" y="654.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">zsh</text>
-<text x="1215.2" y="654.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">-zsh</text>
+<text x="1055.6" y="654.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">612</text>
+<text x="1089.2" y="654.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">redis-server</text>
+<text x="1215.2" y="654.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">redis-serve…</text>
 <text x="1324.4" y="654.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">you</text>
-<text x="1425.2" y="654.7" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">6M   0.1</text>
+<text x="1416.8" y="654.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">12M   0.3</text>
 <text x="1500.8" y="654.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1005.2" y="673.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1055.6" y="673.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">522</text>
-<text x="1089.2" y="673.7" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">cfprefsd</text>
-<text x="1215.2" y="673.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">/usr/sbin/c…</text>
-<text x="1324.4" y="673.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">you</text>
-<text x="1425.2" y="673.7" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">9M   0.1</text>
+<text x="1072.4" y="673.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">1</text>
+<text x="1089.2" y="673.7" textLength="58.8" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">launchd</text>
+<text x="1215.2" y="673.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">/sbin/launc…</text>
+<text x="1324.4" y="673.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">root</text>
+<text x="1416.8" y="673.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">21M   0.3</text>
 <text x="1500.8" y="673.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1005.2" y="692.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1055.6" y="692.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">740</text>
-<text x="1089.2" y="692.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">Spotlight</text>
+<text x="1055.6" y="692.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">701</text>
+<text x="1089.2" y="692.7" textLength="50.4" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">Finder</text>
 <text x="1215.2" y="692.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">/System/Lib…</text>
 <text x="1324.4" y="692.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">you</text>
-<text x="1416.8" y="692.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">46M   0.0</text>
+<text x="1408.4" y="692.7" textLength="84.0" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">118M   0.2</text>
 <text x="1500.8" y="692.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1005.2" y="711.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1055.6" y="711.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">803</text>
-<text x="1089.2" y="711.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">ssh-agent</text>
-<text x="1215.2" y="711.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">/usr/bin/ss…</text>
-<text x="1324.4" y="711.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">you</text>
-<text x="1425.2" y="711.7" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">3M   0.0</text>
+<text x="1055.6" y="711.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">433</text>
+<text x="1089.2" y="711.7" textLength="84.0" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">coreaudiod</text>
+<text x="1215.2" y="711.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">/usr/sbin/c…</text>
+<text x="1324.4" y="711.7" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">_coreau…</text>
+<text x="1416.8" y="711.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">14M   0.2</text>
 <text x="1500.8" y="711.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1005.2" y="730.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<text x="1055.6" y="730.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">497</text>
-<text x="1089.2" y="730.7" textLength="117.6" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">mdworker_share</text>
+<text x="1055.6" y="730.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">688</text>
+<text x="1089.2" y="730.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">Dock</text>
 <text x="1215.2" y="730.7" textLength="100.8" lengthAdjust="spacingAndGlyphs" fill="#787f8c">/System/Lib…</text>
 <text x="1324.4" y="730.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">you</text>
-<text x="1416.8" y="730.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">18M   0.0</text>
+<text x="1416.8" y="730.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">84M   0.1</text>
 <text x="1500.8" y="730.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1005.2" y="749.7" textLength="504.0" lengthAdjust="spacingAndGlyphs" fill="#464c58">╰──────────────────────────────────────────────────────────╯</text>
 <rect x="1013.6" y="774.0" width="184.8" height="19.0" rx="0" fill="#2c313a"/>
-<text x="1022.0" y="787.7" textLength="168.0" lengthAdjust="spacingAndGlyphs" fill="#c48cb4">⏎ open btop + macmon</text>
+<text x="1022.0" y="787.7" textLength="168.0" lengthAdjust="spacingAndGlyphs" fill="#c48cb4">o open btop + macmon</text>
 <rect x="1005.2" y="793.0" width="504.0" height="19.0" rx="0" fill="#21252b"/>
 <text x="1013.6" y="806.7" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">enter</text>
-<text x="1064.0" y="806.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">btop</text>
-<text x="1114.4" y="806.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">s</text>
-<text x="1131.2" y="806.7" textLength="92.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">sort by mem</text>
-<text x="1240.4" y="806.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">j/k</text>
-<text x="1274.0" y="806.7" textLength="50.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">scroll</text>
-<text x="1341.2" y="806.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">[ ]</text>
-<text x="1374.8" y="806.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">tabs</text>
+<text x="1064.0" y="806.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">fold</text>
+<text x="1114.4" y="806.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">K</text>
+<text x="1131.2" y="806.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">kill</text>
+<text x="1181.6" y="806.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">s</text>
+<text x="1198.4" y="806.7" textLength="50.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">by mem</text>
+<text x="1265.6" y="806.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">u</text>
+<text x="1282.4" y="806.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">mine</text>
+<text x="1332.8" y="806.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">o</text>
+<text x="1349.6" y="806.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">btop</text>
+<text x="1400.0" y="806.7" textLength="25.2" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">[ ]</text>
+<text x="1433.6" y="806.7" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#787f8c">tabs</text>
 </g>
 </svg>

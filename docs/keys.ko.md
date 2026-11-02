@@ -42,8 +42,11 @@ deck에 포커스를 두세요(클릭하거나 herdr의 패널 이동 키 사용
 | | 가장자리에서 `h` `j` `k` `l` | 명령 부분과 로그를 하나의 글처럼 넘나들기. 첫 줄에서 `k`, 첫 글자에서 `h`를 누르면 목록으로 |
 | | `esc` | 선택 취소, 또는 실행 목록으로 돌아가기 |
 | servers | `o` | 브라우저에서 서버 열기 |
-| system | `s`, `j` `k`(또는 휠) | 프로세스를 CPU 또는 메모리 순으로 정렬, 스크롤 |
-| | `enter` 또는 버튼 클릭 | herdr의 `system` 탭에 `btop`(Mac에서는 `macmon`도) 열기. 이미 열려 있으면 그 탭으로 이동 |
+| system | `j` `k`(또는 `↓` `↑`, 휠, 클릭), `g` `G` | 선택한 프로세스 옮기기(목록이 다시 정렬돼도 같은 프로세스에 머묾), 맨 위, 맨 아래 |
+| | Claude 세션에서 `enter` `l`(또는 클릭), `h` | 펼치기: 그 아래에서 도는 프로세스를 들여 써서 보여 줌. 접기 |
+| | `K` 다음 `y` | 선택한 프로세스 종료(SIGTERM. Claude 세션이면 claude 프로세스만). 다른 키는 취소, 결과는 아래 키 안내 줄에 |
+| | `s`, `u` | CPU 또는 메모리 순 정렬. 모든 사용자의 프로세스 또는 내 것만 |
+| | `o`(또는 세션이 아닌 행에서 `enter`, 버튼 클릭) | herdr의 `system` 워크스페이스로 이동, 없으면 만들기: `btop`, Mac에서는 옆에 `macmon` |
 | agents | `enter` 후 `j` `k`, `enter`, `esc` | 에이전트 상세에서 버튼과 할 일 사이를 이동하고 누르기 |
 | | 할 일에서 `enter` 후 `j` `k`, `ctrl+d` `ctrl+u`, `esc`나 backspace | 그 할 일의 이야기: 만들어진 시각과 그때의 요청, 시작·완료 때 Claude가 한 말, Claude가 언급한 곳. `esc`, backspace, `← task` 클릭으로 돌아가기 |
 | | "▾ N more"에서 `enter` 후 `j` `k`, `ctrl+d` `ctrl+u`, `ctrl+f` `ctrl+b`, `ctrl+e` `ctrl+y`, `g` `G`, `esc` | activity 카드가 펼쳐지고 카드 안에서만 자체 커서로 스크롤(vim 키, 오래 걸린 명령에서 `enter`는 jobs의 출력으로). `esc`로 접기 |
