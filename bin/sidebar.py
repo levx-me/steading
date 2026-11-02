@@ -223,10 +223,9 @@ except (OSError, subprocess.TimeoutExpired, ValueError, KeyError):
     pass
 
 # $usage comes from bin/usage.py, one for the machine: started here when none runs.
-try:
-    with open(os.path.join(os.path.dirname(state), "usage.pid")) as f:
-        os.kill(int(f.read()), 0)
-except (OSError, ValueError):
+import usage  # noqa: E402
+
+if not usage.running():
     subprocess.Popen([sys.executable, "-I", os.path.join(os.path.dirname(os.path.abspath(__file__)), "usage.py")],
                      stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
 

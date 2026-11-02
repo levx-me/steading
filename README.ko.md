@@ -30,7 +30,7 @@
 | **build** · **test** | 실시간 컬러 출력. 에이전트는 그대로 일반 텍스트와 실제 종료 코드를 받음 |
 | **git** | 저장소를 바꾸는 명령 전부, 커밋 메시지 전체. 테두리에 브랜치, 푸시하지 않은 커밋, 커밋하지 않은 파일 |
 | **deploy** | `vercel`, `fly deploy`, `terraform apply`, `forge script --broadcast` 외 25개 이상. 상태·목록 조회는 제외 |
-| **system** | 전체·코어별 CPU, 부하, 메모리. Mac에서 [macmon](https://github.com/vladkens/macmon)이 있으면 GPU, 전력, 온도까지. btop처럼 모든 프로세스를 보여 주고, Claude 세션은 그 아래 프로세스를 합쳐 한 행으로, 개발 서버는 따로 표시. `K`로 종료. `o`로 herdr 워크스페이스에 `btop`(과 `macmon`) 열기 |
+| **system** | 전체·코어별 CPU, 부하, 메모리. Mac에서 [macmon](https://github.com/vladkens/macmon)이 있으면 GPU, 전력, 온도까지. btop처럼 모든 프로세스를 보여 주고, Claude 세션은 그 아래 프로세스를 합쳐 한 행으로(`enter`로 펼침), 개발 서버는 늘 초록색 별도 행으로. `K`로 종료. `o`로 herdr 워크스페이스에 `btop`(과 `macmon`) 열기 |
 
 ## 신경 쓸 게 없습니다
 

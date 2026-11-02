@@ -105,8 +105,8 @@ GPU temperatures. Under them, every process as btop lists them (Pid, Program, Co
 Cpu%), busiest first, with a selected row that `j` `k` move and that stays on its process as the list
 re-sorts. `s` sorts by memory instead, `u` shows only your own processes. A Claude session is one row
 in the agents' colour, the folder it runs in before its command and the CPU and memory of everything
-under it (MCP servers, node, shells) summed; `enter` unfolds it. A dev server of the project is green,
-with its port. `K` ends the selected process after a `y` (SIGTERM; on a session, its claude only):
+under it (MCP servers, node, shells) summed; `enter` unfolds it. A dev server of the project is never part of a session: it and what it
+started keep green rows of their own, with its port. `K` ends the selected process after a `y` (SIGTERM; on a session, its claude only):
 the one thing in the deck that changes anything. It is sampled every 2s while the tab is shown, one
 deck sampling for all that show it, never in the background, and the tab is never marked new.
 

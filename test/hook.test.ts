@@ -1552,14 +1552,16 @@ Pages occupied by compressor:                1054215.
 print(json.dumps([m.macmon_stats('{"all_power": 1}\\n' + line + "\\n"), m.macmon_stats(""), m.macmon_stats("not json")]))`))
       .toEqual([{ gpu: 25, watts: 30.9, cpu_temp: 85.7, gpu_temp: 65.6 }, {}, {}]));
 
-  test("ps rows: names with spaces, macOS and Linux CPU times; lsof's working folders", () =>
+  test("ps rows: names with spaces, macOS and Linux CPU times, control characters shown as ?; lsof's working folders", () =>
     expect(py(`print(json.dumps([procs.ps_table("""claude.exe         101     9   501 levx               3.4 784112   7:57.90 claude --resume abc
 sshd               202     1     0 root               0.0   1024 1-02:03:04 /usr/sbin/sshd -D
 Google Chrome He   303     1   501 levx               1.5   2048 00:01:23 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
+evil               404     1   501 levx               0.0   1024 0:00.01 x \x1b]0;pwned\x07 \x7fy
 garbage"""), m.lsof_cwds("p101\\nfcwd\\nn/Users/me/work/steading\\np202\\nfcwd\\nn/\\n")]))`))
       .toEqual([{ "101": ["claude.exe", "101", "9", 501, "levx", 3.4, 784112 * 1024, 477.9, "claude --resume abc"],
                   "202": ["sshd", "202", "1", 0, "root", 0, 1024 * 1024, 93784, "/usr/sbin/sshd -D"],
-                  "303": ["Google Chrome He", "303", "1", 501, "levx", 1.5, 2048 * 1024, 83, "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"] },
+                  "303": ["Google Chrome He", "303", "1", 501, "levx", 1.5, 2048 * 1024, 83, "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"],
+                  "404": ["evil", "404", "1", 501, "levx", 0, 1024 * 1024, 0.01, "x ?]0;pwned? ?y"] }, // control characters never reach the screen
                 { "101": "steading", "202": "/" }]));
 
   test("a Claude session is its claude and all under it; Chrome's claude.exe helper and a nested claude are not sessions", () =>
@@ -1578,14 +1580,16 @@ print(json.dumps([h("darwin", set()), h("darwin", {"btop"}), h("darwin", {"btop"
                 "sudo pacman -S btop", "sudo apt install btop · sudo dnf install btop · sudo pacman -S btop", "",
                 "install btop with your package manager"]));
 
-  // A session (101) with a node and a shell under it, a second session, Chrome's helper, a dev server, root's process.
+  // A session (101) with a node and a shell under it, a dev server the shell started (555, with a worker 556), a second
+  // session, Chrome's helper, root's process.
   const PS = [
     `claude.exe   101     1 ${me} me    3.0 1024 0:01.00 claude`,
     `node         201   101 ${me} me   30.0 4096 0:01.00 node mcp.js`,
     `zsh          202   201 ${me} me    1.0 1024 0:01.00 zsh -c ls`,
     `claude.exe   102     1 ${me} me    9.0 2048 0:02.00 claude --resume x`,
     `claude.exe   103     1 ${me} me   40.0 2048 0:02.00 /Users/me/claude-code/bin/claude.exe --chrome-native-host`,
-    `node         555     1 ${me} me   20.0 8192 0:09.00 node server.js`,
+    `node         555   202 ${me} me   20.0 8192 0:09.00 node server.js`,
+    `node         556   555 ${me} me    2.0 1024 0:01.00 node worker.js`,
     `other        777     1     0 root 50.0 9216 0:09.00 other --flag`].join("\n");
   const SYSTEM = `m.cwd_names = lambda pids: {"101": "alpha", "102": "beta"}  # lsof and /proc are read in tests of their own
 s = m.System(types.SimpleNamespace(found=[("3000", "555", "node server.js")]))
@@ -1611,7 +1615,7 @@ print(json.dumps(plain()))`, { PATH: `${bin}:/usr/bin:/bin` });
     }
   });
 
-  test("every process listed, a session one row summed over what runs under it, unfolded with enter; u and s", () => {
+  test("every process listed, a session one row summed over what runs under it (its dev servers apart), unfolded with enter; u and s", () => {
     const bin = fakeBin({ ps: PS });
     const [byCpu, unfolded, mine, byMem, session, kept, gone]: any[] = py(`m.PLATFORM = "linux"
 ${SYSTEM}
@@ -1624,24 +1628,24 @@ s.key("s"); plain(); s.move(pids().index("555")); s.key("s"); plain(); kept = [s
 s.stats["procs"].pop("555"); at = s.at; plain(); gone = [s.pick, s.at == at]
 print(json.dumps([by_cpu, unfolded, mine, by_mem, session, kept, gone]))`, { PATH: `${bin}:/usr/bin:/bin` });
     const rows = (ls: string[]) => ls.filter(l => /^\d+ /.test(l));
-    expect(rows(byCpu).map(l => l.split(" ")[0])).toEqual(["777", "103", "101", "555", "102"]);
+    expect(rows(byCpu).map(l => l.split(" ")[0])).toEqual(["777", "103", "101", "555", "102", "556"]);
     const row = (ls: string[], pid: string) => rows(ls).find(l => l.startsWith(pid + " "))!;
     expect(row(byCpu, "101")).toMatch(/^101 ▸ claude\.exe +alpha · claude +me +6M +34\.0$/); // 3 + 30 + 1, 1K + 4K + 1K
     expect(row(byCpu, "555")).toContain(":3000 · node server.js");
     expect(row(byCpu, "103")).not.toContain("·");
-    expect(byCpu).toContainEqual(expect.stringMatching(/─ processes · 5 · all users · by cpu ─/));
+    expect(byCpu).toContainEqual(expect.stringMatching(/─ processes · 6 · all users · by cpu ─/));
     expect(byCpu).toContainEqual(expect.stringMatching(/^Pid +Program +Command +User +MemB +Cpu%$/));
     expect(rows(unfolded).map(l => l.split(/ +/).slice(0, 2).join(" ")))
-      .toEqual(["777 other", "103 claude.exe", "101 ▾", "201 node", "202 zsh", "555 node", "102 ▸"]);
-    expect(mine).toEqual(["103", "101", "555", "102"]);
-    expect(byMem).toEqual(["777", "555", "101", "102", "103"]);
+      .toEqual(["777 other", "103 claude.exe", "101 ▾", "201 node", "202 zsh", "555 node", "102 ▸", "556 node"]);
+    expect(mine).toEqual(["103", "101", "555", "102", "556"]);
+    expect(byMem).toEqual(["777", "555", "101", "102", "103", "556"]);
     expect(session).toContain("\x1b[48;2;62;68;81m"); // the selection: raised on the list's ground
     expect(session).toContain("\x1b[38;2;143;168;210m"); // a session in the agents' colour
     expect(kept).toEqual(["555", "555"]); // re-sorting keeps the selection on its process
     expect(gone).toEqual(["101", true]); // its process gone: the row where it was
   });
 
-  test("K asks in the hint line; only y sends SIGTERM, any other key (a tab's number too) keeps it", () => {
+  test("K asks in the hint line; only y sends SIGTERM, any other key (a tab's number too) keeps it; enter off a session does nothing, o opens", () => {
     const bin = fakeBin({ ps: PS });
     const out: any[] = py(`m.PLATFORM = "linux"
 ${SYSTEM}
@@ -1649,13 +1653,16 @@ sent = []
 m.os.kill = lambda pid, sig: sent.append([pid, sig])
 deck = types.SimpleNamespace(views=[s], section=0, settings_open=False)
 plain(); s.move(pids().index("555"))
+opened = []; s.open_tools = lambda: opened.append(1)
+s.key("\\r"); enter = [opened[:], [k for k, _ in s.hints()][:2]]; s.key("o")
 s.key("K"); asked = m.ANSI.sub("", " ".join(k + " " + w for k, w in s.hints()))
 m.Deck.key(deck, "3"); kept = [sent[:], s.confirm, m.ANSI.sub("", s.hints()[0][0])]
 s.key("K"); s.key("y")
-s.move(pids().index("101")); s.key("K"); asked2 = s.confirm; s.key("y")
-print(json.dumps([asked, kept, sent, asked2, m.ANSI.sub("", s.hints()[0][0])]))`, { PATH: `${bin}:/usr/bin:/bin` });
-    expect(out).toEqual(["kill 555 node? y/n", [[], null, "kept 555 node"], [[555, 15], [101, 15]], ["101", "claude.exe"],
-                         "sent SIGTERM to 101 claude.exe"]);
+s.move(pids().index("101")); s.key("K"); asked2 = s.confirm; s.key("y"); done = m.ANSI.sub("", s.hints()[0][0])
+s.confirm = ("0", "x"); s.key("y"); s.confirm = ("-1", "g"); s.key("y")  # 0 and below would signal process groups
+print(json.dumps([enter, opened, asked, kept, sent, asked2, done, m.ANSI.sub("", s.hints()[0][0])]))`, { PATH: `${bin}:/usr/bin:/bin` });
+    expect(out).toEqual([[[], ["K", "s"]], [1], "kill 555 node? y/n", [[], null, "kept 555 node"], [[555, 15], [101, 15]], ["101", "claude.exe"],
+                         "sent SIGTERM to 101 claude.exe", "not ending -1 g"]);
   });
 
   test("o goes to the herdr workspace named system, or makes it: btop wide, macmon narrow beside it", () => {
@@ -1699,5 +1706,54 @@ print(json.dumps([m.values(first, {"w1:p1": "10"}, was, 1000.0), m.values(later,
     const r = Bun.spawnSync([Bun.which("python3")!, "-I", "-c", code], { env: { PATH: process.env.PATH!, STEADING_SIDEBAR_ICONS: "0" } });
     expect(r.stderr.toString()).toBe("");
     expect(JSON.parse(r.stdout.toString())).toEqual([{ "w1:p1": "5% 0.8G" }, { "w1:p1": "40% 0.8G" }]); // 7% by ps; then 4 s in 10 s
+  });
+
+  test("usage.py runs once: its pid file is made atomically, a dead or foreign pid in it is stale", () => {
+    const dir = mkdtempSync(join(tmpdir(), "steading-usage-"));
+    const code = `import os, json, subprocess, importlib.util as u
+spec = u.spec_from_file_location("usage", ${JSON.stringify(join(root, "bin/usage.py"))})
+m = u.module_from_spec(spec); spec.loader.exec_module(m)
+os.makedirs(m.BASE)
+first, again = m.claim(), m.claim()  # this process is no usage.py, so its own pid reads stale
+sleeper = subprocess.Popen(["sleep", "5"])
+open(m.PIDFILE, "w").write(str(sleeper.pid)); foreign = [m.running(), m.claim()]
+open(m.PIDFILE, "w").write("99999999"); dead = [m.running(), m.claim(), open(m.PIDFILE).read() == str(os.getpid())]
+sleeper.kill()
+print(json.dumps([first, again, foreign, dead]))`;
+    const r = Bun.spawnSync([Bun.which("python3")!, "-I", "-c", code], { env: { PATH: process.env.PATH!, TMPDIR: dir + "/" } });
+    expect(r.stderr.toString()).toBe("");
+    expect(JSON.parse(r.stdout.toString())).toEqual([true, true, [false, true], [false, true, true]]);
+  });
+
+  test("a macmon that keeps dying is started again less and less often", () => {
+    const bin = fakeBin({});
+    const runs = join(bin, "runs");
+    writeFileSync(join(bin, "macmon"), `#!/bin/sh\necho run >> ${runs}\n`);
+    chmodSync(join(bin, "macmon"), 0o755);
+    const out: any[] = py(`waits = []
+for _ in range(3):
+    before = m._macmon["wait"]
+    m.macmon_line()
+    for _ in range(100):  # until it has died and its wait is set (a new script's first run can be slow on macOS)
+        if m._macmon["wait"] != before:
+            break
+        time.sleep(0.05)
+    waits.append(m._macmon["wait"])
+    m.macmon_line()  # too soon: no new start
+    m._macmon["next"] = 0  # as if the wait were over
+print(json.dumps([waits, len(open(${JSON.stringify(runs)}).read().split())]))`, { PATH: `${bin}:/usr/bin:/bin` });
+    expect(out).toEqual([[2, 4, 8], 3]);
+  });
+
+  test("a sample shared with the other decks clears temp files a dead deck left over a minute ago", () => {
+    const dir = mkdtempSync(join(tmpdir(), "steading-shared-"));
+    const out = py(`m.SHARED = ${JSON.stringify(join(dir, "system.json"))}
+for name, age in (("system.json.1", 120), ("system.json.2", 5)):
+    open(m.SHARED[:-11] + name, "w").close(); os.utime(m.SHARED[:-11] + name, (time.time() - age, time.time() - age))
+s = m.System(types.SimpleNamespace(found=[]))
+s.measure = lambda was: {"cpu": 1.0}
+s.sample()
+print(json.dumps(sorted(os.listdir(${JSON.stringify(dir)}))))`);
+    expect(out).toEqual(["system.json", "system.json.2"]);
   });
 });

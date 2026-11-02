@@ -13,7 +13,7 @@ the agent's other commands that ran 10s or more (bin/hook, bin/job), live from
 Claude Code's own output file while they run. The system section shows the machine: CPU in all and
 per core, load, memory, on a Mac with macmon the GPU, power and heat, and every process as btop
 lists them: a Claude session is one row (named by its folder, what runs under it summed; enter
-unfolds it), the project's dev servers marked by their port; s sorts by CPU or memory, u shows only
+unfolds it), the project's dev servers on rows of their own with their port; s sorts by CPU or memory, u shows only
 this user's, K ends the selected one after a y. Sampled every 2s while shown; o opens btop (and
 macmon) in a herdr workspace named system.
 
@@ -56,7 +56,7 @@ import unicodedata
 import urllib.parse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # -I leaves the script's folder out
-from procs import Proc, read_ps, sessions  # noqa: E402
+from procs import Proc, printable, read_ps, sessions  # noqa: E402
 from tasklist import read_tasks  # noqa: E402
 
 BASE = sys.argv[1] if len(sys.argv) > 1 else os.environ["STEADING_BASE"]  # plugin panes pass it in the env
@@ -3221,16 +3221,17 @@ def vm_stat_used(text):
     return int(page.group(1) if page else 4096) * (app + n.get("Pages wired down", 0) + n.get("Pages occupied by compressor", 0))
 
 
-_macmon = {"proc": None, "line": "", "wanted": 0.0}
+_macmon = {"proc": None, "line": "", "wanted": 0.0, "wait": 0.0, "next": 0.0}
 
 
 def macmon_line():
     """The last line of one `macmon pipe` kept running while samples are taken (each sample costs
     it little, starting it costs a fifth of a second of CPU); it ends once none is asked for a while,
-    or when the deck goes (its pipe closes)."""
+    or when the deck goes (its pipe closes). One that keeps dying is started again less and less
+    often: after 2s, then twice as long each time, up to a minute."""
     _macmon["wanted"] = time.time()
     p = _macmon["proc"]
-    if p is None or p.poll() is not None:
+    if (p is None or p.poll() is not None) and time.time() >= _macmon["next"]:
         try:
             p = subprocess.Popen(["macmon", "pipe", "-i", str(SAMPLE_SECS * 1000)], stdin=subprocess.DEVNULL,
                                  stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, start_new_session=True)
@@ -3240,10 +3241,12 @@ def macmon_line():
 
         def follow():
             for line in p.stdout:
-                _macmon["line"] = line
+                _macmon["line"], _macmon["wait"] = line, 0.0
                 if time.time() - _macmon["wanted"] > 5 * SAMPLE_SECS:
-                    break
-            p.terminate()
+                    return p.terminate()  # no longer asked for: a stop, not a death
+            # It ended by itself: wait before the next start.
+            _macmon["wait"] = min(60.0, _macmon["wait"] * 2 or SAMPLE_SECS)
+            _macmon["next"] = time.time() + _macmon["wait"]
         background(follow)
     return _macmon["line"]
 
@@ -3266,7 +3269,7 @@ def lsof_cwds(text):
         if line[:1] == "p":
             pid = line[1:]
         elif line[:1] == "n" and pid:
-            names[pid] = os.path.basename(line[1:].rstrip("/")) or line[1:]
+            names[pid] = printable(os.path.basename(line[1:].rstrip("/")) or line[1:])
     return names
 
 
@@ -3279,7 +3282,7 @@ def cwd_names(pids):
     names = {}
     for pid in pids:
         try:
-            names[pid] = os.path.basename(os.readlink(f"/proc/{pid}/cwd"))
+            names[pid] = printable(os.path.basename(os.readlink(f"/proc/{pid}/cwd")))
         except OSError:
             pass
     return names
@@ -3368,6 +3371,12 @@ class System:
             with open(tmp, "w") as f:
                 json.dump([{**self.stats, "have": sorted(self.stats.get("have", ()))}, self.was], f)
             os.replace(tmp, SHARED)
+            for old in glob.glob(f"{SHARED}.*"):  # left by a deck that died while writing
+                try:
+                    if time.time() - os.path.getmtime(old) > 60:
+                        os.remove(old)
+                except OSError:
+                    pass
             self.shared_at = self.sampled_at = os.path.getmtime(SHARED)
             self.wrote = True
         except OSError:
@@ -3404,8 +3413,10 @@ class System:
         if PLATFORM == "darwin" and "macmon" in s["have"]:  # GPU, power and heat: a Mac's, through macmon, only
             s.update(macmon_stats(macmon_line()))
         s["hint"] = install_hint(PLATFORM, s["have"], read("/etc/os-release"))
-        # The Claude sessions, each named by the folder it runs in (asked once per pid).
-        found = sessions(procs)
+        # The Claude sessions, each named by the folder it runs in (asked once per pid). A dev server is
+        # never part of one: it, and all under it, keep a row of their own.
+        ports = {pid: port for port, pid, _ in self.servers.found}
+        found = sessions(procs, ports)
         self.labels = {pid: name for pid, name in self.labels.items() if pid in found}
         new = [pid for pid in found if pid not in self.labels]
         names = cwd_names(new)
@@ -3416,7 +3427,7 @@ class System:
                 return max(0.0, (p.secs - was[2][p.pid]) * 100 / (now - was[0]))
             return p.cpu
         s.update(procs=procs, proc_cpu={pid: cpu(p) for pid, p in procs.items()}, sessions=found,
-                 labels=dict(self.labels), ports={pid: port for port, pid, _ in self.servers.found})
+                 labels=dict(self.labels), ports=ports)
         self.was = (now, ticks, {pid: p.secs for pid, p in procs.items()})
         return s
 
@@ -3543,8 +3554,8 @@ class System:
         if self.note[1] > time.time():
             return [(self.note[0], "")]
         r = self.listed[self.at] if self.listed else None
-        enter = ("fold" if r.open else "unfold") if r and r.kind == "claude" else "btop"
-        return [("enter", enter), ("K", "kill"), ("s", f"by {'mem' if self.by == 'cpu' else 'cpu'}"),
+        enter = [("enter", "fold" if r.open else "unfold")] if r and r.kind == "claude" else []
+        return enter + [("K", "kill"), ("s", f"by {'mem' if self.by == 'cpu' else 'cpu'}"),
                 ("u", "all users" if self.mine else "mine"), ("o", "btop"), ("[ ]", "tabs"), (",", "settings"), ("ctrl+c", "close")]
 
     def key(self, k):
@@ -3562,7 +3573,7 @@ class System:
             while self.at > 0 and self.listed[self.at].depth:
                 self.move(self.at - 1)
             self.unfolded.discard(self.listed[self.at].pid)
-        elif k in ("\r", "\n", "o"):
+        elif k == "o":
             self.open_tools()
         elif k == "s":
             self.by = "mem" if self.by == "cpu" else "cpu"
@@ -3572,8 +3583,9 @@ class System:
             self.confirm = (r.pid, r.name)
 
     def kill(self, pid, name):
-        """SIGTERM to pid; what came of it in the hint line. Never the deck itself, nor pid 0 or 1."""
-        if int(pid) in (0, 1, os.getpid()):
+        """SIGTERM to pid; what came of it in the hint line. Never the deck itself, nor pid 1 or below
+        (0 and negative pids would signal whole process groups)."""
+        if int(pid) <= 1 or int(pid) == os.getpid():
             return self.say(f"not ending {pid} {name}", RED_RGB)
         try:
             os.kill(int(pid), signal.SIGTERM)

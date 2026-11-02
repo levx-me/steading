@@ -11,6 +11,12 @@ PS = ["ps", "-axo", "ucomm=,pid=,ppid=,uid=,user=,pcpu=,rss=,time=,args="]
 PS_LINE = re.compile(r"^\s*(.*?)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+([\d.]+)\s+(\d+)\s+([\d:.-]+)\s?(.*)$")
 # cpu: ps's own %; rss in bytes; secs: the CPU time used so far.
 Proc = collections.namedtuple("Proc", "name pid ppid uid user cpu rss secs args")
+CONTROL = re.compile(r"[\x00-\x1f\x7f]")
+
+
+def printable(text):
+    """text with control characters (a terminal would act on them) shown as "?"."""
+    return CONTROL.sub("?", text)
 
 
 def cpu_secs(text):
@@ -28,7 +34,8 @@ def ps_table(text):
     for m in filter(None, map(PS_LINE.match, text.splitlines())):
         name, pid, ppid, uid, user, cpu, rss, secs, args = m.groups()
         try:
-            procs[pid] = Proc(name, pid, ppid, int(uid), user, float(cpu), int(rss) * 1024, cpu_secs(secs), args[:256])
+            procs[pid] = Proc(printable(name), pid, ppid, int(uid), printable(user), float(cpu), int(rss) * 1024, cpu_secs(secs),
+                              printable(args[:256]))
         except ValueError:
             pass
     return procs
@@ -55,20 +62,22 @@ def children(procs):
     return kids
 
 
-def under(kids, pid):
-    """Every pid below pid (MCP servers, node, shells, ...), depth first."""
+def under(kids, pid, apart=()):
+    """Every pid below pid (MCP servers, node, shells, ...), depth first; a pid in `apart` is left
+    out with all below it."""
     out, todo = [], list(kids.get(pid, []))
     while todo:
         child = todo.pop()
-        if child != pid and child not in out:
+        if child != pid and child not in out and child not in apart:
             out.append(child)
             todo += kids.get(child, [])
     return out
 
 
-def sessions(procs):
+def sessions(procs, apart=()):
     """{pid of each Claude session: the pids under it}. A claude started by another session (a
-    `claude -p` it runs) counts as part of that one."""
+    `claude -p` it runs) counts as part of that one. The pids in `apart` (dev servers, shown on
+    rows of their own) are no part of any session, nor is anything under them."""
     kids, found = children(procs), {}
     for pid, p in procs.items():
         if not is_claude(p):
@@ -81,7 +90,7 @@ def sessions(procs):
                 break
             up = procs[up].ppid
         if not nested:
-            found[pid] = under(kids, pid)
+            found[pid] = under(kids, pid, set(apart))
     return found
 
 

@@ -10,6 +10,7 @@ token cleared. It exits once no herdr pane runs Claude, or herdr is gone.
 
     usage.py"""
 import os
+import subprocess
 import sys
 import time
 
@@ -59,6 +60,42 @@ def report(pane, value):
     steading_run.mark_sent(state(pane), SOURCE, tokens)
 
 
+PIDFILE = os.path.join(BASE, "usage.pid")
+
+
+def running(pidfile=PIDFILE):
+    """Whether the pid in pidfile is a live usage.py (a dead pid, or one reused by another
+    program, is not)."""
+    try:
+        with open(pidfile) as f:
+            pid = int(f.read())
+        os.kill(pid, 0)
+    except (OSError, ValueError):
+        return False
+    args = subprocess.run(["ps", "-o", "args=", "-p", str(pid)], capture_output=True, text=True).stdout
+    return any(os.path.basename(word) == "usage.py" for word in args.split())  # its script, not a command naming it
+
+
+def claim(pidfile=PIDFILE):
+    """Take the pid file, made atomically (O_EXCL) so two starting at once cannot both win; a
+    stale one is replaced. False when another usage.py holds it."""
+    for _ in range(2):
+        try:
+            fd = os.open(pidfile, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
+        except FileExistsError:
+            if running(pidfile):
+                return False
+            try:
+                os.remove(pidfile)
+            except OSError:
+                pass
+            continue
+        with os.fdopen(fd, "w") as f:
+            f.write(str(os.getpid()))
+        return True
+    return False
+
+
 def main():
     pids, was, shown, idle = {}, {}, set(), 0
     while True:
@@ -86,14 +123,9 @@ def main():
 
 if __name__ == "__main__":
     os.makedirs(BASE, exist_ok=True)
-    pidfile = os.path.join(BASE, "usage.pid")
-    try:  # one per machine
-        os.kill(int(open(pidfile).read()), 0)
+    pidfile = PIDFILE
+    if not claim():  # one per machine
         sys.exit(0)
-    except (OSError, ValueError):
-        pass
-    with open(pidfile, "w") as f:
-        f.write(str(os.getpid()))
     try:
         main()
     except (OSError, ValueError, KeyError):
