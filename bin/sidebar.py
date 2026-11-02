@@ -59,6 +59,7 @@ elif not event.get("agent_id"):
             except OSError:
                 pass
         if hook_name == "SessionStart":
+            shutil.rmtree(os.path.join(state, "agents"), ignore_errors=True)  # the old marker files
             shutil.rmtree(os.path.join(state, "sent"), ignore_errors=True)  # the next reports go out in full
     else:
         os.makedirs(state, exist_ok=True)

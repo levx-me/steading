@@ -16,7 +16,7 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)  # -I leaves the script's folder out
-import steading_run  # noqa: E402
+import reexec, steading_run  # noqa: E402
 from procs import is_claude, read_ps, sessions, usage_text  # noqa: E402
 
 EVERY = float(os.environ.get("STEADING_RUN_EVERY", "10"))
@@ -81,6 +81,11 @@ def claim(pidfile=PIDFILE):
     stale one is replaced. False when another usage.py holds it."""
     for _ in range(2):
         try:
+            if int(open(pidfile).read()) == os.getpid():
+                return True  # re-exec'd: the file is already ours
+        except (OSError, ValueError):
+            pass
+        try:
             fd = os.open(pidfile, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
         except FileExistsError:
             if running(pidfile):
@@ -98,7 +103,9 @@ def claim(pidfile=PIDFILE):
 
 def main():
     pids, was, shown, idle = {}, {}, set(), 0
+    check = reexec.watcher()
     while True:
+        check()
         procs, now = read_ps(), time.time()
         panes = [p["pane_id"] for p in steading_run.call("pane.list", {}).get("panes", []) if p.get("agent") == "claude"]
         for pane in panes:

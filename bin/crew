@@ -9,10 +9,10 @@ lighter than the CLI). It recounts once a second (the subagents at work by Claud
 as bin/subagents.py records them for the deck too, plus the main agent while its turn runs),
 and once none is at work it clears the tokens
 and exits. Each report lapses in 3 s, so a crash leaves nothing behind."""
-import json, os, socket, sys, time
+import json, os, shutil, socket, sys, time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # -I leaves the script's folder out
-import subagents  # noqa: E402
+import reexec, subagents  # noqa: E402
 
 FRAMES = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
 QUIET = 90  # fallback, a subagent the hooks never named: seconds without writing before it stops
@@ -74,7 +74,9 @@ def at_work(state, folder):
 def main(pane, folder, state):
     space = call("pane.get", {"pane_id": pane}).get("pane", {}).get("workspace_id")
     n, counted, frame = at_work(state, folder), 0.0, 0
+    check = reexec.watcher()
     while True:
+        check()
         if time.time() - counted >= 1:
             n, counted = at_work(state, folder), time.time()
             if not n:
@@ -90,9 +92,12 @@ if __name__ == "__main__":
     state = os.path.join(os.environ.get("TMPDIR", "/tmp"), "steading", pane.replace(":", "_").replace("/", "_"))
     os.makedirs(state, exist_ok=True)
     pidfile = os.path.join(state, "crew.pid")
-    try:  # one spinner per pane
-        os.kill(int(open(pidfile).read()), 0)
-        sys.exit(0)
+    shutil.rmtree(os.path.join(state, "agents"), ignore_errors=True)  # markers of the old format: nothing reads them now
+    try:  # one spinner per pane (a re-exec keeps its own pid)
+        pid = int(open(pidfile).read())
+        if pid != os.getpid():
+            os.kill(pid, 0)
+            sys.exit(0)
     except (OSError, ValueError):
         pass
     with open(pidfile, "w") as f:

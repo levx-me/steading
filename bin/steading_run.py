@@ -12,6 +12,8 @@ import glob, json, os, shutil, socket, subprocess, sys, time
 from importlib.machinery import SourceFileLoader
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)  # -I leaves the script's folder out
+import reexec  # noqa: E402
 TREE = os.environ.get("STEADING_SIDEBAR_TREE") != "0"
 EVERY = float(os.environ.get("STEADING_RUN_EVERY", "10"))
 
@@ -99,9 +101,10 @@ def report(pane, space, run, has_repo, state, force=False):
 
 def main(pane, space, cwd, has_repo, state):
     v = SourceFileLoader("viewer", os.path.join(HERE, "viewer.py")).load_module()
-    first = True
+    first, check = True, reexec.watcher()
     while True:
         time.sleep(EVERY)
+        check()
         run = compute(v, state, cwd, space)
         report(pane, space, run, has_repo, state, force=first)
         first = False
@@ -116,9 +119,11 @@ if __name__ == "__main__":
     os.environ.setdefault("STEADING_BASE", state)
     os.makedirs(base, exist_ok=True)
     pidfile = os.path.join(base, "run-" + space.replace(":", "_").replace("/", "_") + ".pid")
-    try:  # one refresher per workspace
-        os.kill(int(open(pidfile).read()), 0)
-        sys.exit(0)
+    try:  # one refresher per workspace (a re-exec keeps its own pid)
+        pid = int(open(pidfile).read())
+        if pid != os.getpid():
+            os.kill(pid, 0)
+            sys.exit(0)
     except (OSError, ValueError):
         pass
     with open(pidfile, "w") as f:
