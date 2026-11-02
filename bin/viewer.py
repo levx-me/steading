@@ -58,6 +58,7 @@ import urllib.parse
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # -I leaves the script's folder out
 from procs import Proc, printable, program, read_ps, sessions  # noqa: E402
 from tasklist import read_tasks  # noqa: E402
+import subagents  # noqa: E402
 
 BASE = sys.argv[1] if len(sys.argv) > 1 else os.environ["STEADING_BASE"]  # plugin panes pass it in the env
 SERVERS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "servers")
@@ -1763,11 +1764,14 @@ class Servers(Runs):
 #   ~/.claude/projects/<project>/<session>/subagents/       one transcript per subagent,
 #       agent-<id>.jsonl + agent-<id>.meta.json             (type, description, toolUseId, depth),
 #       workflows/<run>/agent-<id>.jsonl                    the agents of a workflow run.
-# A foreground subagent has ended when the main transcript answers its Agent call
-# (tool_result for its toolUseId; is_error = failed); a background one when a
-# <task-notification> names it. Otherwise it is at work while its file moves.
+# Whether a subagent works comes from Claude Code's hooks (bin/subagents.py, the record the
+# sidebar's $crew reads too): between its SubagentStart and its SubagentStop, a teammate idle
+# in between. The transcripts give what it does and how it ended: a foreground subagent when
+# the main transcript answers its Agent call (tool_result for its toolUseId; is_error = failed),
+# a background one when a <task-notification> names it. A subagent the hooks never named (its
+# session began before the record) is at work while its file moves.
 
-LIVE_SECS = 300  # a subagent unended and silent this long is no longer at work
+LIVE_SECS = 300  # fallback, no record: a subagent unended and silent this long is no longer at work
 HARNESS_TOOLS = {"SubagentHandback"}  # the harness's own steps, not the agent's work
 NOTIFICATION = re.compile(r"<task-id>([^<]+)</task-id>.*?<status>([^<]+)</status>", re.S)
 
@@ -2393,7 +2397,7 @@ def dashboard(d, cols, main, title="", links=None, focus=None, window=None, task
 
 RESUME_SECS = 10  # a subagent writing this long after its "done" notification has been resumed
 TEAM_SHOWN = 8  # subagents in an agent's team card, newest first
-ALIVE_SECS = 1800  # a subagent that never reported back and has been quiet this long is gone
+ALIVE_SECS = 1800  # fallback, no record: a subagent that never reported back and has been quiet this long is gone
 
 
 def team_card(team, cols):
@@ -2508,15 +2512,28 @@ class AgentRun(Run):
             return ""
         return end
 
-    def status(self):
+    def activity(self):
+        """"working", "idle" (a teammate waiting for its next message, or quiet with no record),
+        or how it ended: "done", "failed", "stopped"."""
         end = self.ended()
+        rec = getattr(self.deck, "records", {}).get(self.id)
+        if rec:
+            state, at = rec
+            # A kill may skip SubagentStop: a notification after its latest start ends it.
+            if state == "working" and getattr(self.deck, "notified_at", {}).get(self.id, 0) * 1e9 <= at:
+                return "working"
+            return end or state
         if end:
-            return {"done": ("✓", GREEN_RGB), "failed": ("✗", RED_RGB)}.get(end, ("⊘", MUTED_RGB))
+            return end
         try:
             quiet = time.time() - os.path.getmtime(self.path)
         except OSError:
             quiet = LIVE_SECS
-        return (spinner(), AMBER_RGB) if quiet < LIVE_SECS else ("·", MUTED_RGB)
+        return "working" if quiet < LIVE_SECS else "idle"
+
+    def status(self):
+        return {"working": (spinner(), AMBER_RGB), "idle": ("·", MUTED_RGB), "done": ("✓", GREEN_RGB),
+                "failed": ("✗", RED_RGB)}.get(self.activity(), ("⊘", MUTED_RGB))
 
     def rc(self):
         return {"done": "0", "failed": "1"}.get(self.ended(), "")
@@ -2878,6 +2895,8 @@ class Agents(Runs):
                     self.reading = False
             background(read)
         folder = self.session[:-len(".jsonl")] + "/subagents" if self.session else ""
+        sid = os.path.basename(self.session)[:-len(".jsonl")]
+        self.records = (subagents.states(os.path.dirname(BASE), sid) or {}) if self.session else {}  # who works, by the hooks
         paths = glob.glob(f"{folder}/agent-*.jsonl") + glob.glob(f"{folder}/workflows/*/agent-*.jsonl") if folder else []
         # A subagent's transcript is read in the background the first time (a deck starting
         # beside a long session would otherwise stall on all of them); it joins once read.
@@ -2925,13 +2944,15 @@ class Agents(Runs):
                 out += [r] + under(r.id, below)
             return out
         runs = under(None)[::-1] + ([self.main] if self.session else [])
-        # Each agent's team, for its detail: the subagents it started that are still there.
-        # One that reported back has gone; one that never did and has been quiet for long is gone too.
+        # Each agent's team, for its detail: the subagents it started that are still there, at
+        # work or a teammate waiting for its next message. One that ended has gone; one the hooks
+        # never named that never reported back and has been quiet for long is gone too.
         def alive(k):
-            if k.ended():
-                return False
+            state = k.activity()
+            if state == "working" or state == "idle" and k.id in self.records:
+                return True
             try:
-                return time.time() - os.path.getmtime(k.path) < ALIVE_SECS
+                return state == "idle" and time.time() - os.path.getmtime(k.path) < ALIVE_SECS
             except OSError:
                 return False
         for r in self.every + ([self.main] if self.main else []):

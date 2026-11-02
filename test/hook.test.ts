@@ -846,42 +846,143 @@ print(*out)
   });
 });
 
-describe("the crew's subagent markers", () => {
-  test("start counts, stop uncounts, nested count, SessionStart clears, stale dropped", () => {
-    const { mkdtempSync, writeFileSync, chmodSync, existsSync, utimesSync } = require("node:fs");
-    const { tmpdir } = require("node:os");
-    const dir = mkdtempSync(join(tmpdir(), "steading-agents-"));
+describe("one record of the subagents at work, for the $crew and the deck", () => {
+  const { mkdtempSync, mkdirSync, writeFileSync, chmodSync, utimesSync } = require("node:fs");
+  const { tmpdir } = require("node:os");
+  // A session with a teammate ("tm"), its transcript silent for 15 minutes (Claude Code writes a
+  // turn only when it ends), and two ordinary background task agents ("job", "c") silent for 40
+  // (past the fallback's horizon, for agents the hooks never named).
+  const fixture = () => {
+    const dir = mkdtempSync(join(tmpdir(), "steading-record-"));
     writeFileSync(join(dir, "herdr"), "#!/bin/sh\nexit 0\n");
     chmodSync(join(dir, "herdr"), 0o755);
-    const env = { PATH: process.env.PATH!, HOME: join(dir, "home"), TMPDIR: dir, HERDR_ENV: "1", HERDR_PANE_ID: "w1:p1", HERDR_BIN_PATH: join(dir, "herdr") };
-    const hook = (name: string, id?: string) => Bun.spawnSync(["python3", "-I", join(root, "bin/sidebar.py")], { env,
-      stdin: Buffer.from(JSON.stringify({ hook_event_name: name, agent_id: id, cwd: dir, transcript_path: join(dir, "s.jsonl") })) });
-    const state = join(dir, "steading", "w1_p1");
-    const check = `
-import importlib.util, importlib.machinery, sys, tempfile
-spec = importlib.util.spec_from_loader("crew", importlib.machinery.SourceFileLoader("crew", sys.argv[1]))
-m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
-print(m.at_work(sys.argv[2], tempfile.mkdtemp()))`;
-    const count = () => Bun.spawnSync(["python3", "-I", "-c", check, join(root, "bin/crew"), state]).stdout.toString().trim();
-    hook("SessionStart");
-    expect(count()).toBe("0");
-    hook("SubagentStart", "pm");
-    expect(count()).toBe("1");
-    hook("SubagentStart", "worker"); // nested, same pane
-    expect(count()).toBe("2");
-    hook("SubagentStop", "worker");
-    expect(count()).toBe("1");
-    hook("SubagentStop", "pm");
-    expect(count()).toBe("0");
-    hook("SubagentStart", "a");
-    hook("SubagentStart", "b");
-    hook("SessionStart"); // a new process has none running
-    expect(count()).toBe("0");
-    hook("SubagentStart", "old");
-    const old = (Date.now() - 4 * 3600 * 1000) / 1000;
-    utimesSync(join(state, "agents", "old"), old, old);
-    expect(count()).toBe("0");
-    expect(existsSync(join(state, "agents", "old"))).toBe(false);
+    const main = join(dir, "S.jsonl");
+    const subs = join(dir, "S", "subagents");
+    mkdirSync(subs, { recursive: true });
+    writeFileSync(main, JSON.stringify({ type: "user", timestamp: new Date().toISOString(), message: { content: "go" } }) + "\n");
+    for (const [id, meta] of [
+      ["tm", { name: "sw-users", agentType: "sw-users", description: "Sweep", spawnDepth: 0, requestShape: "background", taskKind: "in_process_teammate" }],
+      ["job", { agentType: "Explore", description: "Map it", toolUseId: "t1", spawnDepth: 1, requestShape: "background" }],
+      ["c", { agentType: "Explore", description: "Third", toolUseId: "t3", spawnDepth: 1, requestShape: "background" }],
+    ] as [string, object][]) {
+      const quiet = Date.now() / 1000 - (id === "tm" ? 900 : 2400);
+      writeFileSync(join(subs, `agent-${id}.meta.json`), JSON.stringify(meta));
+      writeFileSync(join(subs, `agent-${id}.jsonl`), JSON.stringify({ type: "user", timestamp: new Date(quiet * 1000).toISOString(), message: { content: "go" } }) + "\n");
+      utimesSync(join(subs, `agent-${id}.jsonl`), quiet, quiet);
+    }
+    return { dir, main };
+  };
+  // Python beside the deck and the crew: both loaded, hook() runs bin/sidebar as Claude Code would.
+  const prelude = `
+import json, os, random, subprocess, sys, time
+from importlib.machinery import SourceFileLoader
+args = sys.argv[1:]; sys.argv = sys.argv[:1]
+root, main = args[0], args[1]
+v = SourceFileLoader("v", os.path.join(root, "bin/viewer.py")).load_module()
+crew = SourceFileLoader("crew", os.path.join(root, "bin/crew")).load_module()
+import subagents
+v.background = lambda fn, *a: fn(*a)
+state = os.environ["STEADING_BASE"]
+s = v.Agents(); s.session, s.looked = main, time.time()
+def hook(name, agent=None, **more):
+    event = {"hook_event_name": name, "session_id": "S", "transcript_path": main, "cwd": os.path.dirname(main), **more}
+    if agent:
+        event["agent_id"] = agent
+    subprocess.run([os.path.join(root, "bin/sidebar")], input=json.dumps(event).encode())
+def deck():
+    s.read_main(); s.refresh()
+    return sum(r.status()[1] == v.AMBER_RGB for r in s.every)
+def look():
+    """crew's count, the deck's, the subagents listed, and the main agent's team card"""
+    n = deck()
+    card = v.ANSI.sub("", (v.team_card(s.main.team, 60) or [""])[0]).strip("─╭╮ ")
+    return f"{crew.live(os.path.dirname(state), main[:-len('.jsonl')] + '/subagents')} {n} [{' '.join(r.id for r in s.runs[:-1])}] {card}"
+`;
+  const run = (body: string) => {
+    const { dir, main } = fixture();
+    const env = { PATH: process.env.PATH!, HOME: join(dir, "home"), TMPDIR: dir, HERDR_ENV: "1", HERDR_PANE_ID: "w1:p1",
+      HERDR_BIN_PATH: join(dir, "herdr"), STEADING_BASE: join(dir, "steading", "w1_p1"), STEADING_CACHE: join(dir, "cache") };
+    const r = Bun.spawnSync(["python3", "-I", "-c", `import sys; sys.path.insert(0, ${JSON.stringify(join(root, "bin"))})\n` + prelude + body, root, main], { env });
+    expect(r.stderr.toString()).toBe("");
+    return r.stdout.toString().trim().split("\n");
+  };
+
+  test("a silent teammate works from its start to its stop; compaction keeps it, a new process clears it", () => {
+    expect(run(`
+print(look())
+hook("SubagentStart", "tm"); print(look())                          # silent 15 min, yet at work
+hook("SessionStart", source="compact"); print(look())              # the process goes on: still at work
+hook("SubagentStop", "tm"); print(look())                           # idle: not listed, still in the team
+hook("SubagentStart", "tm"); print(look())                          # a new message
+hook("TeammateIdle", "tm", teammate_name="sw-users"); print(look())
+hook("SubagentStart", "tm"); hook("SessionStart", source="startup"); print(look())   # a new process
+hook("SubagentStart", "job"); print(look())
+hook("SubagentStop", "job"); print(look())                          # done: gone from the team too
+hook("SubagentStart", "job"); hook("SessionStart", source="resume"); print(look())
+`)).toEqual([
+      "0 0 [] subagents 0/1 at work",   // no record yet: by its transcript, quiet but still there
+      "1 1 [tm] subagents 1/1 at work",
+      "1 1 [tm] subagents 1/1 at work",
+      "0 0 [] subagents 0/1 at work",
+      "1 1 [tm] subagents 1/1 at work",
+      "0 0 [] subagents 0/1 at work",
+      "0 0 [] ",
+      "1 1 [job] subagents 1/1 at work",
+      "0 0 [] ",
+      "0 0 []",
+    ]);
+  }, 30000);
+
+  test("a stop processed before its start still ends it; a kill's notification ends one with no stop; stale starts drop", () => {
+    expect(run(`
+root_ = os.path.dirname(state)
+subagents.record(root_, {"hook_event_name": "SubagentStart", "session_id": "S", "agent_id": "tm"}, now=time.time_ns() - 4 * 3600 * 10**9)
+print(look())                                                      # a start 4 h old with no stop: died
+t = time.time_ns()
+subagents.record(root_, {"hook_event_name": "SubagentStop", "session_id": "S", "agent_id": "job"}, now=t + 2)
+subagents.record(root_, {"hook_event_name": "SubagentStart", "session_id": "S", "agent_id": "job"}, now=t + 1)   # late
+subagents.record(root_, {"hook_event_name": "SubagentStart", "session_id": "S", "agent_id": "tm"}, now=t + 4)
+subagents.record(root_, {"hook_event_name": "SessionStart", "session_id": "S", "source": "startup"}, now=t + 5)
+subagents.record(root_, {"hook_event_name": "SubagentStart", "session_id": "S", "agent_id": "tm"}, now=t + 3)    # late, before the clear
+print(look())
+hook("SubagentStart", "c")
+with open(main, "a") as f:  # killed: its notification, no SubagentStop
+    f.write(json.dumps({"type": "queue-operation", "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S.999Z", time.gmtime(time.time() + 1)),
+                        "content": "<task-notification><task-id>c</task-id><status>killed</status></task-notification>"}) + "\\n")
+print(deck(), [r.id for r in s.runs[:-1]], next(r for r in s.every if r.id == "c").status()[0])  # (the $crew can't see it)
+`)).toEqual(["0 0 [] ", "0 0 [] ", "0 [] ⊘"]);
+  }, 30000);
+
+  test("over random hook orders the deck's count is the $crew's, and the hooks' latest word", () => {
+    expect(run(`
+rng, root_, bad = random.Random(7), os.path.dirname(state), 0
+for trial in range(40):
+    sid = "S"
+    os.remove(subagents.log_path(root_, sid)) if os.path.exists(subagents.log_path(root_, sid)) else None
+    subagents._read.clear()
+    t0, latest, cleared = time.time_ns() - 10**12, {}, 0
+    events = []
+    for n in range(rng.randrange(1, 14)):
+        kind = rng.choice(["SubagentStart", "SubagentStart", "SubagentStop", "TeammateIdle", "compact", "startup"])
+        agent = rng.choice(["tm", "job", "c"])
+        events.append((t0 + n * 1000, kind, agent))
+    order = events[:]
+    rng.shuffle(order)  # processed in any order
+    for t, kind, agent in order:
+        e = {"hook_event_name": "SessionStart", "source": kind} if kind in ("compact", "startup") else {"hook_event_name": kind, "agent_id": agent}
+        e.update(session_id=sid, transcript_path=main)
+        subagents.record(root_, e, now=t)
+        crew_n = crew.live(root_, main[:-len(".jsonl")] + "/subagents")
+        bad += crew_n != deck()
+    last = {}
+    for t, kind, agent in events:
+        if kind == "startup":
+            last = {}
+        elif kind != "compact":
+            last[agent] = kind
+    bad += crew_n != sum(k == "SubagentStart" for k in last.values())
+print(bad)
+`)).toEqual(["0"]);
   }, 30000);
 });
 

@@ -108,6 +108,17 @@
           }
         ]
       }
+    ],
+    "TeammateIdle": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/bin/sidebar",
+            "timeout": 5
+          }
+        ]
+      }
     ]
   }
 }

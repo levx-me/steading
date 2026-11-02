@@ -43,35 +43,27 @@ herdr = os.environ.get("HERDR_BIN_PATH", "herdr")
 # The main agent's turn, as Claude Code's own hooks see it: herdr reads Claude off the screen and
 # calls it idle while a tool runs. A request or a tool call marks the turn; its end clears it.
 lead_mark = os.path.join(state, "main-busy")
-agents = os.path.join(state, "agents")  # one marker per running subagent (agent_id); bin/crew counts them
 hook_name = event.get("hook_event_name")
-if hook_name in ("SubagentStart", "SubagentStop"):
-    marker = os.path.join(agents, os.path.basename(str(event.get("agent_id", ""))) or "-")
-    if hook_name == "SubagentStop":
-        try:
-            os.remove(marker)
-        except OSError:
-            pass
-        sys.exit(0)
-    os.makedirs(agents, exist_ok=True)
-    open(marker, "w").close()
+if hook_name in ("SubagentStop", "TeammateIdle"):
+    sys.exit(0)  # bin/subagents.py has recorded it (bin/sidebar, before this ran)
+if hook_name == "SubagentStart":
     event["agent_id"] = event.get("agent_id") or "-"  # falls into the subagent branch: start the spinner
 elif not event.get("agent_id"):
     # A new process (startup, /restart's resume, /clear) has no turn running: a turn that /restart
     # cut off never reached its Stop hook, so its mark would keep the crew spinner going.
-    if event.get("hook_event_name") in ("Stop", "SessionStart"):
-        try:
-            os.remove(lead_mark)
-        except OSError:
-            pass
-        if event.get("hook_event_name") == "SessionStart":  # its subagents died with the old process
-            shutil.rmtree(agents, ignore_errors=True)
+    # (bin/subagents.py forgets the old process's subagents.)
+    if hook_name in ("Stop", "SessionStart"):
+        if event.get("source") != "compact":  # compaction is no new process: its turn goes on
+            try:
+                os.remove(lead_mark)
+            except OSError:
+                pass
+        if hook_name == "SessionStart":
             shutil.rmtree(os.path.join(state, "sent"), ignore_errors=True)  # the next reports go out in full
-            os.makedirs(agents, exist_ok=True)
     else:
         os.makedirs(state, exist_ok=True)
         open(lead_mark, "w").close()
-        if event.get("hook_event_name") == "UserPromptSubmit":
+        if hook_name == "UserPromptSubmit":
             subprocess.Popen([sys.executable, "-I", os.path.join(os.path.dirname(os.path.abspath(__file__)), "crew"), pane,
                               event.get("transcript_path", "")[:-len(".jsonl")] + "/subagents"],
                              stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,

@@ -5,15 +5,17 @@ plus its subagents.
 
 Started by bin/sidebar.py on a tool call, the main agent's or a subagent's; one per pane (a pid
 file in the deck's state dir). Every frame goes straight to herdr's socket (~8 a second, far
-lighter than the CLI). It recounts once a second (the subagents between their SubagentStart and
-SubagentStop hooks, plus the main agent while its turn runs; with no markers, those that wrote
-their transcripts in the last 90 s), and once none is at work it clears the tokens
+lighter than the CLI). It recounts once a second (the subagents at work by Claude Code's hooks,
+as bin/subagents.py records them for the deck too, plus the main agent while its turn runs),
+and once none is at work it clears the tokens
 and exits. Each report lapses in 3 s, so a crash leaves nothing behind."""
 import json, os, socket, sys, time
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # -I leaves the script's folder out
+import subagents  # noqa: E402
+
 FRAMES = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
-QUIET = 90  # fallback, no markers: seconds without a subagent writing before it stops
-STALE = 3 * 3600  # a subagent marker older than this is a crash
+QUIET = 90  # fallback, a subagent the hooks never named: seconds without writing before it stops
 
 
 def call(method, params):
@@ -31,32 +33,22 @@ def call(method, params):
     return json.loads(buf or b"{}").get("result", {})
 
 
-def busy(folder):
-    try:
-        return sum(1 for f in os.listdir(folder) if f.endswith(".jsonl")
-                   and time.time() - os.path.getmtime(os.path.join(folder, f)) < QUIET)
-    except OSError:
-        return 0
-
-
-def live(state):
-    """Subagents between SubagentStart and SubagentStop (bin/sidebar.py keeps a marker per agent_id
-    in <state>/agents), or None when the folder is missing: a session that began before the markers.
-    A marker over 3 h old is a subagent that died without its stop: dropped."""
-    folder = os.path.join(state, "agents")
+def live(root, folder):
+    """Subagents at work: those Claude Code's hooks say are (bin/subagents.py, the record the
+    deck reads too), and, of those the hooks never named (a session begun before the record),
+    the ones that wrote their transcripts in the last 90 s."""
+    rec = subagents.states(root, os.path.basename(os.path.dirname(folder))) or {}
+    n = sum(1 for state, _ in rec.values() if state == "working")
     try:
         names = os.listdir(folder)
     except OSError:
-        return None
-    n = 0
+        return n
     for f in names:
-        try:
-            if time.time() - os.path.getmtime(os.path.join(folder, f)) < STALE:
-                n += 1
-            else:
-                os.remove(os.path.join(folder, f))
-        except OSError:
-            pass
+        if f.startswith("agent-") and f.endswith(".jsonl") and f[len("agent-"):-len(".jsonl")] not in rec:
+            try:
+                n += time.time() - os.path.getmtime(os.path.join(folder, f)) < QUIET
+            except OSError:
+                pass
     return n
 
 
@@ -76,8 +68,7 @@ def at_work(state, folder):
         lead = time.time() - os.path.getmtime(os.path.join(state, "main-busy")) < 600
     except OSError:
         lead = False
-    n = live(state)
-    return (busy(folder) if n is None else n) + lead
+    return live(os.path.dirname(state), folder) + lead
 
 
 def main(pane, folder, state):
