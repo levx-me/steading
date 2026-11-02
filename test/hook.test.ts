@@ -1710,6 +1710,22 @@ print(json.dumps([first, sent, m.ANSI.sub("", s.hints()[0][0])]))`, { PATH: `${b
     expect(out).toEqual([[[[555, 15]], "sent SIGTERM to 555 node"], [[555, 15]], "555 node is no longer that process: not ended"]);
   });
 
+  test("when ps cannot say what a process is, K asks nothing and y ends nothing", () => {
+    const bin = fakeBin({ ps: PS });
+    const out: any[] = py(`m.PLATFORM = "linux"
+${SYSTEM}
+sent = []
+m.os.kill = lambda pid, sig: sent.append([pid, sig])
+plain(); s.move(pids().index("555"))
+m.identity = lambda pid: ""  # ps fails when K is pressed
+s.key("K"); at_k = [s.confirm, m.ANSI.sub("", s.hints()[0][0])]
+answers = iter(["Mon 10:00 node", ""])  # ps answers at K, fails at y
+m.identity = lambda pid: next(answers)
+s.key("K"); asked = s.confirm is not None; s.key("y")
+print(json.dumps([at_k, asked, sent, m.ANSI.sub("", s.hints()[0][0])]))`, { PATH: `${bin}:/usr/bin:/bin` });
+    expect(out).toEqual([[null, "cannot identify 555 node: not ended"], true, [], "555 node is no longer that process: not ended"]);
+  });
+
   test("o goes to the herdr workspace named system, or makes it: btop wide, macmon narrow beside it", () => {
     const dir = mkdtempSync(join(tmpdir(), "steading-herdr-"));
     const log = join(dir, "calls");

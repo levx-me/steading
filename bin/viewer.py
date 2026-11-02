@@ -3590,7 +3590,7 @@ class System:
             (pid, name, was), self.confirm = self.confirm, None
             if k != "y":
                 return self.say(f"kept {pid} {name}")
-            if identity(pid) != was:  # ended, or the pid now names another process
+            if not was or identity(pid) != was:  # ended, the pid now names another process, or ps could not say
                 return self.say(f"{pid} {name} is no longer that process: not ended")
             return self.kill(pid, name)
         r = self.listed[self.at] if self.listed else None
@@ -3612,7 +3612,10 @@ class System:
         elif k == "u":
             self.mine = not self.mine
         elif k == "K" and r:
-            self.confirm = (r.pid, r.name, identity(r.pid))  # the process shown now, whatever lands on the row later
+            was = identity(r.pid)  # the process shown now, whatever lands on the row later
+            if not was:  # ps could not say what it is: nothing to check a y against
+                return self.say(f"cannot identify {r.pid} {r.name}: not ended", RED_RGB)
+            self.confirm = (r.pid, r.name, was)
 
     def kill(self, pid, name):
         """SIGTERM to pid; what came of it in the hint line. Never the deck itself, nor pid 1 or below
