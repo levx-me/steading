@@ -20,7 +20,7 @@ beside the agent**, live, so you never scroll back through the conversation to f
 
 ![Claude Code building a feature in herdr, with the Steading deck beside it streaming the test run](docs/demo.svg)
 
-## Seven tabs, one glance each
+## Eight tabs, one glance each
 
 | Tab | What you see |
 |---|---|
@@ -30,6 +30,7 @@ beside the agent**, live, so you never scroll back through the conversation to f
 | **build** · **test** | Runs streamed live and in colour, while the agent still gets plain text and the real exit code |
 | **git** | Every command that changes the repository, commit messages in full, and the branch, unpushed commits and uncommitted files in the border |
 | **deploy** | `vercel`, `fly deploy`, `terraform apply`, `forge script --broadcast` and 25+ more; status and list commands stay out |
+| **system** | CPU, load and memory, on a Mac with [macmon](https://github.com/vladkens/macmon) also GPU, power and heat; every process as btop lists them, Claude sessions and dev servers marked. `enter` opens `btop` (and `macmon`) in a herdr tab |
 
 ## Why it feels effortless
 

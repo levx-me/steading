@@ -96,3 +96,17 @@ and other reads stay out.
 `wrangler deploy`, `firebase deploy`, `gcloud run deploy`, `terraform apply`, `kubectl apply`,
 `helm upgrade`, `forge script --broadcast` and more ([full list](../bin/classify)). `vercel ls`,
 `fly status` and other look-ups stay out.
+
+## system
+
+**Shows** the machine: CPU with the load average, memory used of the total, and on a Mac with
+[macmon](https://github.com/vladkens/macmon) the GPU, power and CPU and GPU temperatures. Under them,
+every process as btop lists them (Pid, Program, Command, User, MemB, Cpu%), busiest first; `s` sorts
+by memory instead, `j` `k` scroll. A Claude session is drawn in the agents' colour with the folder it
+runs in before its command, a dev server of the project in green with its port. It is sampled every
+2s while the tab is shown, never in the background, and the tab is never marked new.
+
+**Opens** with `enter` (or a click on its button): `btop` in a herdr tab named `system`, with
+`macmon` in a pane under it on a Mac; when that tab is open, the deck goes to it. A missing tool
+shows how to install it: `brew install btop macmon` on macOS, `btop` from the distribution's
+package manager on Linux.

@@ -27,8 +27,8 @@ apply right now.
 
 | Where | Keys | Action |
 |---|---|---|
-| anywhere | `[` `]` (and, outside a log, `tab` `shift+tab`), `1`–`7` | previous / next tab, jump to one |
-| | `A` `J` `S` `B` `T` `I` `D` | jump to a tab by its underlined letter (git is `I`: `G` stays vim's bottom; not inside a log, where `B` moves the cursor) |
+| anywhere | `[` `]` (and, outside a log, `tab` `shift+tab`), `1`–`8` | previous / next tab, jump to one |
+| | `A` `J` `S` `B` `T` `I` `D` `Y` | jump to a tab by its underlined letter (git is `I`: `G` stays vim's bottom; system is `Y`; not inside a log, where `B` moves the cursor) |
 | | `L` | move the deck to the other side of the agent |
 | | `,` | settings: follow new runs to their tab, open a deck with each agent, the jobs threshold (5, 10 or 30s) |
 | | `ctrl+c`, or a click on `✕` at the tabs' left end | close the deck (`q` only goes back from a log to the list, so a stray `q` closes nothing) |
@@ -42,6 +42,8 @@ apply right now.
 | | `h` `j` `k` `l` at an edge | cross between them as one text; `k` on the first line or `h` on the first character goes back to the list |
 | | `esc` | cancel the selection, or back to the run list |
 | servers | `o` | open the server in the browser |
+| system | `s`, `j` `k` (or the wheel) | sort the processes by CPU or memory, scroll them |
+| | `enter`, or a click on its button | open `btop` (and `macmon` on a Mac) in a herdr tab named `system`, or go to it when it is open |
 | agents | `enter`, then `j` `k`, `enter`, `esc` | in an agent's detail: move between its buttons and tasks, press one |
 | | `enter` on a task, then `j` `k`, `ctrl+d` `ctrl+u`, `esc` or backspace | its story: when it was made and the request it came from, what Claude said as it started and finished it, and where Claude named it; `esc`, backspace or a click on `← task` goes back |
 | | on "▾ N more": `enter`, then `j` `k`, `ctrl+d` `ctrl+u`, `ctrl+f` `ctrl+b`, `ctrl+e` `ctrl+y`, `g` `G`, `esc` | the activity card unfolds and scrolls on its own, with its own cursor (vim's keys; `enter` on a long call opens its output in jobs); `esc` folds it |

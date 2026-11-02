@@ -91,3 +91,16 @@
 `wrangler deploy`, `firebase deploy`, `gcloud run deploy`, `terraform apply`, `kubectl apply`,
 `helm upgrade`, `forge script --broadcast` 등([전체 목록](../bin/classify)). `vercel ls`, `fly status`
 같은 조회는 제외합니다.
+
+## system
+
+**보여 주는 것**: 이 컴퓨터. CPU와 부하 평균, 전체 중 사용 중인 메모리, Mac에서
+[macmon](https://github.com/vladkens/macmon)이 있으면 GPU, 전력, CPU·GPU 온도. 그 아래 btop처럼
+모든 프로세스(Pid, Program, Command, User, MemB, Cpu%)를 CPU를 많이 쓰는 순으로 보여 줍니다. `s`는
+메모리 순으로 바꾸고 `j` `k`는 스크롤합니다. Claude 세션은 agents 탭 색으로, 명령 앞에 작업 중인 폴더
+이름을 붙이고, 프로젝트의 개발 서버는 초록색으로 포트를 붙입니다. 탭이 보이는 동안에만 2초마다
+측정하고, 이 탭에는 새 항목 표시가 붙지 않습니다.
+
+**여는 것**: `enter`(또는 버튼 클릭)로 herdr의 `system` 탭에 `btop`을, Mac에서는 그 아래 창에
+`macmon`도 엽니다. 탭이 이미 있으면 그 탭으로 갑니다. 도구가 없으면 설치 방법을 보여 줍니다.
+macOS는 `brew install btop macmon`, Linux는 배포판 패키지 관리자로 `btop`.

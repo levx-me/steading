@@ -1502,3 +1502,99 @@ print(" ".join(d.listed()), end="")`;
   expect(out.stderr.toString()).toBe("");
   expect(out.stdout.toString()).toBe("10 3 5 2 4 1");
 });
+
+describe("the system tab reads the machine from fixed tool output", () => {
+  // Call bin/viewer.py's parsers on fixed text; print what they give as JSON.
+  const viewer = JSON.stringify(join(root, "bin/viewer.py"));
+  const py = (body: string, env: Record<string, string> = {}) => {
+    const code = `import sys, json, types, importlib.util as u
+sys.argv = ["v", "/tmp"]
+spec = u.spec_from_file_location("v", ${viewer})
+m = u.module_from_spec(spec); spec.loader.exec_module(m)
+${body}`;
+    const r = Bun.spawnSync([Bun.which("python3")!, "-I", "-c", code], { env: { PATH: process.env.PATH!, ...env } });
+    expect(r.stderr.toString()).toBe("");
+    return JSON.parse(r.stdout.toString());
+  };
+
+  test("Linux: /proc/stat as busy and total jiffies, /proc/meminfo as used and total bytes", () =>
+    expect(py(`print(json.dumps([m.proc_cpu("cpu  100 5 50 800 20 3 2 0 9 0\\ncpu0 1 2 3 4"),
+                    m.proc_mem("MemTotal:       16000 kB\\nMemFree:  1000 kB\\nMemAvailable:   6000 kB\\n")]))`))
+      .toEqual([[160, 980], [10000 * 1024, 16000 * 1024]]));
+
+  test("macOS: vm_stat as Activity Monitor's memory used", () =>
+    expect(py(`print(json.dumps(m.vm_stat_used('''Mach Virtual Memory Statistics: (page size of 16384 bytes)
+Pages free:                                   205379.
+Pages active:                                 763488.
+Pages wired down:                            1280467.
+Pages purgeable:                                8599.
+"Translation faults":                    30984969851.
+Anonymous pages:                             1004757.
+Pages occupied by compressor:                1054215.
+''')))`)).toBe(16384 * (1004757 - 8599 + 1280467 + 1054215)));
+
+  test("macmon: the last JSON line's GPU %, power and temperatures; nothing from junk", () =>
+    expect(py(`line = json.dumps({"all_power": 30.9, "gpu_usage": [551, 0.25], "temp": {"cpu_temp_avg": 85.7, "gpu_temp_avg": 65.6}})
+print(json.dumps([m.macmon_stats('{"all_power": 1}\\n' + line + "\\n"), m.macmon_stats(""), m.macmon_stats("not json")]))`))
+      .toEqual([{ gpu: 25, watts: 30.9, cpu_temp: 85.7, gpu_temp: 65.6 }, {}, {}]));
+
+  test("ps rows: names with spaces, macOS and Linux CPU times; lsof's working folders", () =>
+    expect(py(`print(json.dumps([m.ps_table("""claude.exe         101 levx               3.4 784112   7:57.90 claude --resume abc
+sshd               202 root               0.0   1024 1-02:03:04 /usr/sbin/sshd -D
+Google Chrome He   303 levx               1.5   2048 00:01:23 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
+garbage"""), m.lsof_cwds("p101\\nfcwd\\nn/Users/me/work/steading\\np202\\nfcwd\\nn/\\n")]))`))
+      .toEqual([{ "101": ["claude.exe", "levx", 3.4, 784112 * 1024, 477.9, "claude --resume abc"],
+                  "202": ["sshd", "root", 0, 1024 * 1024, 93784, "/usr/sbin/sshd -D"],
+                  "303": ["Google Chrome He", "levx", 1.5, 2048 * 1024, 83, "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"] },
+                { "101": "steading", "202": "/" }]));
+
+  test("install hints: brew for btop and macmon on macOS, the distro's btop on Linux, never macmon off macOS", () =>
+    expect(py(`h = m.install_hint
+print(json.dumps([h("darwin", set()), h("darwin", {"btop"}), h("darwin", {"btop", "macmon"}),
+                  h("linux", set(), 'ID=ubuntu\\nID_LIKE=debian'), h("linux", set(), 'ID="fedora"'), h("linux", set(), "ID=arch"),
+                  h("linux", set(), ""), h("linux", {"btop"}), h("freebsd14", set())]))`))
+      .toEqual(["brew install btop macmon", "brew install macmon", "", "sudo apt install btop", "sudo dnf install btop",
+                "sudo pacman -S btop", "sudo apt install btop · sudo dnf install btop · sudo pacman -S btop", "",
+                "install btop with your package manager"]));
+
+  test("the GPU and power rows come from macmon on macOS only; every process listed, sessions and servers marked", () => {
+    const { mkdtempSync, writeFileSync, chmodSync } = require("node:fs");
+    const { tmpdir } = require("node:os");
+    const bin = mkdtempSync(join(tmpdir(), "steading-system-"));
+    const tool = (name: string, out: string) => {
+      writeFileSync(join(bin, name), `#!/bin/sh\ncat <<'OUT'\n${out}\nOUT\n`);
+      chmodSync(join(bin, name), 0o755);
+    };
+    tool("ps", [
+      "claude.exe   101 levx  3.0 1024 0:01.00 claude",
+      "claude.exe   102 levx  9.0 2048 0:02.00 claude --resume x",
+      "claude.exe   103 levx 40.0 2048 0:02.00 /Users/me/claude-code/bin/claude.exe --chrome-native-host", // Chrome's helper, no session
+      "node         555 levx 20.0 4096 0:09.00 node server.js",
+      "other        777 root 50.0 8192 0:09.00 other --flag"].join("\n"));
+    tool("sysctl", "68719476736");
+    tool("vm_stat", "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nAnonymous pages: 1000000.");
+    tool("macmon", JSON.stringify({ all_power: 30.9, gpu_usage: [551, 0.25], temp: { cpu_temp_avg: 85.7, gpu_temp_avg: 65.6 } }));
+    const shown = (mac: string) => py(`m.PLATFORM = "${mac === "True" ? "darwin" : "linux"}"
+m.cwd_names = lambda pids: {"101": "alpha", "102": "beta"}  # lsof and /proc are read in tests of their own
+s = m.System(types.SimpleNamespace(found=[("3000", "555", "node server.js")]))
+s.stats = s.measure(None)
+plain = lambda: [m.ANSI.sub("", l).strip("│ ") for l in s.frame(90, 30)[0]]
+by_cpu = plain()
+s.key("s")
+print(json.dumps([by_cpu, plain(), [l for l in s.frame(90, 30)[0] if " 102 " in m.ANSI.sub("", l)]]))`, { PATH: `${bin}:/usr/bin:/bin` });
+    for (const mac of ["True", "False"]) {
+      const [lines, byMem, [session]]: [string[], string[], string[]] = shown(mac);
+      expect(lines.some(l => l.startsWith("gpu ") || l.startsWith("power "))).toBe(mac === "True");
+      expect(lines.join("\n")).not.toContain(mac === "True" ? "apt" : "macmon");
+      const pids = (ls: string[]) => ls.filter(l => /^\d+ /.test(l)).map(l => l.split(" ")[0]);
+      expect(pids(lines)).toEqual(["777", "103", "555", "102", "101"]);
+      expect(pids(byMem)).toEqual(["777", "555", "102", "103", "101"]);
+      const row = (pid: string) => lines.find(l => l.startsWith(pid + " "))!;
+      expect(row("102")).toContain("beta · claude --resume x");
+      expect(row("555")).toContain(":3000 · node server.js");
+      expect(row("103")).not.toContain("·");
+      expect(lines).toContainEqual(expect.stringMatching(/^Pid +Program +Command +User +MemB +Cpu%$/));
+      expect(session).toContain("\x1b[38;2;143;168;210m"); // a session in the agents' colour
+    }
+  });
+});

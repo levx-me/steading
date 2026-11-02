@@ -3,7 +3,7 @@
 
     python3 docs/demo.py > docs/demo.svg
 
-The deck side cycles through its six sections in tab order, each a
+The deck side cycles through its sections in tab order, each a
 layer of the SVG that CSS shows in turn; viewers who ask for reduced motion see
 the first one still. Every run of text sits on a character grid at its own x,
 so the columns line up whatever monospace font the viewer has. Colours are the
@@ -24,14 +24,14 @@ TIMER_FROM = 12                   # the "Testing..." timer's first second
 BRAILLE = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"            # the deck's spinner (bin/viewer.py), 8 frames a second
 SPIN = "<spin>"                   # a run's text: the deck's spinner, turning
 AGENTS_SECS = 5                   # the agents section stays longer: it moves the most
-SCENE_TIMES = [AGENTS_SECS] + [SCENE_SECS] * 6  # in tab order
+SCENE_TIMES = [AGENTS_SECS] + [SCENE_SECS] * 7  # in tab order
 FADE_SECS = 2.5                   # a new run's row fades in from the section's colour (bin/viewer.py)
 CYCLE = sum(SCENE_TIMES)          # one loop of the deck, in seconds: what ticks, ticks over it
 
 BG, STRIP, TAB, ACTIVE = "#1b1e23", "#21252b", "#2c313a", "#3e4451"
 MUTED, BRIGHT, TEXT, DIMMED = "#787f8c", "#dcdfe4", "#abb2bf", "#585e69"
 GREEN, RED, AMBER, CYAN, BLUE = "#98b17d", "#d0868d", "#d8b46a", "#7fb4b4", "#7aa2c8"
-ACCENT = {"AGENTS": "#8fa8d2", "JOBS": CYAN, "SERVERS": GREEN, "BUILD": AMBER, "TEST": BLUE, "GIT": "#b48ead", "DEPLOY": "#d19a66"}
+ACCENT = {"AGENTS": "#8fa8d2", "JOBS": CYAN, "SERVERS": GREEN, "BUILD": AMBER, "TEST": BLUE, "GIT": "#b48ead", "DEPLOY": "#d19a66", "SYSTEM": "#c48cb4"}
 CLAUDE = "#d77757"                # Claude Code's accent
 RULE = "rule"
 
@@ -95,7 +95,7 @@ agent = [
 ROWS = len(agent)
 
 SECTIONS = [("AGENTS", SPIN, AMBER), ("JOBS", SPIN, AMBER), ("SERVERS", "●", GREEN), ("BUILD", SPIN, AMBER), ("TEST", SPIN, AMBER),
-            ("GIT", "✓", GREEN), ("DEPLOY", "·", MUTED)]
+            ("GIT", "✓", GREEN), ("DEPLOY", "·", MUTED), ("SYSTEM", "·", MUTED)]
 
 out = []
 
@@ -271,7 +271,7 @@ def section_bar(active):
         rect(col, 0, widths[i], ACCENT[name] if on else "#976870" if new else TAB)  # bin/viewer.py NEW_RGB
         ink = STRIP if on else BRIGHT if new else MUTED
         # The first letter underlined: shift and that letter goes to the tab (bin/viewer.py TAB_KEYS).
-        at = 1 if name == "GIT" else 0  # git's key is I (bin/viewer.py TAB_KEYS)
+        at = 1 if name in ("GIT", "SYSTEM") else 0  # git's key is I, system's Y (bin/viewer.py TAB_KEYS)
         text(col, 0, [(" " + name[:at], ink, on or new), (name[at], ink, on or new, "u"), (f"{name[at + 1:]} ", ink, on or new),
                       (icon, STRIP if on else BRIGHT if new else colour, on or new)], end)
         col += widths[i] + 1
@@ -435,9 +435,10 @@ def label(name, *runs):
     return [(f"{name:<10} ", MUTED), *runs]
 
 
-def card(title, rows):
-    """Rows in a rounded box the deck's width, its title in the top border (bin/viewer.py card)."""
-    inner, edge = D - 8, "#464c58"  # inside the run's box
+def card(title, rows, inner=D - 8):
+    """Rows in a rounded box, its title in the top border (bin/viewer.py card): inside the
+    run's box unless inner says otherwise."""
+    edge = "#464c58"
     width = lambda runs: sum(1 if t == SPIN else max(len(t(n)) for n in range(CYCLE)) if callable(t) else len(t)
                              for t, *_ in runs)
     top = [("╭─", edge), (f" {title} ", MUTED), ("─" * (inner - len(title) - 2) + "─╮", edge)]
@@ -678,8 +679,64 @@ def scene_deploy():
     ], RUN_KEYS)
 
 
+def scene_system():
+    """The machine, then every process as btop lists them, busiest first (bin/viewer.py System):
+    the agents' sessions in their colour with their folder, the servers tab's servers in green."""
+    section_bar(7)
+    inner = D - 4  # a card the deck's width
+    cut = lambda s, n: s if len(s) <= n else s[:n - 1] + "…"
+    session, server = ACCENT["AGENTS"], GREEN
+    procs = [  # pid, program, command, user, MemB, Cpu%, colour of a marked row
+        (41233, "node", ":3000 · next dev --turbopack", "you", "612M", 38.2, server),
+        (40108, "claude.exe", "app · claude", "you", "622M", 14.6, session),
+        (415, "WindowServer", "/System/Library/WindowServer", "_windowserver", "188M", 9.8, None),
+        (41302, "workerd", ":8787 · wrangler dev", "you", "143M", 7.1, server),
+        (41250, "anvil", ":8545 · anvil --block-time 2", "you", "96M", 4.3, server),
+        (3035, "herdr", "/Users/you/.local/bin/herdr", "you", "62M", 3.9, None),
+        (40987, "claude.exe", "api · claude --resume", "you", "488M", 3.1, session),
+        (659, "Google Chrome", "/Applications/Google Chrome.app", "you", "558M", 2.8, None),
+        (41410, "esbuild", "esbuild --service=0.25.5", "you", "38M", 2.2, None),
+        (1127, "Code Helper (R", "/Applications/Visual Studio Code.app", "you", "402M", 1.9, None),
+        (412, "mds_stores", "/System/Library/Frameworks", "root", "71M", 1.4, None),
+        (41355, "node", "tsserver.js --serverMode", "you", "331M", 1.2, None),
+        (871, "Slack Helper (", "/Applications/Slack.app", "you", "212M", 0.9, None),
+        (590, "postgres", "postgres -D /opt/homebrew/var", "you", "44M", 0.7, None),
+        (39874, "zsh", "-zsh", "you", "6M", 0.4, None),
+        (612, "redis-server", "redis-server 127.0.0.1:6379", "you", "12M", 0.3, None),
+        (1, "launchd", "/sbin/launchd", "root", "21M", 0.3, None),
+        (701, "Finder", "/System/Library/CoreServices", "you", "118M", 0.2, None),
+        (433, "coreaudiod", "/usr/sbin/coreaudiod", "_coreaudiod", "14M", 0.2, None),
+        (688, "Dock", "/System/Library/CoreServices", "you", "84M", 0.1, None),
+        (40990, "zsh", "-zsh", "you", "6M", 0.1, None),
+        (522, "cfprefsd", "/usr/sbin/cfprefsd agent", "you", "9M", 0.1, None),
+        (740, "Spotlight", "/System/Library/CoreServices", "you", "46M", 0.0, None),
+        (803, "ssh-agent", "/usr/bin/ssh-agent -l", "you", "3M", 0.0, None),
+        (497, "mdworker_share", "/System/Library/Frameworks", "you", "18M", 0.0, None),
+    ]
+    rows = [[(f"{'Pid':>7} ", MUTED), (f"{'Program':<14} ", MUTED), (f"{'Command':<12} ", MUTED), (f"{'User':<8} ", MUTED),
+             (f"{'MemB':>5} ", MUTED), (f"{'Cpu%':>5}", MUTED)]]
+    for pid, program, command, user, mem, cpu, mark in procs:
+        rows.append([(f"{pid:>7} ", MUTED), (f"{cut(program, 14):<14} ", mark or BRIGHT, bool(mark)),
+                     (f"{cut(command, 12):<12} ", mark or MUTED), (f"{cut(user, 8):<8} ", MUTED),
+                     (f"{mem:>5} {cpu:>5.1f}", mark or BRIGHT)])
+    lines = [
+        *card("system · macOS", [
+            [("cpu   ", MUTED), *bar([(12, GREEN)], 32), (" 38%", GREEN), (" · 10 cores", MUTED)],
+            [("load  ", MUTED), ("4.12 3.80 3.55", TEXT)],
+            [("mem   ", MUTED), *bar([(23, AMBER)], 32), (" 71%", AMBER), (" 45.4/64 GB", MUTED)],
+            [("gpu   ", MUTED), *bar([(5, GREEN)], 32), (" 16%", GREEN)],
+            [("power ", MUTED), ("27.4 W  ", TEXT), ("cpu ", MUTED), ("71°C  ", TEXT), ("gpu ", MUTED), ("58°C", TEXT)]], inner),
+        *card("processes · 812 · by cpu", rows, inner),
+        [],
+        [(" ", MUTED), (" ⏎ open btop + macmon ", ACCENT["SYSTEM"], False, None, TAB)],
+    ]
+    for i, runs_ in enumerate(lines):
+        text(d0, 1 + i, runs_, end)
+    hints([("enter", "btop"), ("s", "sort by mem"), ("j/k", "scroll"), ("[ ]", "tabs")])
+
+
 # In the order of the tabs.
-scenes = [scene_agents, scene_jobs, scene_servers, scene_build, scene_test, scene_git, scene_deploy]
+scenes = [scene_agents, scene_jobs, scene_servers, scene_build, scene_test, scene_git, scene_deploy, scene_system]
 for i, draw in enumerate(scenes):
     layer("s", i, draw)
 layers("s", len(scenes), CYCLE, SCENE_TIMES)

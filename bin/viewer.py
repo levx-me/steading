@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Steading deck: one read-only pane beside the agent with seven sections.
+"""Steading deck: one read-only pane beside the agent with eight sections.
 
     viewer.py <base>
 
@@ -9,9 +9,12 @@ end. The servers section lists the project's dev servers (bin/servers on
 <base>/root). A new run, or a write to <base>/focus naming a section, marks
 that section's tab new (red) until it is shown; a new run is also followed live. The jobs section lists
 the agent's other commands that ran 10s or more (bin/hook, bin/job), live from
-Claude Code's own output file while they run.
+Claude Code's own output file while they run. The system section shows the machine: CPU and load,
+memory, on a Mac with macmon the GPU, power and heat, and every process as btop lists them (s sorts
+by CPU or memory, j/k scroll), Claude sessions named by their folder and dev servers by their port;
+sampled every 2s while shown. Enter opens btop (and macmon) in a herdr tab named system.
 
-Keys: [ ] (or tab/shift-tab) and 1-7 switch sections,
+Keys: [ ] (or tab/shift-tab) and 1-8 switch sections,
 ctrl+c closes the pane (q only leaves a log), L reopens it on the other side of the agent (right or above). In a run section j/k pick a run from the list and enter (or l)
 moves into its output; esc comes back. The output takes herdr's copy-mode keys: h j k l, w b e, W B E,
 0 ^ $, { }, gg G, ctrl-d/u, v V select, y yank (the line when nothing is
@@ -50,7 +53,7 @@ from tasklist import read_tasks  # noqa: E402
 
 BASE = sys.argv[1] if len(sys.argv) > 1 else os.environ["STEADING_BASE"]  # plugin panes pass it in the env
 SERVERS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "servers")
-SECTIONS = ["agents", "jobs", "servers", "build", "test", "git", "deploy"]
+SECTIONS = ["agents", "jobs", "servers", "build", "test", "git", "deploy", "system"]
 FOCUS = {"pane": True}  # whether the deck's pane has the keyboard; without it the accents go grey
 
 # Settings, shared by every deck: the "," popup writes them, each deck rereads them when they change.
@@ -86,8 +89,8 @@ def save_settings(values):
             json.dump(values, f, indent=2)
     except OSError:
         pass
-# shift and a letter of the tab's name goes there: its first, but git's I (G is vim's bottom).
-TAB_KEYS = ["A", "J", "S", "B", "T", "I", "D"]
+# shift and a letter of the tab's name goes there: its first, but git's I (G is vim's bottom) and system's Y (S is servers).
+TAB_KEYS = ["A", "J", "S", "B", "T", "I", "D", "Y"]
 # Screen rows (1-based, as in mouse reports): section tabs, then the section's
 # head (run list box, command, info line, rule) and its body.
 HEAD_ROW = 2
@@ -98,7 +101,7 @@ STRIP_RGB, TAB_RGB, ACTIVE_RGB = "33;37;43", "44;49;58", "62;68;81"
 MUTED_RGB, BRIGHT_RGB = "120;127;140", "220;223;228"
 DIMMED_RGB = "88;94;105"  # the side without the cursor: list labels or the log's plain text
 GREEN_RGB, RED_RGB, AMBER_RGB, CYAN_RGB = "152;177;125", "208;134;141", "216;180;106", "127;180;180"
-ACCENT = {"agents": "143;168;210", "jobs": CYAN_RGB, "servers": GREEN_RGB, "build": AMBER_RGB, "test": "122;162;200", "git": "180;142;173", "deploy": "209;154;102"}
+ACCENT = {"agents": "143;168;210", "jobs": CYAN_RGB, "servers": GREEN_RGB, "build": AMBER_RGB, "test": "122;162;200", "git": "180;142;173", "deploy": "209;154;102", "system": "196;140;180"}
 MOUSE = re.compile(r"\x1b\[<(\d+);(\d+);(\d+)([Mm])")
 KEYS = re.compile(r"\x1b\[[0-9;]*[A-Za-z~]|\x1bO.|\x1b|.", re.S)
 # Arrow keys move as h j k l do, in the list and in the log (normal and application cursor mode).
@@ -621,23 +624,24 @@ class Run:
 
 
 _panes = (0.0, [])
+def herdr(*args):
+    """A herdr CLI call's result, {} when herdr is missing, slow or says no."""
+    try:
+        out = subprocess.run([os.environ.get("HERDR_BIN_PATH", "herdr"), *args], capture_output=True, text=True, timeout=3).stdout
+        return json.loads(out).get("result", {})
+    except (OSError, subprocess.SubprocessError, ValueError, AttributeError):
+        return {}
+
+
 def herdr_panes(fresh=False):
     """Every herdr pane as (pane id, workspace id, shell pid, tty), looked up
     at most every 10s unless fresh. Call it from a thread: it asks herdr once per pane."""
     global _panes
     if not fresh and time.time() - _panes[0] < 10:
         return _panes[1]
-    herdr = os.environ.get("HERDR_BIN_PATH", "herdr")
-
-    def ask(*args):
-        try:
-            out = subprocess.run([herdr, *args], capture_output=True, text=True, timeout=3).stdout
-            return json.loads(out).get("result", {})
-        except (OSError, subprocess.SubprocessError, ValueError):
-            return {}
     found = []
-    for pane in ask("pane", "list").get("panes", []):
-        shell = ask("pane", "process-info", "--pane", pane["pane_id"]).get("process_info", {}).get("shell_pid")
+    for pane in herdr("pane", "list").get("panes", []):
+        shell = herdr("pane", "process-info", "--pane", pane["pane_id"]).get("process_info", {}).get("shell_pid")
         if shell:
             tty = subprocess.run(["ps", "-o", "tty=", "-p", str(shell)], capture_output=True, text=True).stdout.strip()
             found.append((pane["pane_id"], pane.get("workspace_id", ""), str(shell), tty))
@@ -3126,13 +3130,336 @@ class Agents(Runs):
         return [("L", "side"), ("[ ]", "tabs"), (",", "settings"), ("ctrl+c", "close")]
 
 
+# System ---------------------------------------------------------------------
+# The machine the agents share: CPU and load, memory, and on a Mac with macmon the GPU, power
+# and heat; under them every process, as btop lists them, its Claude sessions and this project's
+# dev servers marked.
+# Sampled in a thread every 2s while the tab is shown (ps; /proc on Linux, sysctl and vm_stat
+# on macOS), the last sample drawn meanwhile. Enter opens btop (and macmon) in a herdr tab.
+
+PLATFORM = sys.platform  # the tests set it to draw another system
+SAMPLE_SECS = 2
+
+
+def output(cmd, timeout=5):
+    """A helper command's stdout, or "" when it is missing, fails or hangs."""
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout).stdout
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
+def proc_cpu(text):
+    """/proc/stat's first line as (busy, total) jiffies: user to steal, less idle and iowait."""
+    n = [int(v) for v in text.split("\n", 1)[0].split()[1:9]]
+    return sum(n) - sum(n[3:5]), sum(n)
+
+
+def proc_mem(text):
+    """/proc/meminfo as (used, total) bytes, used being what is not available."""
+    kb = {k: int(v) * 1024 for k, v in re.findall(r"^(\w+):\s+(\d+)", text, re.M)}
+    return kb["MemTotal"] - kb.get("MemAvailable", kb.get("MemFree", 0)), kb["MemTotal"]
+
+
+def vm_stat_used(text):
+    """macOS vm_stat as bytes in use, counted as Activity Monitor does: app memory (anonymous
+    pages less purgeable ones), wired, and what the compressor holds."""
+    page = re.search(r"page size of (\d+)", text)
+    n = {k: int(v) for k, v in re.findall(r'^"?([^":\n]+)"?:\s+(\d+)', text, re.M)}
+    app = n.get("Anonymous pages", n.get("Pages active", 0)) - n.get("Pages purgeable", 0)
+    return int(page.group(1) if page else 4096) * (app + n.get("Pages wired down", 0) + n.get("Pages occupied by compressor", 0))
+
+
+def macmon_stats(text):
+    """The last sample `macmon pipe` printed (a JSON line each) as GPU %, watts and the CPU and
+    GPU temperatures; {} when there is none."""
+    try:
+        d = json.loads(text.strip().splitlines()[-1])
+        return {"gpu": d["gpu_usage"][1] * 100, "watts": d["all_power"],
+                "cpu_temp": d["temp"]["cpu_temp_avg"], "gpu_temp": d["temp"]["gpu_temp_avg"]}
+    except (ValueError, IndexError, KeyError, TypeError):
+        return {}
+
+
+def cpu_secs(text):
+    """ps's CPU time, [dd-][hh:]mm:ss[.cc], in seconds."""
+    days, _, rest = text.rpartition("-")
+    secs = 0.0
+    for part in rest.split(":"):
+        secs = secs * 60 + float(part)
+    return secs + int(days or 0) * 86400
+
+
+PS = ["ps", "-axo", "ucomm=,pid=,user=,pcpu=,rss=,time=,args="]  # the same on macOS and Linux (procps)
+# The name comes first: it may hold spaces ("Google Chrome He"), the numbers after it cannot.
+PS_LINE = re.compile(r"^\s*(.*?)\s+(\d+)\s+(\S+)\s+([\d.]+)\s+(\d+)\s+([\d:.-]+)\s?(.*)$")
+
+
+def ps_table(text):
+    """`ps -axo ucomm=,pid=,user=,pcpu=,rss=,time=,args=` as
+    {pid: (name, user, cpu %, rss bytes, cpu seconds, command line)}."""
+    procs = {}
+    for m in filter(None, map(PS_LINE.match, text.splitlines())):
+        name, pid, user, pcpu, rss, secs, args = m.groups()
+        try:
+            procs[pid] = (name, user, float(pcpu), int(rss) * 1024, cpu_secs(secs), args)
+        except ValueError:
+            pass
+    return procs
+
+
+def lsof_cwds(text):
+    """`lsof -a -d cwd -Fn -p <pids>` as {pid: its working folder's name}."""
+    names, pid = {}, None
+    for line in text.splitlines():
+        if line[:1] == "p":
+            pid = line[1:]
+        elif line[:1] == "n" and pid:
+            names[pid] = os.path.basename(line[1:].rstrip("/")) or line[1:]
+    return names
+
+
+def cwd_names(pids):
+    """{pid: its working folder's name}: /proc on Linux, one lsof call elsewhere."""
+    if not pids:
+        return {}
+    if not PLATFORM.startswith("linux"):
+        return lsof_cwds(output(["lsof", "-a", "-d", "cwd", "-Fn", "-p", ",".join(pids)]))
+    names = {}
+    for pid in pids:
+        try:
+            names[pid] = os.path.basename(os.readlink(f"/proc/{pid}/cwd"))
+        except OSError:
+            pass
+    return names
+
+
+def install_hint(platform, have, os_release=""):
+    """How to get the full-screen tools not on PATH ("" when none is missing): brew on macOS,
+    btop and macmon; elsewhere btop alone, from the distro's package manager on Linux."""
+    if platform == "darwin":
+        missing = [t for t in ("btop", "macmon") if t not in have]
+        return f"brew install {' '.join(missing)}" if missing else ""
+    if "btop" in have:
+        return ""
+    if not platform.startswith("linux"):
+        return "install btop with your package manager"
+    ids = set(" ".join(re.findall(r'^ID(?:_LIKE)?="?([^"\n]*)', os_release, re.M)).split())
+    for distros, cmd in ((("debian", "ubuntu"), "sudo apt install btop"), (("fedora", "rhel", "centos"), "sudo dnf install btop"),
+                         (("arch",), "sudo pacman -S btop")):
+        if ids & set(distros):
+            return cmd
+    return "sudo apt install btop · sudo dnf install btop · sudo pacman -S btop"
+
+
+def size(n):
+    return f"{n / 2**30:.1f}G" if n >= 2**30 else f"{n / 2**20:.0f}M" if n >= 2**20 else f"{n / 2**10:.0f}K"
+
+
+class System:
+    """The system section: the machine at a glance, and enter for btop in a tab of its own.
+    No runs, nothing new: its tab is never marked."""
+
+    kind, noun = "system", "processes"
+    focus, copy_cursor, runs = "list", False, ()
+
+    def __init__(self, servers):
+        self.servers = servers  # the servers section, whose scan finds this project's dev servers
+        self.stats, self.labels, self.note = {}, {}, ("", 0)
+        self.sampled_at, self.sampling, self.was = 0.0, False, None
+        self.by, self.top = "cpu", 0  # the process list's order (s: cpu or memory) and its first row shown (j/k)
+
+    def refresh(self):
+        return False
+
+    def badge(self):
+        return ("·", MUTED_RGB)
+
+    def sample(self):
+        try:
+            # After a while off screen the last counts are stale: CPU is measured afresh.
+            self.stats = self.measure(self.was if time.time() - self.sampled_at < 3 * SAMPLE_SECS else None)
+        except Exception:  # a sample that trips must not print over the deck
+            crashed()
+        finally:
+            self.sampled_at, self.sampling = time.time(), False
+
+    def measure(self, was):
+        """One sample. `was` is the last one's (time, /proc/stat counts, {pid: cpu seconds}),
+        for the CPU used since; without it a process shows ps's own %."""
+        now, s = time.time(), {}
+        procs = ps_table(output(PS))
+        if hasattr(os, "getloadavg"):
+            s["load"] = os.getloadavg()
+        stat = proc_cpu(read("/proc/stat")) if os.path.exists("/proc/stat") else None
+        if stat and was and was[1]:
+            s["cpu"] = 100 * (stat[0] - was[1][0]) / max(1, stat[1] - was[1][1])
+        elif not stat and procs:  # no /proc: every process's %, over the cores
+            s["cpu"] = sum(p[2] for p in procs.values()) / (os.cpu_count() or 1)
+        if os.path.exists("/proc/meminfo"):
+            s["mem"] = proc_mem(read("/proc/meminfo"))
+        elif PLATFORM == "darwin":
+            total = output(["sysctl", "-n", "hw.memsize"]).strip()
+            if total.isdigit():
+                s["mem"] = (vm_stat_used(output(["vm_stat"])), int(total))
+        s["have"] = {t for t in ("btop", "macmon") if shutil.which(t)}
+        if PLATFORM == "darwin" and "macmon" in s["have"]:  # GPU, power and heat: a Mac's, through macmon, only
+            s.update(macmon_stats(output(["macmon", "pipe", "-s", "1", "-i", "500"])))
+        s["hint"] = install_hint(PLATFORM, s["have"], read("/etc/os-release"))
+        # Every process, as btop lists them. A Claude session is labelled with the folder it runs
+        # in (asked once per pid), a dev server of the project with its port.
+        # (macOS names the binary claude.exe, as is Chrome's Claude helper: a session runs as "claude".)
+        claude = [pid for pid, p in procs.items() if p[0] in ("claude", "claude.exe") and os.path.basename(p[5].split(" ", 1)[0]) == "claude"]
+        self.labels = {pid: name for pid, name in self.labels.items() if pid in procs}
+        new = [pid for pid in claude if pid not in self.labels]
+        found = cwd_names(new)
+        self.labels.update({pid: found.get(pid, "") for pid in new})
+        ports = {pid: port for port, pid, _ in self.servers.found}
+
+        def cpu(pid):  # used since the last sample; ps's own % (a long average on Linux) the first time
+            if was and pid in was[2] and now > was[0]:
+                return max(0.0, (procs[pid][4] - was[2][pid]) * 100 / (now - was[0]))
+            return procs[pid][2]
+        s["procs"] = [(pid, name, args, user, rss, cpu(pid),
+                       "claude" if pid in self.labels else "server" if pid in ports else "",
+                       self.labels.get(pid) or (f":{ports[pid]}" if pid in ports else ""))
+                      for pid, (name, user, _, rss, _, args) in procs.items()]
+        self.was = (now, stat, {pid: p[4] for pid, p in procs.items()})
+        return s
+
+    def frame(self, cols, rows):
+        """The machine card, then the processes card filling the pane, then enter's button."""
+        if not self.sampling and time.time() - self.sampled_at >= SAMPLE_SECS:
+            self.sampling = True
+            background(self.sample)
+        s, w = self.stats, max(16, cols - 4)
+        gauge = max(4, min(32, w - 6 - 18))
+        row = lambda label, value: f"{fg(MUTED_RGB)}{label:<6}{RESET}{value}"
+
+        def meter(pct, after=""):
+            pct = max(0.0, min(100.0, pct))
+            rgb = GREEN_RGB if pct < 60 else AMBER_RGB if pct < 85 else RED_RGB
+            return f"{bar([(pct, rgb), (100 - pct, TAB_RGB)], gauge)} {fg(rgb)}{pct:.0f}%{RESET}{fg(MUTED_RGB)}{after}{RESET}"
+        machine = []
+        if "cpu" in s:
+            machine.append(row("cpu", meter(s["cpu"], f" · {os.cpu_count()} cores")))
+        if "load" in s:
+            machine.append(row("load", " ".join(f"{v:.2f}" for v in s["load"])))
+        if "mem" in s:
+            used, total = s["mem"]
+            machine.append(row("mem", meter(100 * used / max(1, total), f" {used / 2**30:.1f}/{total / 2**30:.0f} GB")))
+        if "gpu" in s:
+            machine.append(row("gpu", meter(s["gpu"])))
+            machine.append(row("power", f"{s['watts']:.1f} W  {fg(MUTED_RGB)}cpu{RESET} {s['cpu_temp']:.0f}°C  "
+                                        f"{fg(MUTED_RGB)}gpu{RESET} {s['gpu_temp']:.0f}°C"))
+        system = {"darwin": "macOS"}.get(PLATFORM, PLATFORM.capitalize())
+        out = card(f"system · {system}", machine or [f"{DIM}sampling…{RESET}"], cols)
+        # Below the processes: a blank row, the button, and a note or the install hint.
+        note = self.note[0] if self.note[1] > time.time() else ""
+        tail = 2 + bool(note or s.get("hint"))
+        listed = sorted(s.get("procs", []), key=lambda p: -(p[5] if self.by == "cpu" else p[4]))
+        room = max(1, rows - 1 - len(out) - 3 - tail)  # rows between the card's header and its border
+        self.top = max(0, min(self.top, len(listed) - room))
+        out += card(f"{self.noun} · {len(listed)} · by {self.by}", self.process_lines(listed[self.top:self.top + room], w)
+                    if listed else [f"{DIM}sampling…{RESET}"], cols) + [""]
+        have = s.get("have", set())
+        tools = "btop + macmon" if PLATFORM == "darwin" and "macmon" in have else "btop"
+        self.button_row = HEAD_ROW + len(out)  # screen rows count from 1, the tabs on the first
+        out.append(" " + button(f"⏎ open {tools}", ACCENT[self.kind], False))
+        if note:
+            out.append(f" {fg(AMBER_RGB)}{note}{RESET}")
+        elif s.get("hint"):
+            out.append(f" {fg(MUTED_RGB)}missing tools: {fg(BRIGHT_RGB)}{s['hint']}{RESET}")
+        return out, []
+
+    @staticmethod
+    def process_lines(shown, w):
+        """btop's process columns in w cells: Pid, Program, Command (what is left, when there is
+        room), User, MemB, Cpu%. Claude sessions in the agents' colour with their folder before the
+        command, the project's dev servers in green with their port."""
+        rest = w - 8 - 6 - 6  # pid, memory and cpu, each with a space
+        user_w = 8 if rest >= 30 else 0
+        rest -= user_w + bool(user_w)
+        prog_w = min(14, rest)
+        cmd_w = rest - prog_w - 1 if rest - prog_w > 8 else 0
+        prog_w = rest - cmd_w - bool(cmd_w)
+        pad = lambda text, n: (c := cut(text, n)) + " " * (n - cells(c))
+        head = f"{'Pid':>7} {pad('Program', prog_w)} " + (f"{pad('Command', cmd_w)} " if cmd_w else "") + \
+            (f"{pad('User', user_w)} " if user_w else "") + f"{'MemB':>5} {'Cpu%':>5}"
+        lines = [f"{fg(MUTED_RGB)}{head}{RESET}"]
+        for pid, name, args, user, rss, cpu, kind, label in shown:
+            rgb = {"claude": ACCENT["agents"], "server": GREEN_RGB}.get(kind)
+            ink = fg(rgb) if rgb else fg(BRIGHT_RGB)
+            command = f"{label} · {args}" if label else args
+            lines.append(f"{fg(MUTED_RGB)}{pid:>7}{RESET} {ink}{BOLD if rgb else ''}{pad(name, prog_w)}\033[22m{RESET} "
+                         + (f"{fg(rgb or MUTED_RGB)}{pad(command, cmd_w)}{RESET} " if cmd_w else "")
+                         + (f"{fg(MUTED_RGB)}{pad(user, user_w)}{RESET} " if user_w else "")
+                         + f"{ink}{size(rss):>5} {cpu:>5.{1 if cpu < 100 else 0}f}{RESET}")
+        return lines
+
+    def hints(self):
+        return [("enter", "btop"), ("s", f"sort by {'mem' if self.by == 'cpu' else 'cpu'}"), ("j/k", "scroll"),
+                ("[ ]", "tabs"), (",", "settings"), ("ctrl+c", "close")]
+
+    def key(self, k):
+        if k in ("\r", "\n"):
+            self.open_tools()
+        elif k == "s":
+            self.by, self.top = "mem" if self.by == "cpu" else "cpu", 0
+        elif k in ("j", "k"):
+            self.top = max(0, self.top + (1 if k == "j" else -1))  # frame() keeps it within the list
+        elif k == "g":
+            self.top = 0
+
+    def click(self, row, col):
+        if row == getattr(self, "button_row", None):
+            self.open_tools()
+
+    def wheel(self, down, row=0):
+        self.top = max(0, self.top + (3 if down else -3))
+
+    def say(self, text):
+        self.note = (text, time.time() + 6)
+
+    def open_tools(self):
+        have = {t for t in ("btop", "macmon") if shutil.which(t)}
+        if not os.environ.get("HERDR_ENV"):
+            self.say("outside herdr: run btop in a terminal")
+        elif "btop" not in have:
+            self.say(f"btop is not installed: {install_hint(PLATFORM, have, read('/etc/os-release'))}")
+        else:
+            background(self.open_tab, PLATFORM == "darwin" and "macmon" in have)
+
+    def open_tab(self, macmon):
+        """Focus the herdr tab named system in the agent's workspace; with none, make it, btop
+        in it and macmon in a pane under it."""
+        agent = os.path.basename(BASE).replace("_", ":")
+        ws = herdr("pane", "get", agent).get("pane", {}).get("workspace_id") or os.environ.get("HERDR_WORKSPACE_ID")
+        if not ws:
+            return self.say("no herdr workspace for this deck")
+        tab = next((t for t in herdr("tab", "list", "--workspace", ws).get("tabs", []) if t.get("label") == "system"), None)
+        if tab:
+            herdr("tab", "focus", tab["tab_id"])
+            return
+        cwd = read(os.path.join(BASE, "root")) or os.path.expanduser("~")
+        pane = herdr("tab", "create", "--workspace", ws, "--cwd", cwd, "--label", "system", "--focus").get("root_pane", {}).get("pane_id")
+        if not pane:
+            return self.say("herdr did not open the tab")
+        if macmon:
+            under = herdr("pane", "split", pane, "--direction", "down", "--no-focus").get("pane", {}).get("pane_id")
+            if under:
+                herdr("pane", "run", under, "macmon")
+        herdr("pane", "run", pane, "btop")
+
+
 SCROLLS = {"\x04": lambda h: h // 2 or 1, "\x15": lambda h: -(h // 2 or 1), "\x06": lambda h: h, "\x02": lambda h: -h,
            "\x05": lambda h: 1, "\x19": lambda h: -1}
 
 
 class Deck:
     def __init__(self):
-        self.views = [Agents(), Jobs(), Servers()] + [Git() if k == "git" else Runs(k) for k in SECTIONS[3:]]
+        self.views = [Agents(), Jobs(), Servers()] + [Git() if k == "git" else Runs(k) for k in SECTIONS[3:7]]
+        self.views.append(System(self.views[2]))  # its process rows take the servers the servers tab found
         self.views[0].jump = self.jump  # a job in an agent's detail leads to the jobs tab
         self.section = 0
         self.unseen = set()  # tabs with something new not shown yet
@@ -3293,7 +3620,7 @@ class Deck:
         for i, view in enumerate(self.views):
             icon, colour = view.badge()
             name = view.kind.upper()
-            # No number on the tab (1-7 still jump there): more fit a narrow pane.
+            # No number on the tab (1-8 still jump there): more fit a narrow pane.
             # Its key letter underlined: shift and that letter (A, J, S, ...) goes there.
             at = name.index(TAB_KEYS[i])
             name = f"{name[:at]}\033[4m{name[at]}\033[24m{name[at + 1:]}"
