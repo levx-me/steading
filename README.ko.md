@@ -31,6 +31,7 @@
 | **git** | 저장소를 바꾸는 명령 전부, 커밋 메시지 전체. 테두리에 브랜치, 푸시하지 않은 커밋, 커밋하지 않은 파일 |
 | **deploy** | `vercel`, `fly deploy`, `terraform apply`, `forge script --broadcast` 외 25개 이상. 상태·목록 조회는 제외 |
 | **system** | 전체·코어별 CPU, 부하, 메모리. Mac에서 [macmon](https://github.com/vladkens/macmon)이 있으면 GPU, 전력, 온도까지. btop처럼 모든 프로세스를 보여 주고, Claude 세션은 그 아래 프로세스를 합쳐 한 행으로(`enter`로 펼침), 개발 서버는 늘 초록색 별도 행으로. `K`로 종료. `o`로 herdr 워크스페이스에 `btop`(과 `macmon`) 열기 |
+| **files** | 이 세션의 에이전트가 읽거나(`◦`) 쓴(`✎`) 파일을 저장소 루트 기준 트리로. 지금 고치는 파일에는 스피너, 파일마다 git `+N -M`. `enter`로 diff, `o`로 herdr 분할에 `$EDITOR`로 열기, `y`로 경로 복사 |
 
 ## 신경 쓸 게 없습니다
 

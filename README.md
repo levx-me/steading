@@ -31,6 +31,7 @@ beside the agent**, live, so you never scroll back through the conversation to f
 | **git** | Every command that changes the repository, commit messages in full, and the branch, unpushed commits and uncommitted files in the border |
 | **deploy** | `vercel`, `fly deploy`, `terraform apply`, `forge script --broadcast` and 25+ more; status and list commands stay out |
 | **system** | CPU in all and per core, load and memory, on a Mac with [macmon](https://github.com/vladkens/macmon) also GPU, power and heat; every process as btop lists them, each Claude session one row with what runs under it summed (`enter` unfolds it), dev servers on green rows of their own; `K` ends one. `o` opens `btop` (and `macmon`) in a herdr workspace |
+| **files** | The files this session's agents read (`◦`) or wrote (`✎`) as a tree from the repository's root, a spinner on one being edited now, git `+N -M` beside each. `enter` shows its diff, `o` opens it in `$EDITOR` in a herdr split, `y` copies its path |
 
 ## Why it feels effortless
 
