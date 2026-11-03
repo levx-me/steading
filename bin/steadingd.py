@@ -13,6 +13,12 @@ System tab while one shows it (below).
       POST /start {"kind": "crew", "args": [pane, subagents folder]}                     the same
       a body over 64 KB is refused (413); past 64 helpers it answers 503, and bin/sidebar.py runs
       that one as its own process
+      POST /hook/sidebar   the hook's event, its ENV (bin/sidebar.py) in "Env: NAME=value" headers:
+      bin/sidebar's hand-off. A subagent's start or stop and a new process are recorded
+      (bin/subagents.py) before it answers 200, in the order the hooks came; the rest of
+      sidebar.run then waits its turn on one worker thread (a slow herdr holds up no hook).
+      Anything but 200 means it did nothing, and the hook runs the scripts as before: a bad
+      body (400), one over 16 MB (413), 200 events waiting (503), or a hook gone before its turn
   $TMPDIR/steading/daemon.log   what a helper raised (emptied past 256 KB)
   $TMPDIR/steading/daemon.helpers.json   the helpers it runs, [[kind, args], ...]: started again
                                 when it starts (after a re-exec or a crash), dropped as each ends
@@ -46,6 +52,8 @@ LOG = os.path.join(BASE, "daemon.log")
 HELPERS = os.path.join(BASE, "daemon.helpers.json")
 MAX_HELPERS = 64  # threads; past it a helper runs as its own process (the daemon answers 503)
 MAX_BODY = 64 * 1024
+MAX_EVENT = 16 << 20  # a hook's event holds the tool's input and output
+MAX_QUEUE = 200  # events waiting for the worker; past it the hook runs bin/sidebar.py itself
 WANT = os.path.join(BASE, "system.want")
 
 
@@ -149,6 +157,8 @@ def log(text):
 def main():
     import glob
     import http.server
+    import queue
+    import select
     import socketserver
     import threading
     import time
@@ -156,6 +166,7 @@ def main():
     import types
     sys.path.insert(0, HERE)  # -I leaves the script's folder out
     import reexec, steading_run, usage  # noqa: E401
+    import sidebar, subagents, tasklist, transcripts  # noqa: E401,F401 (loaded before the watcher: an edit re-execs)
 
     os.makedirs(BASE, exist_ok=True)
     if not claim(PIDFILE, ("steadingd.py",)):
@@ -181,7 +192,20 @@ def main():
             p.kill()
             p.wait()
 
+    events = queue.Queue(MAX_QUEUE)  # (event, env) for sidebar.run, in the order the hooks came
+
+    def work():
+        while True:
+            event, env = events.get()
+            try:
+                sidebar.run(event, env, start)
+            except Exception:
+                log(traceback.format_exc())
+            finally:
+                events.task_done()
+
     def reexec_(py, argv):
+        events.join()  # what was accepted is done first (each herdr or git call gives up in 5 s)
         stop_macmon()
         os.execv(py, argv)
 
@@ -210,7 +234,13 @@ def main():
                 asked.pop(pidfile, None)
                 save()
 
+    starting = threading.Lock()  # /start's and the worker's
+
     def start(kind, args):
+        with starting:
+            return start_(kind, args)
+
+    def start_(kind, args):
         """The helper's state, None for a request that names none (or a pane "." or "..", which
         would name a folder above the state dirs)."""
         if isinstance(args, list) and (args[:1] in (["."], [".."]) or any("\0" in a for a in args if isinstance(a, str))):
@@ -305,7 +335,45 @@ def main():
             else:
                 self.reply(404, {"error": f"no {self.path}"})
 
+        def gone(self):
+            """Whether the client hung up (its wait ran out: it runs the hook's scripts itself)."""
+            try:
+                return bool(select.select([self.connection], [], [], 0)[0]) and not self.connection.recv(1, socket.MSG_PEEK)
+            except OSError:
+                return True
+
+        def hook(self):
+            try:
+                size = int(self.headers.get("Content-Length") or 0)
+                if size > MAX_EVENT:
+                    return self.reply(413, {"error": f"a body over {MAX_EVENT} bytes"})
+                event = json.loads(self.rfile.read(max(0, size)) or b"{}")
+            except ValueError:
+                event = None
+            if not isinstance(event, dict):
+                return self.reply(400, {"error": "want the hook's event, a JSON object"})
+            if events.full():
+                return self.reply(503, {"error": f"{MAX_QUEUE} events wait"})
+            if self.gone():
+                return  # ponytail: one that hangs up between this and the answer is handled twice
+            env = {k: w for k, w in os.environ.items() if k not in sidebar.ENV}
+            for line in self.headers.get_all("Env") or []:
+                k, _, w = line.partition("=")
+                if k in sidebar.ENV:
+                    env[k] = w.encode("latin-1").decode("utf-8", "surrogateescape")  # (headers come as latin-1)
+            name = event.get("hook_event_name")
+            if name in ("SubagentStart", "SubagentStop", "TeammateIdle", "SessionStart"):
+                try:
+                    subagents.record(BASE, event)
+                except (OSError, ValueError, AttributeError):
+                    pass  # as the script: a hook never fails the session
+            if name not in ("SubagentStop", "TeammateIdle"):  # nothing more to report
+                events.put((event, env))
+            self.reply(200, {"state": "accepted"})
+
         def do_POST(self):
+            if self.path == "/hook/sidebar":
+                return self.hook()
             if self.path != "/start":
                 return self.reply(404, {"error": f"no {self.path}"})
             try:
@@ -328,7 +396,10 @@ def main():
             os.remove(SOCK)  # a killed daemon's is left behind
         except OSError:
             pass
-        server = socketserver.UnixStreamServer(SOCK, Handler)
+        class Server(socketserver.UnixStreamServer):
+            request_queue_size = 128  # a burst of hooks waits its turn, not refused (5 by default)
+
+        server = Server(SOCK, Handler)
         os.chmod(SOCK, 0o600)  # this user's sessions only
         server.timeout = 1
         bound = os.stat(SOCK).st_ino
@@ -345,6 +416,7 @@ def main():
                 log(traceback.format_exc())
         with lock:
             save()  # only those that run now
+        threading.Thread(target=work, daemon=True).start()
 
         def ours():
             try:
@@ -360,6 +432,7 @@ def main():
     except OSError:
         log(traceback.format_exc())  # cannot bind: bin/sidebar.py runs the helpers on their own
     finally:
+        events.join()
         stop_macmon()
         release(PIDFILE)
 

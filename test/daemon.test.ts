@@ -365,3 +365,210 @@ print(json.dumps(out))`, base], { env: { PATH: process.env.PATH! } });
     expect(readFileSync(join(s.base, "daemon.log"), "utf8")).toContain("AF_UNIX path too long");
   }, 15000);
 });
+
+// bin/sidebar hands its event to the daemon (curl over daemon.sock), or runs the scripts itself.
+// The fake herdr CLI logs every call (and waits while <dir>/hold exists); the Python the scripts
+// run on is a wrapper that logs what it runs, so a test sees which way an event went. No herdr
+// socket: no helpers start, and only the hook's own work shows.
+async function hookSetup(opts: { bin?: string } = {}) {
+  const s = await setup(opts);
+  const cli = join(s.dir, "herdr-cli");
+  writeFileSync(cli, `#!/bin/sh\nwhile [ -e ${s.dir}/hold ]; do sleep 0.05; done\necho "$@" >> ${s.dir}/calls\n` +
+    `[ "$1 $2" = "pane get" ] && echo '{"result":{"pane":{"workspace_id":"w1","tab_id":"w1:t1"}}}'\nexit 0\n`);
+  const wrap = join(s.dir, "python");
+  writeFileSync(wrap, `#!/bin/sh\necho "$*" >> ${s.dir}/py.log\nexec ${Bun.which("python3")} "$@"\n`);
+  for (const f of [cli, wrap]) chmodSync(f, 0o755);
+  delete s.env.HERDR_SOCKET_PATH;
+  Object.assign(s.env, { HERDR_BIN_PATH: cli, STEADING_PYTHON: wrap });
+  const hook = (event: object, env = s.env) => Bun.spawnSync([join(s.bin, "sidebar")], { env, cwd: s.www, stdin: Buffer.from(JSON.stringify(event)) });
+  const ran = (script: string) => (existsSync(join(s.dir, "py.log")) ? readFileSync(join(s.dir, "py.log"), "utf8") : "").split("\n").filter((l) => l.includes(script)).length;
+  const calls = () => (existsSync(join(s.dir, "calls")) ? readFileSync(join(s.dir, "calls"), "utf8").trim().split("\n").filter(Boolean) : []);
+  const records = (sid = "S") => (existsSync(join(s.base, "sessions", `${sid}.log`)) ? readFileSync(join(s.base, "sessions", `${sid}.log`), "utf8").trim().split("\n").filter(Boolean) : []);
+  const up = async () => { s.daemon(); s.watch(); return await until(() => s.pid() && s.ask("/ping").pid); };
+  // Until the work after the hook is done: no sidebar.py runs, and the herdr calls have stopped for 500 ms.
+  const settle = async () => {
+    let n = -1, at = Date.now();
+    for (;;) {
+      const m = calls().length;
+      if (m !== n || Bun.spawnSync(["pgrep", "-f", join(s.bin, "sidebar.py")]).exitCode === 0) [n, at] = [m, Date.now()];
+      if (Date.now() - at > 500) return;
+      await Bun.sleep(50);
+    }
+  };
+  return { ...s, cli, hook, ran, calls, records, up, settle };
+}
+
+// The final states bin/subagents.py reads from the session's log.
+const finalStates = (bin: string, base: string, sid = "S") => JSON.parse(Bun.spawnSync(["python3", "-I", "-c", `import json, sys
+sys.path.insert(0, sys.argv[1])
+import subagents
+print(json.dumps({a: s for a, (s, t) in (subagents.states(sys.argv[2], sys.argv[3]) or {}).items()}))`, bin, base, sid]).stdout.toString());
+
+describe("the sidebar hook through the daemon", () => {
+  test("it reports what the scripts report, event for event, and runs no Python", async () => {
+    const run = async (daemon: boolean) => {
+      const s = await hookSetup();
+      if (daemon) expect(await s.up()).toBeGreaterThan(0);
+      const repo = join(s.dir, "repo");
+      Bun.spawnSync(["git", "init", "-q", repo]);
+      writeFileSync(join(repo, "a.txt"), "x");
+      const transcript = join(s.dir, "s1.jsonl");
+      const usage = (input: number) => JSON.stringify({ type: "assistant", timestamp: new Date().toISOString(),
+        message: { id: `m${input}`, model: "claude-opus-5-5", content: [{ type: "text", text: "ok" }],
+          usage: { input_tokens: input, cache_read_input_tokens: 0, output_tokens: 10 } } });
+      writeFileSync(transcript, [usage(1000), usage(170000)].join("\n") + "\n");
+      const tasks = join(s.dir, ".claude", "tasks", "session-abcd1234");
+      mkdirSync(tasks, { recursive: true });
+      ["completed", "in_progress", "pending"].forEach((status, i) => writeFileSync(join(tasks, `${i + 1}.json`), JSON.stringify({ status })));
+      const event = { hook_event_name: "PostToolUse", session_id: "abcd1234-0000", cwd: repo, transcript_path: transcript };
+      const steps: [object, (() => void)?][] = [
+        [event], [event], [{ ...event, agent_id: "sub" }], [{ ...event, hook_event_name: "UserPromptSubmit" }],
+        [{ ...event, hook_event_name: "Stop" }],
+        [{ ...event, hook_event_name: "Stop" }, () => writeFileSync(join(tasks, "3.json"), JSON.stringify({ status: "completed" }))],
+        [{ ...event, hook_event_name: "Stop" }],
+        [{ ...event, hook_event_name: "SessionStart", source: "startup" }, () => rmSync(join(s.base, "test_p0", "sidebar"))],
+        [{ ...event, hook_event_name: "PostToolUse", tool_name: "TaskUpdate" }],
+      ];
+      const marks: string[] = [];
+      for (const [e, before] of steps) {
+        before?.();
+        expect(s.hook(e).exitCode).toBe(0);
+        await s.settle();
+        marks.push(["main-busy", "sidebar", "crew"].map((f) => existsSync(join(s.base, "test_p0", f))).join(" "));
+      }
+      return { calls: s.calls().map((c) => c.split(s.dir).join("<dir>")), marks, records: s.records("abcd1234-0000").map((l) => l.split(" ").slice(1).join(" ")),
+        python: s.ran("sidebar.py") + s.ran("subagents.py") };
+    };
+    const script = await run(false);
+    const daemon = await run(true);
+    expect(script.python).toBe(10); // SessionStart runs both
+    expect(daemon.python).toBe(0);
+    expect(script.calls.length).toBeGreaterThan(4);
+    expect(daemon).toEqual({ ...script, python: 0 });
+  }, 60000);
+
+  test("a burst of 20 subagents starting and 10 stopping ends in the same states as through the scripts, each recorded once", async () => {
+    const burst = async (daemon: boolean) => {
+      const s = await hookSetup();
+      if (daemon) expect(await s.up()).toBeGreaterThan(0);
+      const one = (agent: number) => new Promise<void>((done) => {
+        const go = (name: string, then: () => void) => {
+          const p = Bun.spawn([join(s.bin, "sidebar")], { env: s.env, cwd: s.www, stdin: new Blob([JSON.stringify({ hook_event_name: name, session_id: "S", agent_id: `a${agent}` })]) });
+          p.exited.then(then);
+        };
+        go("SubagentStart", () => (agent < 10 ? go("SubagentStop", done) : done()));
+      });
+      await Promise.all([...Array(20).keys()].map(one));
+      return { states: finalStates(s.bin, s.base), lines: s.records().length, python: s.ran("subagents.py") };
+    };
+    const expected = Object.fromEntries([...Array(20).keys()].map((i) => [`a${i}`, i < 10 ? "done" : "working"]));
+    const script = await burst(false);
+    expect(script).toEqual({ states: expected, lines: 30, python: 30 });
+    const daemon = await burst(true);
+    expect(daemon).toEqual({ states: expected, lines: 30, python: 0 });
+  }, 60000);
+
+  test("the subagent's line is written when the hook returns", async () => {
+    const s = await hookSetup();
+    await s.up();
+    for (let i = 0; i < 10; i++) {
+      s.hook({ hook_event_name: "SubagentStart", session_id: "S", agent_id: `a${i}` });
+      expect(s.records().length).toBe(i + 1);
+    }
+    expect(s.ran("subagents.py")).toBe(0);
+  }, 15000);
+
+  test("a daemon killed between two events, curl missing, or a daemon too busy (503): the scripts run, nothing lost or twice", async () => {
+    const s = await hookSetup();
+    const first = await s.up();
+    s.hook({ hook_event_name: "SubagentStart", session_id: "S", agent_id: "a1" });
+    expect([s.records().length, s.ran("subagents.py")]).toEqual([1, 0]);
+    process.kill(first, "SIGKILL");
+    await until(() => !alive(first));
+    expect(existsSync(join(s.base, "daemon.sock"))).toBe(true); // left behind: curl is refused
+    s.hook({ hook_event_name: "SubagentStart", session_id: "S", agent_id: "a2" });
+    expect([s.records().length, s.ran("subagents.py")]).toEqual([2, 1]);
+    // curl missing: a PATH with bash and cat, no curl
+    await s.up();
+    s.hook({ hook_event_name: "SubagentStart", session_id: "S", agent_id: "a3" }, { ...s.env, PATH: "/bin" });
+    expect([s.records().length, s.ran("subagents.py")]).toEqual([3, 2]);
+    s.hook({ hook_event_name: "SubagentStart", session_id: "S", agent_id: "a4" });
+    expect([s.records().length, s.ran("subagents.py")]).toEqual([4, 2]);
+    // 503: herdr hangs, so the worker holds a Stop, and 200 subagents' starts wait behind it.
+    writeFileSync(join(s.dir, "hold"), "");
+    const fill = Bun.spawnSync(["python3", "-I", "-c", `import json, socket, sys
+codes = []
+for i in range(201):
+    body = json.dumps({"hook_event_name": "SubagentStart", "session_id": "F", "agent_id": f"f{i}"} if i else
+                      {"hook_event_name": "Stop", "session_id": "S", "cwd": sys.argv[3]}).encode()
+    c = socket.socket(socket.AF_UNIX); c.settimeout(2); c.connect(sys.argv[1])
+    c.sendall(b"POST /hook/sidebar HTTP/1.0\\r\\nEnv: HERDR_ENV=1\\r\\nEnv: HERDR_PANE_ID=test:p0\\r\\nEnv: HERDR_BIN_PATH=" + sys.argv[2].encode() +
+              b"\\r\\nContent-Length: " + str(len(body)).encode() + b"\\r\\n\\r\\n" + body)
+    codes.append(c.recv(100).split(b" ")[1].decode()); c.close()
+print(" ".join(sorted(set(codes))), codes.count("200"))`, join(s.base, "daemon.sock"), s.cli, s.www]);
+    expect(fill.stdout.toString().trim()).toBe("200 201");
+    expect(s.records("F").length).toBe(200);
+    const busy = Bun.spawnSync(["python3", "-I", "-c", `import socket, sys
+c = socket.socket(socket.AF_UNIX); c.settimeout(2); c.connect(sys.argv[1])
+c.sendall(b"POST /hook/sidebar HTTP/1.0\\r\\nContent-Length: 2\\r\\n\\r\\n{}")
+print(c.recv(100).split(b" ")[1].decode())`, join(s.base, "daemon.sock")]);
+    expect(busy.stdout.toString().trim()).toBe("503");
+    s.hook({ hook_event_name: "SubagentStart", session_id: "S", agent_id: "a5" });
+    expect([s.records().length, s.ran("subagents.py")]).toEqual([5, 3]);
+    expect(finalStates(s.bin, s.base)).toEqual({ a1: "working", a2: "working", a3: "working", a4: "working", a5: "working" });
+    // Let go, the queue drains in order: a Stop handed over now reaches herdr after the held one.
+    rmSync(join(s.dir, "hold"));
+    const asked = () => s.calls().filter((c) => c.startsWith("pane get")).length;
+    expect(await until(() => asked() === 1)).toBe(true);
+    await Bun.sleep(300);
+    s.hook({ hook_event_name: "Stop", session_id: "S", cwd: s.www });
+    expect(await until(() => asked() === 2)).toBe(true);
+    expect(s.ran("sidebar.py")).toBe(3); // the three that fell back (a2, a3, a5), not the last Stop
+    expect(existsSync(join(s.base, "daemon.log"))).toBe(false);
+  }, 60000);
+
+  test("a hook that hung up before its turn came is dropped: it ran the scripts itself", async () => {
+    const s = await hookSetup();
+    const pid = await s.up();
+    process.kill(pid, "SIGSTOP"); // busy
+    try {
+      const r = Bun.spawnSync(["python3", "-I", "-c", `import json, os, signal, socket, sys
+for agent in ("gone", "kept"):
+    body = json.dumps({"hook_event_name": "SubagentStart", "session_id": "S", "agent_id": agent}).encode()
+    c = socket.socket(socket.AF_UNIX); c.settimeout(3); c.connect(sys.argv[1])
+    c.sendall(b"POST /hook/sidebar HTTP/1.0\\r\\nContent-Length: " + str(len(body)).encode() + b"\\r\\n\\r\\n" + body)
+    if agent == "gone":
+        c.close()
+os.kill(int(sys.argv[2]), signal.SIGCONT)
+print(c.recv(100).split(b" ")[1].decode())`, join(s.base, "daemon.sock"), String(pid)]);
+      expect(r.stdout.toString().trim()).toBe("200");
+    } finally {
+      process.kill(pid, "SIGCONT");
+    }
+    expect(finalStates(s.bin, s.base)).toEqual({ kept: "working" });
+  }, 15000);
+
+  test("a bad body is refused (400); a re-exec first finishes the events it accepted", async () => {
+    const s = await hookSetup({ bin: binCopy() });
+    const pid = await s.up();
+    const bad = Bun.spawnSync(["python3", "-I", "-c", `import socket, sys
+for body in (b"[1]", b"{nope"):
+    c = socket.socket(socket.AF_UNIX); c.settimeout(2); c.connect(sys.argv[1])
+    c.sendall(b"POST /hook/sidebar HTTP/1.0\\r\\nContent-Length: " + str(len(body)).encode() + b"\\r\\n\\r\\n" + body)
+    print(c.recv(100).split(b" ")[1].decode())`, join(s.base, "daemon.sock")]);
+    expect(bad.stdout.toString().split("\n").filter(Boolean)).toEqual(["400", "400"]);
+    writeFileSync(join(s.dir, "hold"), "");
+    for (let i = 0; i < 3; i++) s.hook({ hook_event_name: "Stop", session_id: "S", cwd: s.www });
+    expect(s.ran("sidebar.py")).toBe(0);
+    const sock = join(s.base, "daemon.sock");
+    const bound = statSync(sock);
+    const later = Date.now() / 1000 + 5;
+    utimesSync(join(s.bin, "steadingd.py"), later, later);
+    await Bun.sleep(1500);
+    expect(statSync(sock).ino).toBe(bound.ino); // it waits for the worker
+    rmSync(join(s.dir, "hold"));
+    expect(await until(() => { try { return statSync(sock).ino !== bound.ino; } catch { return false; } })).toBe(true);
+    expect(await until(() => s.ask("/ping").pid)).toBe(pid);
+    expect(s.calls().filter((c) => c.startsWith("pane get")).length).toBe(3);
+  }, 30000);
+});

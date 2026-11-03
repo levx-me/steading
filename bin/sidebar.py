@@ -1,6 +1,7 @@
-"""Run by bin/sidebar (Claude Code hook: PostToolUse on any tool, and Stop), in the
-background with the hook's event on stdin: the agent's repository and
-context use, as herdr pane tokens for its sidebar, with or without a deck open.
+"""Run by bin/sidebar (Claude Code hook: PostToolUse on any tool, and Stop) with the hook's event:
+in bin/steadingd.py (run, on its one worker thread), or as a script in the background with the
+event on stdin when the daemon does not answer. The agent's repository and context use, as herdr
+pane tokens for its sidebar, with or without a deck open.
 
   $repo    the branch, commits not pushed (↑) or not pulled (↓)
   $repostate  files not committed ("1 changed") or "clean"
@@ -28,20 +29,12 @@ import time
 # Nerd Font icon before each token's value (JetBrainsMono Nerd Font); change them here.
 # STEADING_SIDEBAR_ICONS=0 turns them off.
 ICONS = {"repo": "\ue725", "model": "\U000f06a9", "ctx": "\U000f035b", "ctxhot": "\U000f035b", "tasks": "\uf4a0", "nogit": "\uf07b"}
-if os.environ.get("STEADING_SIDEBAR_ICONS") == "0":
-    ICONS = {}
 # Tree guides ("├", "└" on the last row shown) as the tokens $tree1..3, one per row of ROWS, in
 # white before the row's text in ~/.config/herdr/config.toml. STEADING_SIDEBAR_TREE=0 turns them off.
 ROWS = [("repo", "repostate"), ("model", "ctx", "ctxhot"), ("tasks",)]
-TREE = os.environ.get("STEADING_SIDEBAR_TREE") != "0"
-
-event = json.loads(sys.stdin.read() or "{}")
-pane = os.environ.get("HERDR_PANE_ID", "")
-if os.environ.get("HERDR_ENV") != "1" or not pane:
-    sys.exit(0)  # outside herdr
-state = os.path.join(os.environ.get("TMPDIR", "/tmp"), "steading", pane.replace(":", "_").replace("/", "_"))
-herdr = os.environ.get("HERDR_BIN_PATH", "herdr")
-os.environ.setdefault("STEADING_BASE", state)
+# The hook's variables this reads: bin/sidebar hands them to the daemon (keep the two lists alike).
+ENV = ("HERDR_ENV", "HERDR_PANE_ID", "HERDR_BIN_PATH", "HERDR_SOCKET_PATH", "STEADING_SIDEBAR_ICONS",
+       "STEADING_SIDEBAR_TREE", "STEADING_BASE")
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)  # -I leaves the script's folder out
 import steadingd  # noqa: E402
@@ -68,213 +61,229 @@ def daemon():
     return False
 
 
-def helper(kind, helper_args, script):
-    """A helper (usage.py, steading_run.py, crew) run in the daemon; as its own process, as
-    before it, only when the daemon cannot start. None can do anything without herdr's socket."""
-    if not os.path.exists(os.environ.get("HERDR_SOCKET_PATH", "")):
-        return
-    try:
-        if daemon():
-            steadingd.ask("/start", {"kind": kind, "args": helper_args})
+def run(event, env, start=None):
+    """The hook's work for one event. env is the hook's environment: os.environ for the script,
+    the daemon's own copy with the hook's ENV in it; start is the daemon's start() there (asking
+    its socket from inside would wait on itself: it answers one request at a time)."""
+    pane = env.get("HERDR_PANE_ID", "")
+    if env.get("HERDR_ENV") != "1" or not pane:
+        return  # outside herdr
+    icons = {} if env.get("STEADING_SIDEBAR_ICONS") == "0" else ICONS
+    tree = env.get("STEADING_SIDEBAR_TREE") != "0"
+    state = os.path.join(env.get("TMPDIR", "/tmp"), "steading", pane.replace(":", "_").replace("/", "_"))
+    herdr = env.get("HERDR_BIN_PATH", "herdr")
+    env.setdefault("STEADING_BASE", state)
+
+    def helper(kind, helper_args, script):
+        """A helper (usage.py, steading_run.py, crew) run in the daemon; as its own process, as
+        before it, only when the daemon cannot start. None can do anything without herdr's socket."""
+        if not os.path.exists(env.get("HERDR_SOCKET_PATH", "")):
             return
-    except (OSError, ValueError):
-        pass
-    subprocess.Popen([sys.executable, "-I", os.path.join(HERE, script), *helper_args],
-                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+        try:
+            if start:
+                if start(kind, helper_args) in ("started", "running", "elsewhere"):
+                    return
+            elif daemon():
+                steadingd.ask("/start", {"kind": kind, "args": helper_args})
+                return
+        except (OSError, ValueError):
+            pass
+        subprocess.Popen([sys.executable, "-I", os.path.join(HERE, script), *helper_args], env=env,
+                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
 
+    def spin():
+        """bin/crew spins $crew while agents work here and exits once none does (one per pane)."""
+        helper("crew", [pane, event.get("transcript_path", "")[:-len(".jsonl")] + "/subagents"], "crew")
 
-def spin():
-    """bin/crew spins $crew while agents work here and exits once none does (one per pane)."""
-    helper("crew", [pane, event.get("transcript_path", "")[:-len(".jsonl")] + "/subagents"], "crew")
+    # The main agent's turn, as Claude Code's own hooks see it: herdr reads Claude off the screen and
+    # calls it idle while a tool runs. A request or a tool call marks the turn; its end clears it.
+    lead_mark = os.path.join(state, "main-busy")
+    hook_name = event.get("hook_event_name")
+    if hook_name in ("SubagentStop", "TeammateIdle"):
+        return  # bin/subagents.py has recorded it (bin/sidebar, or the daemon, before this ran)
+    if hook_name == "SubagentStart":
+        event["agent_id"] = event.get("agent_id") or "-"  # falls into the subagent branch: start the spinner
+    elif not event.get("agent_id"):
+        # A new process (startup, /restart's resume, /clear) has no turn running: a turn that /restart
+        # cut off never reached its Stop hook, so its mark would keep the crew spinner going.
+        # (bin/subagents.py forgets the old process's subagents.)
+        if hook_name in ("Stop", "SessionStart"):
+            if event.get("source") != "compact":  # compaction is no new process: its turn goes on
+                try:
+                    os.remove(lead_mark)
+                except OSError:
+                    pass
+            if hook_name == "SessionStart":
+                shutil.rmtree(os.path.join(state, "agents"), ignore_errors=True)  # the old marker files
+                shutil.rmtree(os.path.join(state, "sent"), ignore_errors=True)  # the next reports go out in full
+        else:
+            os.makedirs(state, exist_ok=True)
+            open(lead_mark, "w").close()
+            if hook_name == "UserPromptSubmit":
+                spin()
+                return
 
-
-# The main agent's turn, as Claude Code's own hooks see it: herdr reads Claude off the screen and
-# calls it idle while a tool runs. A request or a tool call marks the turn; its end clears it.
-lead_mark = os.path.join(state, "main-busy")
-hook_name = event.get("hook_event_name")
-if hook_name in ("SubagentStop", "TeammateIdle"):
-    sys.exit(0)  # bin/subagents.py has recorded it (bin/sidebar, before this ran)
-if hook_name == "SubagentStart":
-    event["agent_id"] = event.get("agent_id") or "-"  # falls into the subagent branch: start the spinner
-elif not event.get("agent_id"):
-    # A new process (startup, /restart's resume, /clear) has no turn running: a turn that /restart
-    # cut off never reached its Stop hook, so its mark would keep the crew spinner going.
-    # (bin/subagents.py forgets the old process's subagents.)
-    if hook_name in ("Stop", "SessionStart"):
-        if event.get("source") != "compact":  # compaction is no new process: its turn goes on
-            try:
-                os.remove(lead_mark)
-            except OSError:
-                pass
-        if hook_name == "SessionStart":
-            shutil.rmtree(os.path.join(state, "agents"), ignore_errors=True)  # the old marker files
-            shutil.rmtree(os.path.join(state, "sent"), ignore_errors=True)  # the next reports go out in full
-    else:
+    if event.get("agent_id"):
+        # A subagent at work. herdr reads Claude's state off the screen, so a session whose main turn
+        # has ended reads idle while its subagents still work, and it takes no state reports for
+        # Claude. Show the crew instead: a spinning $crew on the agent's row and its workspace's row,
+        # for as long as subagents keep working.
+        crew_stamp = os.path.join(state, "crew")
+        try:
+            if time.time() - os.path.getmtime(crew_stamp) < 5:
+                return
+        except OSError:
+            pass
         os.makedirs(state, exist_ok=True)
-        open(lead_mark, "w").close()
-        if hook_name == "UserPromptSubmit":
-            spin()
-            sys.exit(0)
+        open(crew_stamp, "w").close()
+        spin()
+        return
 
-
-if event.get("agent_id"):
-    # A subagent at work. herdr reads Claude's state off the screen, so a session whose main turn
-    # has ended reads idle while its subagents still work, and it takes no state reports for
-    # Claude. Show the crew instead: a spinning $crew on the agent's row and its workspace's row,
-    # for as long as subagents keep working.
-    crew_stamp = os.path.join(state, "crew")
+    stamp = os.path.join(state, "sidebar")
     try:
-        if time.time() - os.path.getmtime(crew_stamp) < 5:
-            sys.exit(0)
+        if event.get("hook_event_name") != "Stop" and event.get("tool_name") not in ("TaskCreate", "TaskUpdate") and time.time() - os.path.getmtime(stamp) < 3:
+            return
     except OSError:
         pass
     os.makedirs(state, exist_ok=True)
-    open(crew_stamp, "w").close()
-    spin()
-    sys.exit(0)
+    open(stamp, "w").close()
+    if event.get("hook_event_name") != "Stop":
+        spin()  # the main agent at work counts too
 
-stamp = os.path.join(state, "sidebar")
-try:
-    if event.get("hook_event_name") != "Stop" and event.get("tool_name") not in ("TaskCreate", "TaskUpdate") and time.time() - os.path.getmtime(stamp) < 3:
-        sys.exit(0)
-except OSError:
-    pass
-os.makedirs(state, exist_ok=True)
-open(stamp, "w").close()
-if event.get("hook_event_name") != "Stop":
-    spin()  # the main agent at work counts too
+    import steading_run
+    from tasklist import task_folder
+    from transcripts import Digest, context_use, git_state
 
-import steading_run  # noqa: E402
-from tasklist import task_folder  # noqa: E402
-from transcripts import Digest, context_use, git_state  # noqa: E402
+    # The repository: as the git tab's border shows it ("main ↑2", "1 changed").
+    cwd = event.get("cwd") or os.getcwd()
+    repo = repostate = ""
+    git = git_state(cwd)
+    if git:
+        branch, ahead, behind, changed = git
+        repo = branch + (f" ↑{ahead}" if ahead else "") + (f" ↓{behind}" if behind else "")
+        repostate = f"{changed} changed" if changed else "clean"
 
-# The repository: as the git tab's border shows it ("main ↑2", "1 changed").
-cwd = event.get("cwd") or os.getcwd()
-repo = repostate = ""
-git = git_state(cwd)
-if git:
-    branch, ahead, behind, changed = git
-    repo = branch + (f" ↑{ahead}" if ahead else "") + (f" ↓{behind}" if behind else "")
-    repostate = f"{changed} changed" if changed else "clean"
+    nogit = False
+    if not repo:  # git said "not a git repository" (any other failure keeps the row empty)
+        try:
+            r = subprocess.run(["git", "-C", cwd, "rev-parse"], capture_output=True, text=True, timeout=5, env={**env, "LC_ALL": "C"})
+            nogit = r.returncode != 0 and "not a git repository" in r.stderr
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+        repo = "no git" if nogit else ""
 
-nogit = False
-if not repo:  # git said "not a git repository" (any other failure keeps the row empty)
+    # The context: the latest request's tokens, from the end of the transcript.
+    d = Digest()
+    d.sid = event.get("session_id") or ""
     try:
-        r = subprocess.run(["git", "-C", cwd, "rev-parse"], capture_output=True, text=True, timeout=5, env={**os.environ, "LC_ALL": "C"})
-        nogit = r.returncode != 0 and "not a git repository" in r.stderr
-    except (OSError, subprocess.TimeoutExpired):
+        with open(event.get("transcript_path", ""), "rb") as f:
+            f.seek(max(0, os.path.getsize(f.name) - 400_000))
+            for raw in f.read().splitlines()[1:]:  # the first line may be cut
+                try:
+                    d.feed(json.loads(raw))
+                except ValueError:
+                    pass
+    except OSError:
         pass
-    repo = "no git" if nogit else ""
+    model = re.sub(r"-\d{8}$", "", (d.model or d.requested or "").replace("claude-", ""))
+    ctx = ""
+    if d.context:
+        pct, _ = context_use(d)
+        filled = min(5, round(pct / 20))
+        ctx = f"{'▰' * filled}{'▱' * (5 - filled)} {pct}%"
 
-# The context: the latest request's tokens, from the end of the transcript.
-d = Digest()
-d.sid = event.get("session_id") or ""
-try:
-    with open(event.get("transcript_path", ""), "rb") as f:
-        f.seek(max(0, os.path.getsize(f.name) - 400_000))
-        for raw in f.read().splitlines()[1:]:  # the first line may be cut
-            try:
-                d.feed(json.loads(raw))
-            except ValueError:
-                pass
-except OSError:
-    pass
-model = re.sub(r"-\d{8}$", "", (d.model or d.requested or "").replace("claude-", ""))
-ctx = ""
-if d.context:
-    pct, _ = context_use(d)
-    filled = min(5, round(pct / 20))
-    ctx = f"{'▰' * filled}{'▱' * (5 - filled)} {pct}%"
+    # The task list (TaskCreate/TaskUpdate).
+    tasks = []
+    folder = task_folder(event.get("session_id", "")) if event.get("session_id") else ""
+    for name in (os.listdir(folder) if folder and os.path.isdir(folder) else []):
+        if not name.endswith(".json"):
+            continue
+        try:
+            with open(os.path.join(folder, name)) as f:
+                tasks.append(json.load(f).get("status"))
+        except (OSError, ValueError):
+            pass
+    tasks = [t for t in tasks if t in ("pending", "in_progress", "completed")]
+    done = tasks.count("completed")
+    bar = ""
+    if tasks:
+        filled = round(5 * done / len(tasks))
+        bar = f"{'▰' * filled}{'▱' * (5 - filled)} {done}/{len(tasks)}"
 
-# The task list (TaskCreate/TaskUpdate).
-tasks = []
-folder = task_folder(event.get("session_id", "")) if event.get("session_id") else ""
-for name in (os.listdir(folder) if folder and os.path.isdir(folder) else []):
-    if not name.endswith(".json"):
-        continue
+    args = [herdr, "pane", "report-metadata", pane, "--source", "steading"]
+    hot = ctx and context_use(d)[0] >= 80
+    values = {"repo": repo, "model": model, "ctx": "" if hot else ctx, "ctxhot": ctx if hot else "", "tasks": bar, "repostate": repostate}
+    shown = [r for r in ROWS if any(values[n] for n in r)]
+    for name in values:
+        if values[name] and icons.get(name):
+            values[name] = icons[name] + " " + values[name]
+    if nogit:
+        values["repo"] = (icons["nogit"] + " " if "nogit" in icons else "") + "no git"
+    # Tree guides are tokens of their own (herdr colours a token as a whole): $tree1..3 for the rows.
+    for i, row in enumerate(ROWS, 1):
+        values[f"tree{i}"] = (("└" if row is shown[-1] else "├") if tree and row in shown else "")
+    for name, value in values.items():
+        args += ["--token", f"{name}={value}"] if value else ["--clear-token", name]
+
+    def send(src, tokens, cmd):
+        """Report only what differs from the last report that went through for this source: each one
+        makes herdr redraw the sidebar."""
+        tokens = {k: w or None for k, w in tokens.items()}  # the refresher's form, so the two compare
+        if steading_run.same_as_sent(state, src, tokens):
+            return
+        if subprocess.run(cmd, capture_output=True, timeout=5, env=env).returncode == 0:
+            steading_run.mark_sent(state, src, tokens)
+
+    wanted = [("usage", [], "usage.py")]  # (kind, args, script): the helpers to start, below
     try:
-        with open(os.path.join(folder, name)) as f:
-            tasks.append(json.load(f).get("status"))
-    except (OSError, ValueError):
-        pass
-tasks = [t for t in tasks if t in ("pending", "in_progress", "completed")]
-done = tasks.count("completed")
-bar = ""
-if tasks:
-    filled = round(5 * done / len(tasks))
-    bar = f"{'▰' * filled}{'▱' * (5 - filled)} {done}/{len(tasks)}"
-
-args = [os.environ.get("HERDR_BIN_PATH", "herdr"), "pane", "report-metadata", pane, "--source", "steading"]
-hot = ctx and context_use(d)[0] >= 80
-values = {"repo": repo, "model": model, "ctx": "" if hot else ctx, "ctxhot": ctx if hot else "", "tasks": bar, "repostate": repostate}
-shown = [r for r in ROWS if any(values[n] for n in r)]
-for name in values:
-    if values[name] and ICONS.get(name):
-        values[name] = ICONS[name] + " " + values[name]
-if nogit:
-    values["repo"] = (ICONS["nogit"] + " " if "nogit" in ICONS else "") + "no git"
-# Tree guides are tokens of their own (herdr colours a token as a whole): $tree1..3 for the rows.
-for i, row in enumerate(ROWS, 1):
-    values[f"tree{i}"] = (("└" if row is shown[-1] else "├") if TREE and row in shown else "")
-for name, value in values.items():
-    args += ["--token", f"{name}={value}"] if value else ["--clear-token", name]
-
-
-def send(src, tokens, cmd):
-    """Report only what differs from the last report that went through for this source: each one
-    makes herdr redraw the sidebar."""
-    tokens = {k: w or None for k, w in tokens.items()}  # the refresher's form, so the two compare
-    if steading_run.same_as_sent(state, src, tokens):
-        return
-    if subprocess.run(cmd, capture_output=True, timeout=5).returncode == 0:
-        steading_run.mark_sent(state, src, tokens)
-
-
-wanted = [("usage", [], "usage.py")]  # (kind, args, script): the helpers to start, below
-try:
-    send("pane-steading", values, args)
-    # The Spaces panel's second row ($wstree, $wsrepo): herdr's own branch/git_status can't take a
-    # guide token. The last pane to report wins when a workspace holds several.
-    space = json.loads(subprocess.run([herdr, "pane", "get", pane], capture_output=True, text=True,
-                                      timeout=5).stdout)["result"]["pane"]["workspace_id"]
-    # The third row, what runs here: the servers' ports and the jobs still going, as the deck lists them.
-    # $wstree/$wsrun/$wstree2 share one source with no lifetime: bin/steading_run.py refreshes it
-    # while something runs, since a server can stop with no hook to say so.
-    # (compute takes the deck's own herdr_panes, read and Jobs: viewer.py is loaded for it alone)
-    v = steading_run.load("viewer", os.path.join(os.path.dirname(os.path.abspath(__file__)), "viewer.py"))
-    run = steading_run.compute(v, state, cwd, space)
-    has_repo = bool(values["repo"])
-    guides = steading_run.tokens(run, has_repo)
-    flat = lambda tokens: [a for k, w in tokens.items() for a in (["--token", f"{k}={w}"] if w else ["--clear-token", k])]
-    ws = {"wsrepo": values["repo"], "wsrepostate": repostate}
-    for src, tokens in ((f"steading-repo-{pane}", {**ws, "wstree": ""}), (steading_run.source(pane), guides)):
-        send(src, tokens, [herdr, "workspace", "report-metadata", space, "--source", src] + flat(tokens))
-    if run:
-        wanted.append(("run", [pane, space, cwd, "1" if has_repo else "0"], "steading_run.py"))
-except (OSError, subprocess.TimeoutExpired, ValueError, KeyError):
-    pass
-
-# The helpers: $usage (bin/usage.py, one for the machine) and, while something runs, the
-# workspace's refresher, in the daemon (see helper above).
-for kind, helper_args, script in wanted:
-    helper(kind, helper_args, script)
-
-# The pane's name: the session's title (one set with /rename, else Claude's own, which changes
-# only when the talk turns to something else), so the pane and its tab read as the conversation
-# rather than the command that started it. Renamed only when the title changes.
-named = os.path.join(state, "title")
-try:
-    with open(named) as f:
-        before = f.read()
-except OSError:
-    before = ""
-if d.title and d.title != before:
-    try:
-        subprocess.run([herdr, "pane", "rename", pane, d.title], capture_output=True, timeout=5)
-        out = subprocess.run([herdr, "pane", "get", pane], capture_output=True, text=True, timeout=5).stdout
-        tab = json.loads(out)["result"]["pane"]["tab_id"]  # the tab keeps a name of its own
-        subprocess.run([herdr, "tab", "rename", tab, d.title], capture_output=True, timeout=5)
-        with open(named, "w") as f:
-            f.write(d.title)
+        send("pane-steading", values, args)
+        # The Spaces panel's second row ($wstree, $wsrepo): herdr's own branch/git_status can't take a
+        # guide token. The last pane to report wins when a workspace holds several.
+        space = json.loads(subprocess.run([herdr, "pane", "get", pane], capture_output=True, text=True,
+                                          timeout=5, env=env).stdout)["result"]["pane"]["workspace_id"]
+        # The third row, what runs here: the servers' ports and the jobs still going, as the deck lists them.
+        # $wstree/$wsrun/$wstree2 share one source with no lifetime: bin/steading_run.py refreshes it
+        # while something runs, since a server can stop with no hook to say so.
+        # (compute takes the deck's own herdr_panes, read and Jobs: viewer.py is loaded for it alone,
+        # or already, in the daemon)
+        v = sys.modules.get("viewer") or steading_run.load("viewer", os.path.join(HERE, "viewer.py"))
+        running = steading_run.compute(v, state, cwd, space)
+        has_repo = bool(values["repo"])
+        guides = steading_run.tokens(running, has_repo)
+        flat = lambda tokens: [a for k, w in tokens.items() for a in (["--token", f"{k}={w}"] if w else ["--clear-token", k])]  # noqa: E731
+        ws = {"wsrepo": values["repo"], "wsrepostate": repostate}
+        for src, tokens in ((f"steading-repo-{pane}", {**ws, "wstree": ""}), (steading_run.source(pane), guides)):
+            send(src, tokens, [herdr, "workspace", "report-metadata", space, "--source", src] + flat(tokens))
+        if running:
+            wanted.append(("run", [pane, space, cwd, "1" if has_repo else "0"], "steading_run.py"))
     except (OSError, subprocess.TimeoutExpired, ValueError, KeyError):
         pass
+
+    # The helpers: $usage (bin/usage.py, one for the machine) and, while something runs, the
+    # workspace's refresher, in the daemon (see helper above).
+    for kind, helper_args, script in wanted:
+        helper(kind, helper_args, script)
+
+    # The pane's name: the session's title (one set with /rename, else Claude's own, which changes
+    # only when the talk turns to something else), so the pane and its tab read as the conversation
+    # rather than the command that started it. Renamed only when the title changes.
+    named = os.path.join(state, "title")
+    try:
+        with open(named) as f:
+            before = f.read()
+    except OSError:
+        before = ""
+    if d.title and d.title != before:
+        try:
+            subprocess.run([herdr, "pane", "rename", pane, d.title], capture_output=True, timeout=5, env=env)
+            out = subprocess.run([herdr, "pane", "get", pane], capture_output=True, text=True, timeout=5, env=env).stdout
+            tab = json.loads(out)["result"]["pane"]["tab_id"]  # the tab keeps a name of its own
+            subprocess.run([herdr, "tab", "rename", tab, d.title], capture_output=True, timeout=5, env=env)
+            with open(named, "w") as f:
+                f.write(d.title)
+        except (OSError, subprocess.TimeoutExpired, ValueError, KeyError):
+            pass
+
+
+if __name__ == "__main__":
+    run(json.loads(sys.stdin.read() or "{}"), os.environ)

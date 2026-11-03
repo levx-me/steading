@@ -1,12 +1,24 @@
 #!/usr/bin/env bash
 # Claude Code hook (PostToolUse on any tool, Stop, UserPromptSubmit, SessionStart, and the
-# subagents' SubagentStart, SubagentStop, TeammateIdle): hands the event to bin/sidebar.py in
-# the background, so a tool call never waits on it. That reports the agent's repository and
-# context use to herdr's sidebar. A subagent's start and stop, and a new process, are first
-# recorded here, in the order the hooks run (bin/subagents.py): the $crew and the deck read them.
+# subagents' SubagentStart, SubagentStop, TeammateIdle): hands the event to bin/steadingd.py,
+# which reports the agent's repository and context use to herdr's sidebar (bin/sidebar.py) on a
+# thread of its own, so a tool call never waits on it. A subagent's start and stop, and a new
+# process, are first recorded, in the order the hooks run (bin/subagents.py): the $crew and the
+# deck read them. The daemon records them before it answers; when it does not answer 200 (none
+# runs, no curl, too busy), this runs the two scripts itself, the first in the hook, the second in
+# the background.
 [ "${HERDR_ENV:-}" = 1 ] && [ -n "${HERDR_PANE_ID:-}" ] || exit 0
 input=$(cat)
-dir=$(dirname "$0")
+sock=${TMPDIR:-/tmp}/steading/daemon.sock
+if [ -S "$sock" ] && command -v curl >/dev/null; then
+  env=()
+  for name in HERDR_ENV HERDR_PANE_ID HERDR_BIN_PATH HERDR_SOCKET_PATH STEADING_SIDEBAR_ICONS STEADING_SIDEBAR_TREE STEADING_BASE; do
+    [ -n "${!name:-}" ] && env+=(-H "Env: $name=${!name}")  # sidebar.py's ENV
+  done
+  printf '%s' "$input" | curl -sf --max-time 2 --unix-socket "$sock" -H 'Expect:' -H 'Content-Type:' "${env[@]}" \
+    --data-binary @- http://steading/hook/sidebar >/dev/null 2>&1 && exit 0
+fi
+dir=${0%/*}
 . "$dir/py.sh"
 if [[ $input =~ \"hook_event_name\"[[:space:]]*:[[:space:]]*\"(SubagentStart|SubagentStop|TeammateIdle|SessionStart)\" ]]; then
   printf '%s' "$input" | "$py" -I "$dir/subagents.py" >/dev/null 2>&1
