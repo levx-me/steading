@@ -41,7 +41,7 @@ beside the agent**, live, so you never scroll back through the conversation to f
 
 ## Quick start
 
-Requirements: herdr 0.9+, Claude Code, `jq` and `python3`.
+Requirements: herdr 0.9+, Claude Code, `jq` and `python3` (any 3.9 or newer; Homebrew's is used when present). `curl` is optional: with it the hooks are lighter.
 
 | | `python3` | `jq` |
 |---|---|---|

@@ -42,6 +42,8 @@ flowchart LR
 |---|---|---|
 | `STEADING_SOURCE` | `levx-me/steading` | Where `bin/install-claude` adds the Claude Code marketplace from (a path or `owner/repo`) |
 | `TMPDIR` | `/tmp` | Parent of the run history (`$TMPDIR/steading`) |
+| `STEADING_PYTHON` | newest `python3` found | The Python the hooks, the deck and the helpers run on |
+| `STEADING_CACHE` | `~/.cache/steading` | Where the parsed transcripts are kept |
 
 Commands run in the deck get `CI=1` (no watch modes) and `FORCE_COLOR=1`, `CLICOLOR_FORCE=1`,
 `PY_COLORS=1`, `CARGO_TERM_COLOR=always`.
@@ -59,8 +61,7 @@ agent's repository and context use to herdr as pane tokens, with or without a de
   the layout can colour it.
 - `$tasks`: the agent's task list (TaskCreate/TaskUpdate), a bar and done/total.
 - `$usage`: the session's CPU and memory, its claude process and everything under it (MCP servers, node,
-  shells) summed: ` 15% 0.6G`. `bin/usage.py` keeps it, one for the machine (`bin/sidebar.py` starts it when
-  none runs): every 10 s one `ps` call for all panes, CPU rounded to 5% and memory to 0.1 GB, and a report only when that
+  shells) summed: ` 15% 0.6G`. `bin/usage.py` keeps it, one for the machine (the daemon runs it; see below): every 10 s one `ps` call for all panes, CPU rounded to 5% and memory to 0.1 GB, and a report only when that
   changes, so the sidebar seldom redraws. A pane whose claude has ended loses it; it exits once no pane runs Claude.
 - `$crew`: a spinner and a count (`⠋ 2`) while the main turn runs and for each subagent still running, nested ones (a PM's workers) included. Subagents are counted from Claude Code's hooks, not their transcripts (Claude Code writes a turn only when it ends, so an agent thinking for ten minutes is silent): `bin/sidebar` appends each SubagentStart (working), SubagentStop (done; idle for an agent team's teammate), TeammateIdle (idle) and new process (SessionStart startup, resume or clear; never compact, whose subagents still run) to `$TMPDIR/steading/sessions/<session id>.log` before anything else of the hook runs, each line stamped with its time, so a line read late never overrides a newer one. `bin/subagents.py` reads it for both the `$crew` and the deck's agents section, so the two always agree. A start 3 h old with no stop is a crash; a subagent the hooks never named (a session begun before the record) counts while its transcript moves. A subagent whose turn has ended but whose own work goes on (a background command with no task-notification in its transcript yet, or subagents of its own still there) is waiting, not working: the deck lists it as `◷`, and the `$crew` does not count it. `bin/subagents.py` finds those commands too, matching the `backgroundTaskId` of a tool result and the `<task-id>` of a notification in the transcript's bytes, only the lines added since the last look; an agent whose turn is over gets no notification until it runs again, so the `[exited with code N]` Claude Code writes at the end of the command's output file ends it too, and an agent whose meta says `finished` (it handed its report back) waits on nothing.
 - `$tree1`..`$tree3`: tree guides (`├`, and `└` on the last row shown; empty for a row that is empty) in
@@ -71,8 +72,15 @@ agent's repository and context use to herdr as pane tokens, with or without a de
   servers section finds them) and the long jobs still going, `▶ :3000 :5173 · ⏳ 1 job`; empty, so the row goes, when nothing runs. `$wstree`
   becomes `├` while it shows. `$wstree`, `$wsrun` and `$wstree2` go out together in one source with no lifetime (herdr drops a token
   whose latest report lapses, so separate lifetimes would leave the guide open). A server can stop with no hook to say so, so whenever something
-  runs, `bin/sidebar.py` starts `bin/steading_run.py`, one per workspace: every 10 s it recomputes the row, and once nothing runs it clears
+  runs, the daemon runs `bin/steading_run.py`, one per workspace: every 10 s it recomputes the row, and once nothing runs it clears
   `$wsrun` and `$wstree2`, sets `$wstree` to `└` and exits (as it does when the workspace is gone). It outlives sessions.
+
+### The daemon and the cache
+
+- `bin/steadingd.py` is one daemon per machine (`$TMPDIR/steading/daemon.pid`, and `daemon.sock`, an HTTP socket with mode 0600). It runs `usage`, the `$wsrun` refreshers, the crews and the System tab's sampler (while a deck shows the tab) as threads, so they cost one process in place of one each. The first hook starts it; it never exits on its own, restarts itself when a file in `bin/` changes, and starts its helpers again afterwards (`daemon.helpers.json`; errors go to `daemon.log`).
+- `bin/sidebar` hands each event to it with `curl --unix-socket`; subagent records are written before the hook returns. With no daemon or no `curl`, the hook runs the scripts itself as before, and the helpers run as their own processes.
+- Scripts run on the newest Python: `$STEADING_PYTHON`, Homebrew's, `/usr/local`'s, then `python3` (`bin/py.sh`, `bin/py`). 3.9 through 3.15 work.
+- `bin/transcripts.py` parses transcripts, and keeps what it parsed in `$STEADING_CACHE` (else `${XDG_CACHE_HOME:-~/.cache}/steading`, mode 0700), keyed by its own sources, so editing the deck's drawing keeps it. Entries untouched for 14 days are pruned. A deck restarting beside a 535 MB transcript is ready in 0.2 s, not 5.8 s.
 
 Show them in herdr's agents list with a row layout in `~/.config/herdr/config.toml`:
 
