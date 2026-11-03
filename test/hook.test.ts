@@ -1993,6 +1993,27 @@ print(json.dumps([was, m.FOCUS["pane"], [t["type"] for t in subs[0]], len(subs),
     expect(out).toEqual([false, true, ["pane.focused", "tab.focused", "workspace.focused"], 2, []]);
   });
 
+  test("a focus change herdr reports wakes the main loop; a lost herdr is asked again 2s on, doubling to 30s", () => {
+    const out = py(`m.WAKE[:] = os.pipe()
+d = m.Deck()
+got = [{"pane": {"focused": False}}, {"pane": {"focused": False}}]
+m.herdr_api = lambda *a: got.pop(0) if got else {}
+d.look_focus(); woke = bool(m.select.select([m.WAKE[0]], [], [], 0)[0])
+os.read(m.WAKE[0], 99); d.look_focus(); again = bool(m.select.select([m.WAKE[0]], [], [], 0)[0])
+waits = []
+def sleep(s):
+    waits.append(s)
+    if len(waits) > 6:
+        raise SystemExit
+m.time.sleep = sleep
+try:
+    d.watch_focus("/nonexistent/herdr.sock")
+except SystemExit:
+    pass
+print(json.dumps([woke, again, waits]))`);
+    expect(out).toEqual([true, false, [2, 4, 8, 16, 30, 30, 30]]);
+  });
+
   test("the deck waits a second between frames once three came out the same; the system tab until its sample", () => {
     const out = py(`d = types.SimpleNamespace(views=[types.SimpleNamespace()], section=0, still=0)
 waits = [m.tick_wait(d)]
@@ -2027,7 +2048,7 @@ print(json.dumps([seen, s.scanning]))`);
     expect(out).toEqual([[[false, false], [true, false], [true, false], [false, true]], true]);
   });
 
-  test("the tab shown refreshes every frame, the others once a second", () => {
+  test("every tab's data refreshes once a second, and a tab switched to at once", () => {
     const out = py(`m.background = lambda fn, *a: None
 d = m.Deck(); n = [0] * len(d.views)
 for i, view in enumerate(d.views):
@@ -2036,8 +2057,69 @@ for _ in range(5):
     d.refresh()
 d.hidden_at -= 1  # a second on
 d.refresh()
-print(json.dumps([n[d.section], sorted({c for i, c in enumerate(n) if i != d.section})]))`);
-    expect(out).toEqual([6, [2]]);
+first = list(n)
+d.section = (d.section + 1) % len(d.views)
+d.refresh(); d.refresh()
+print(json.dumps([sorted(set(first)), n[d.section] - first[d.section]]))`);
+    expect(out).toEqual([[2], 1]);
+  });
+
+  test("a spinner's tick writes only its row, from the frame last built; a key, a second or the tab's file builds it again", () => {
+    const base = mkdtempSync(join(tmpdir(), "steading-diff-"));
+    const out = py(`m.BASE = ${JSON.stringify(base)}
+m.background = lambda fn, *a: None
+d = m.Deck()
+class View:
+    kind, focus = "agents", "list"
+    def __init__(self): self.built, self.file = 0, 0
+    def frame(self, cols, rows):
+        self.built += 1
+        return [f"{m.spinner()} working", "still text", f"file {self.file}"], []
+    def hints(self): return []
+    def badge(self): return ("·", m.MUTED_RGB)
+    def watch(self): return self.file
+v = View(); d.views[d.section] = v
+written = []
+class Out:
+    def write(self, s): written.append(s)
+    def flush(self): pass
+sys.stdout = Out()
+t = [100.0]; m.time.time = lambda: t[0]
+d.draw()                      # first: built, every row written
+first = written[-1].count(";1H")
+t[0] += 0.13; d.draw()        # the spinner turned: no build, one row
+tick = (v.built, written[-1])
+d.dirty = True; t[0] += 0.13; d.draw(); keyed = v.built      # a key: built again
+t[0] += 1.0; d.draw(); clocked = v.built                     # a second on: built again
+v.file = 1; t[0] += 0.01; d.draw(); watched = (v.built, "file 1" in written[-1])
+sys.stdout = sys.__stdout__
+rows = m.shutil.get_terminal_size()[1]
+print(json.dumps([first == rows, tick[0], tick[1].count(";1H"), "working" in tick[1], "still text" in tick[1], keyed, clocked, watched]))`);
+    expect(out).toEqual([true, 1, 1, true, false, 2, 3, [4, true]]);
+  });
+
+  test("backspace (and ctrl+h) leaves a log or a detail as esc does; q too; in a list q is nothing and backspace itself", () => {
+    const out = py(`inside, listed = types.SimpleNamespace(focus="log"), types.SimpleNamespace(focus="list")
+print(json.dumps([[m.back_key(inside, k) for k in ("\\x7f", "\\x08", "q", "j")],
+                  [m.back_key(listed, k) for k in ("\\x7f", "\\x08", "q", "j")], m.back_key(m.System(types.SimpleNamespace(found=[])), "\\x7f")]))`);
+    expect(out).toEqual([["\x1b", "\x1b", "\x1b", "j"], ["\x7f", "\x08", null, "j"], "\x7f"]);
+  });
+
+  test("the subagents' transcripts are listed as glob lists them, again only when a folder changes", () => {
+    const dir = mkdtempSync(join(tmpdir(), "steading-list-"));
+    const out = py(`import glob
+d = ${JSON.stringify(dir)}
+os.makedirs(d + "/workflows/w1")
+for f in ("agent-a.jsonl", "agent-a.meta.json", "other.jsonl", "workflows/w1/agent-b.jsonl"):
+    open(f"{d}/{f}", "w").close()
+like_glob = lambda: sorted(glob.glob(f"{d}/agent-*.jsonl") + glob.glob(f"{d}/workflows/*/agent-*.jsonl"))
+first = sorted(m.transcripts(d)) == like_glob()
+calls, listdir = [0], os.listdir
+os.listdir = lambda p: (calls.__setitem__(0, calls[0] + 1), listdir(p))[1]
+m.transcripts(d); unchanged = calls[0]
+time.sleep(0.01); open(f"{d}/agent-c.jsonl", "w").close()
+print(json.dumps([first, unchanged, sorted(m.transcripts(d)) == like_glob(), len(m.transcripts(d))]))`);
+    expect(out).toEqual([true, 0, true, 3]);
   });
 
   test("a sample shared with the other decks clears temp files a dead deck left over a minute ago", () => {

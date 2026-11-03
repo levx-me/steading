@@ -58,7 +58,7 @@ import urllib.parse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # -I leaves the script's folder out
 from procs import Proc, printable, program, read_ps, sessions  # noqa: E402
-from tasklist import read_tasks  # noqa: E402
+from tasklist import read_tasks, task_folder  # noqa: E402
 import subagents  # noqa: E402
 
 BASE = sys.argv[1] if len(sys.argv) > 1 else os.environ["STEADING_BASE"]  # plugin panes pass it in the env
@@ -192,7 +192,15 @@ def cache_save(path, owner, state):
         pass
 
 
+SPIN_MARK = "\ue000"  # where a spinner turns: a frame is drawn with it, each tick puts in the glyph
+
+
 def spinner():
+    """A spinner, as a mark: the frame is built once and only the glyph changes as it turns (see Deck.draw)."""
+    return SPIN_MARK
+
+
+def spin_glyph():
     return SPIN[int(time.time() * 8) % len(SPIN)]
 
 
@@ -265,8 +273,11 @@ def visible_len(s):
     return len(ANSI.sub("", s))
 
 
+@functools.lru_cache(maxsize=8192)  # a frame's texts come back in the next one
 def cells(text):
     """Terminal cells text takes: wide (CJK, Hangul) characters take two."""
+    if text.isascii():
+        return len(text)
     return sum(2 if unicodedata.east_asian_width(ch) in "WF" else 1 for ch in text)
 
 
@@ -831,6 +842,7 @@ def char_class(ch, big):
 
 def copy(text):
     """Put text on the clipboard: pbcopy, wl-copy or xclip, else OSC 52."""
+    text = text.replace(SPIN_MARK, spin_glyph())
     for cmd in (["pbcopy"], ["wl-copy"], ["xclip", "-selection", "clipboard"]):
         if shutil.which(cmd[0]):
             subprocess.run(cmd, input=text.encode(), check=False)
@@ -956,6 +968,21 @@ class Runs:
     def title_right(self):
         """Text for the right end of the run list's top border."""
         return ""
+
+    def watch(self):
+        """What the tab shows that can change between its refreshes, cheap to look at every tick:
+        the picked run's file (its log, an agent's transcript) and what of it is loaded."""
+        if not self.runs:
+            return None
+        run = self.runs[self.tab]
+        path = run.path if isinstance(run, AgentRun) else run.source() or os.path.join(run.path, "log") if run.path else ""
+        try:
+            st = os.stat(path)
+            key = (st.st_mtime_ns, st.st_size)
+        except OSError:
+            key = None
+        log = getattr(run, "_log", None) or (None, None)
+        return id(run), key, log[0], len(log[1] or ()), (log[1] or [""])[-1]
 
     def place_cursor(self):
         """Where the output's cursor goes before the frame scrolls to it: pinned to the
@@ -1505,7 +1532,7 @@ class Runs:
         if self.focus == "list":
             return [("L", "side"), ("[ ]", "tabs"), (",", "settings"), ("ctrl+c", "close")]
         return [("hjkl w b", "move"), ("tab", "command/log"), ("v/V", "select"), ("y", "copy"), ("/ ?", "search"),
-                ("esc/q", "back")]
+                ("esc/q/⌫", "back")]
 
     def list_key(self, k):
         """Keys while the run list has the focus (newest run on top)."""
@@ -2829,6 +2856,32 @@ class MainRun(AgentRun):
         return [f"{BOLD}{line}{RESET}" for line in textwrap.wrap(self.given(), max(10, cols))[:2]]
 
 
+_listed = {}  # folder: (its mtime, the subagent transcripts in it)
+
+
+def transcripts(folder):
+    """The subagents' transcripts in a session's subagents folder and its workflows' folders, as
+    glob would list them; a folder is listed again only when its mtime moves (a file came or went)."""
+    def listed(d):
+        try:
+            at = os.stat(d).st_mtime_ns
+        except OSError:
+            return []
+        if _listed.get(d, (None,))[0] != at:
+            try:
+                names = sorted(os.listdir(d))
+            except OSError:
+                names = []
+            _listed[d] = (at, names)
+        return _listed[d][1]
+    paths = [os.path.join(folder, n) for n in listed(folder) if n.startswith("agent-") and n.endswith(".jsonl")]
+    flows = os.path.join(folder, "workflows")
+    for w in listed(flows):
+        sub = os.path.join(flows, w)
+        paths += [os.path.join(sub, n) for n in listed(sub) if n.startswith("agent-") and n.endswith(".jsonl")]
+    return paths
+
+
 class Agents(Runs):
     """The agent on top, then its Claude Code subagents at work."""
 
@@ -2851,22 +2904,38 @@ class Agents(Runs):
         ref = pane.get("agent_session") or {}
         self.title = pane.get("label") or pane.get("terminal_title_stripped") or ""
         self.agent_status = pane.get("agent_status") or ""
-        found = []
-        if ref.get("agent") == "claude" and ref.get("value"):
-            root = os.path.expanduser("~/.claude/projects")
-            try:
-                found = [os.path.join(root, d, ref["value"] + ".jsonl") for d in os.listdir(root)]
-            except OSError:
-                pass
-        found = [f for f in found if os.path.isfile(f)]
-        session = max(found, key=os.path.getmtime) if found else ""
+        value = ref.get("value") if ref.get("agent") == "claude" else None
+        # Its transcript and task folder are looked for afresh when herdr names another session,
+        # and every 30s (a resume elsewhere); in between, the ones found are kept.
+        kept = getattr(self, "kept", None)
+        if kept and kept[0] == value and time.time() - kept[1] < 30 and (not kept[2] or os.path.isfile(kept[2])):
+            session, tasks = kept[2], kept[3]
+        else:
+            found = []
+            if value:
+                root = os.path.expanduser("~/.claude/projects")
+                try:
+                    found = [os.path.join(root, d, value + ".jsonl") for d in os.listdir(root)]
+                except OSError:
+                    pass
+            found = [f for f in found if os.path.isfile(f)]
+            session = max(found, key=os.path.getmtime) if found else ""
+            tasks = task_folder(os.path.basename(session)[:-len(".jsonl")]) if session else ""
+            self.kept = (value, time.time(), session, tasks)
         if session != self.session:
             self.session, self.results, self.notified, self.read_to, self.stamps = session, {}, {}, 0, []
             self.notified_at = {}
             self.digest = Digest()
             self.cached = ""
         if session:  # the real task list, as often as the session is looked for
-            self.digest.disk = read_tasks(os.path.basename(session)[:-len(".jsonl")])
+            try:  # read again only when a task file came, went or changed
+                key = sorted((e.name, e.stat().st_mtime_ns) for e in os.scandir(tasks)) if tasks else None
+            except OSError:
+                key = None
+            if (session, key) != getattr(self, "tasks_key", ()) or not key:
+                self.tasks_key = (session, key)
+                self.tasks = read_tasks(os.path.basename(session)[:-len(".jsonl")], tasks)
+            self.digest.disk = self.tasks  # (a digest loaded from the cache brings its own)
 
     def read_main(self):
         """What the main transcript has said since the last read: answers to Agent calls
@@ -2940,7 +3009,7 @@ class Agents(Runs):
         folder = self.session[:-len(".jsonl")] + "/subagents" if self.session else ""
         sid = os.path.basename(self.session)[:-len(".jsonl")]
         self.records = (subagents.states(os.path.dirname(BASE), sid) or {}) if self.session else {}  # who works, by the hooks
-        paths = glob.glob(f"{folder}/agent-*.jsonl") + glob.glob(f"{folder}/workflows/*/agent-*.jsonl") if folder else []
+        paths = transcripts(folder) if folder else []
         # A subagent's transcript is read in the background the first time (a deck starting
         # beside a long session would otherwise stall on all of them); it joins once read.
         keep = {r.path: r for r in getattr(self, "every", [])}
@@ -3198,11 +3267,11 @@ class Agents(Runs):
         if self.story():
             return [("j/k", "scroll"), ("esc/⌫", "back")]
         if self.inside():
-            return [("ctrl+d/u", "page"), ("esc", "fold")]
+            return [("ctrl+d/u", "page"), ("esc/⌫", "fold")]
         if self.focus == "log":
             if not self.controls():
-                return [("h/esc", "back")]
-            return [("enter", "press"), ("h/esc", "back")]
+                return [("h/esc/⌫", "back")]
+            return [("enter", "press"), ("h/esc/⌫", "back")]
         return [("L", "side"), ("[ ]", "tabs"), (",", "settings"), ("ctrl+c", "close")]
 
 
@@ -3419,6 +3488,11 @@ class System:
 
     def badge(self):
         return ("·", MUTED_RGB)
+
+    def watch(self):
+        """The sample drawn (a new one read, or taken, as it comes), and what K said."""
+        self.share()
+        return id(self.stats), self.confirm, self.note
 
     def due(self):
         """Seconds until the next sample is due, this deck's or the one it draws from."""
@@ -3764,6 +3838,11 @@ class Deck:
         self.unseen = set()  # tabs with something new not shown yet
         self.settings, self.settings_open, self.setting = settings(), False, 0
         self.last_frame, self.still = None, 0  # the last frame drawn, and how many since were the same
+        # The frame as last built (rows, spinners as SPIN_MARK), what it was built from, and when;
+        # the rows on screen. Built again only when something it shows changed (see draw).
+        self.built, self.token, self.built_at, self.screen = None, None, 0.0, None
+        self.dirty = True  # a key, the mouse, focus or the tabs' data moved: build it again
+        self.refreshed = None  # the section whose data was last refreshed
         self.focus_path = os.path.join(BASE, "focus")
         # The section last picked by hand in any deck, shared by all of them.
         self.shared_path = os.path.join(os.path.dirname(BASE), "section")
@@ -3861,8 +3940,9 @@ class Deck:
         sends no focus reports)."""
         pane = read(os.path.join(BASE, "pane"))
         got = herdr_api("pane.get", {"pane_id": pane}, "pane", "get", pane).get("pane") or {}
-        if "focused" in got:
+        if "focused" in got and FOCUS["pane"] != bool(got["focused"]):
             FOCUS["pane"] = bool(got["focused"])
+            wake()  # the main loop draws it now, not at its next tick
         self.looking = False
 
     FOCUS_EVENTS = [{"type": t} for t in ("pane.focused", "tab.focused", "workspace.focused")]
@@ -3870,23 +3950,29 @@ class Deck:
     def watch_focus(self, path):
         """Focus as herdr moves it: one connection held open for its focus events, and the pane
         asked again on each (and every 10s, should one be missed). Nothing runs in between."""
+        delay = 2.0
         while True:
             try:
                 with socket.socket(socket.AF_UNIX) as s:
                     s.connect(path)
                     s.sendall((json.dumps({"id": "steading-focus", "method": "events.subscribe",
                                            "params": {"subscriptions": self.FOCUS_EVENTS}}) + "\n").encode())
-                    s.settimeout(10)
                     while True:
+                        s.settimeout(10)
                         try:
                             if not s.recv(1 << 16):  # herdr went away
                                 break
+                            delay = 2.0  # it answers: a later loss starts from 2s again
+                            s.settimeout(0.05)  # a focus move sends three events: one look for the burst
+                            while s.recv(1 << 16):
+                                pass
                         except socket.timeout:
                             pass
                         self.look_focus()
             except OSError:
                 pass
-            time.sleep(2)  # herdr restarting: connect again
+            time.sleep(delay)  # herdr restarting, or gone: connect again, less and less often
+            delay = min(30.0, delay * 2)
 
     def refresh(self):
         # Focus reports arrive at once, when the terminal and herdr pass them on; herdr is
@@ -3906,10 +3992,13 @@ class Deck:
         # shown look once a second, not every frame: a session with hundreds of subagents costs.
         hidden = time.time() - getattr(self, "hidden_at", 0) >= 1
         if hidden:
-            self.hidden_at = time.time()
+            self.hidden_at, self.dirty = time.time(), True
         SHOWN["kind"] = self.views[self.section].kind
         for i, view in enumerate(self.views):
-            if (hidden or i == self.section) and view.refresh() and i != self.section:
+            arrived = i == self.section and self.refreshed != i  # just switched to: its data now
+            if arrived:
+                self.refreshed = i
+            if (hidden or arrived) and view.refresh() and i != self.section:
                 self.arrived(i)
         if not getattr(self, "warmed", False):  # once: every tab's rows read ahead, so a first switch is instant
             self.warmed = True
@@ -3968,10 +4057,51 @@ class Deck:
         self.spans = [(i, x0 + CLOSE_W, x1 + CLOSE_W) for i, x0, x1 in spans]
         return f"{bg(STRIP_RGB)}{fg(RED_RGB)}{BOLD} ✕ \033[22m" + bar
 
+    def fading(self):
+        return any(time.time() - getattr(v, "fresh", (None, 0))[1] < FADE_SECS for v in self.views)
+
     def draw(self):
+        """Each tick puts the turning spinners into the frame last built, and writes the rows that
+        differ from the screen's: a spinner's tick writes one short row. The frame is built again
+        when what it shows may have changed: a key, the mouse, focus, the size, the tab's data
+        (refreshed once a second), its watched files, a fade, or a second since (clocks)."""
         cols, rows = shutil.get_terminal_size()
         cols -= 1  # herdr's pane scrollbar covers the last column
         view = self.views[self.section]
+        watch = getattr(view, "watch", None)
+        token = (cols, rows, self.section, FOCUS["pane"], self.settings_open, watch() if watch else None)
+        now = time.time()
+        if self.dirty or token != self.token or now - self.built_at >= 1 or self.built is None or self.fading():
+            self.dirty, self.token, self.built_at = False, token, now
+            self.built = self.build(cols, rows, view)
+        glyph = spin_glyph()
+        shown = [row.replace(SPIN_MARK, glyph) for row in self.built]
+        frame = "".join(shown)
+        if frame == self.last_frame:  # nothing changed: leave the screen alone
+            self.still += 1
+            return
+        self.last_frame, self.still = frame, 0
+        whole = "".join(f"\033[{n};1H{row}" for n, row in enumerate(shown, 1))
+        # Kept for the next deck of this agent at this size: it shows it at once (see shown_cached).
+        if time.time() - getattr(self, "cached_at", 0) > 2:
+            self.cached_at = time.time()
+            try:
+                with open(frame_cache(), "w") as f:
+                    f.write(whole)
+            except OSError:
+                pass
+        if self.screen is None or len(self.screen) != len(shown):  # first, or a new size: every row
+            out = whole
+        else:
+            out = "".join(f"\033[{n};1H{row}" for n, (row, was) in enumerate(zip(shown, self.screen), 1) if row != was)
+        self.screen = shown
+        # Synchronized output: terminals that support it show the frame at once.
+        sys.stdout.write("\033[?2026h" + out + "\033[?2026l")
+        sys.stdout.flush()
+
+    def build(self, cols, rows, view):
+        """The frame as its rows, each clearing its own tail: the tabs, the tab's frame, blank rows
+        to the hints row, then the hints."""
         head, body = view.frame(cols, rows - 1)  # the last row holds the key hints
         # Overwrite in place (each line clears its own tail, \033[J the rest)
         # instead of clearing the screen, so nothing flashes between frames.
@@ -3985,11 +4115,9 @@ class Deck:
                     lines[first + n] = " " * left + line
         if not FOCUS["pane"]:  # without the keyboard the whole deck reads faint, its colours kept
             bar, lines = tint(bar, DIMMED_RGB), [tint(line, DIMMED_RGB) for line in lines]
-        out = [bar, "\033[K"]
         # Never past the hints row: a taller frame would scroll the tabs off the top.
-        for line in lines:
-            out += ["\r\n", fit(line, cols), RESET, "\033[K"]
-        out.append("\033[J")
+        out = [bar + "\033[K"] + [fit(line, cols) + RESET + "\033[K" for line in lines]
+        out += ["\033[K"] * max(0, rows - 1 - len(out))
         # Keys only matter with the keyboard here: faint without it.
         key_rgb, what_rgb = (BRIGHT_RGB, MUTED_RGB) if FOCUS["pane"] else (DIMMED_RGB, DIMMED_RGB)
         pairs = [("j/k", "move"), ("space", "change"), ("esc", "close")] if self.settings_open else view.hints()
@@ -3998,23 +4126,7 @@ class Deck:
             # A search being typed: on the bottom row, as in vim, with enter / esc after it.
             typed = f"{fg(ACCENT[view.kind])}{'?' if view.back else '/'}{fg(BRIGHT_RGB)}{view.search}▏"
             hints = f"{typed}   {hints}"
-        out += [f"\033[{rows};1H", bg(STRIP_RGB), " ", fit(hints, cols - 1), bg(STRIP_RGB), "\033[K", RESET]
-        frame = "".join(out)
-        if frame == self.last_frame:  # nothing changed: leave the screen alone
-            self.still += 1
-            return
-        self.last_frame, self.still = frame, 0
-        # Kept for the next deck of this agent at this size: it shows it at once (see shown_cached).
-        if time.time() - getattr(self, "cached_at", 0) > 2:
-            self.cached_at = time.time()
-            try:
-                with open(frame_cache(), "w") as f:
-                    f.write(frame)
-            except OSError:
-                pass
-        # Synchronized output: terminals that support it show the frame at once.
-        sys.stdout.write("\033[?2026h\033[H" + frame + "\033[?2026l")
-        sys.stdout.flush()
+        return out[:rows - 1] + [bg(STRIP_RGB) + " " + fit(hints, cols - 1) + bg(STRIP_RGB) + "\033[K" + RESET]
 
     def mouse(self, button, col, row):
         """SGR mouse report: 0 = left press, 32 = drag with it held, 64/65 = wheel up/down."""
@@ -4132,12 +4244,33 @@ def shown_cached():
         pass
 
 
+WAKE = []  # a pipe the main loop waits on with the keyboard: a byte in it draws a frame at once
+
+
+def wake():
+    if WAKE:
+        try:
+            os.write(WAKE[1], b"!")
+        except OSError:  # full: a frame is coming anyway
+            pass
+
+
+def back_key(view, key):
+    """A key outside a search: in a log or a detail (what enter opened), q and backspace (or ctrl+h)
+    are esc, leaving it. Elsewhere q is nothing (None): a stray q no longer closes the deck, ctrl+c
+    (or prefix+t) does; backspace goes on as itself."""
+    inside = getattr(view, "focus", "list") == "log"
+    if key in ("q", "\x7f", "\x08") and inside:
+        return "\x1b"
+    return None if key == "q" else key
+
+
 def tick_wait(deck):
     """How long the deck waits for a key before its next frame: 0.05s while a new row fades in,
     0.3s while the frame changes, a second once three frames came out the same (a key still
     wakes it at once). A tab that changes only at known moments (the system tab, at each
     sample) is drawn then, a second apart at most."""
-    if any(time.time() - getattr(v, "fresh", (None, 0))[1] < FADE_SECS for v in deck.views):
+    if Deck.fading(deck):
         return 0.05
     due = getattr(deck.views[deck.section], "due", None)
     if due:
@@ -4158,6 +4291,9 @@ def reap():
 
 def main():
     reap()
+    WAKE[:] = os.pipe()
+    for end in WAKE:
+        os.set_blocking(end, False)
     deck = Deck()
     me = os.path.abspath(__file__)
     born = os.path.getmtime(me)
@@ -4192,7 +4328,12 @@ def main():
                 time.sleep(0.5)
                 continue
             try:
-                if select.select([fd], [], [], tick_wait(deck))[0]:
+                ready = select.select([fd] + WAKE[:1], [], [], tick_wait(deck))[0]
+                if WAKE and WAKE[0] in ready:  # focus moved, as herdr says
+                    os.read(WAKE[0], 4096)
+                    deck.dirty = True
+                if fd in ready:
+                    deck.dirty = True  # a key or the mouse: drawn anew
                     k = os.read(fd, 256).decode("utf-8", "replace")
                     events = MOUSE.findall(k)
                     for button, col, row, kind in events:
@@ -4217,11 +4358,9 @@ def main():
                         if key == "q" and deck.settings_open:  # q closes the settings popup
                             deck.key(key)
                             continue
-                        if key == "q" and not typing:
-                            if getattr(view, "focus", "list") != "log":
-                                continue  # a stray q no longer closes the deck: ctrl+c (or prefix+t) does
-                            key = "\x1b"  # in a log, q goes back to the list as esc does
-                        deck.key(key if typing else ARROWS.get(key, key))
+                        key = key if typing else back_key(view, key)
+                        if key is not None:
+                            deck.key(key if typing else ARROWS.get(key, key))
             except Exception:  # nor a key that trips something
                 crashed()
     except KeyboardInterrupt:

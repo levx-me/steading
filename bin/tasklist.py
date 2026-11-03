@@ -36,10 +36,10 @@ def task_folder(session):
     return best[1] if best and os.path.isdir(best[1]) else own
 
 
-def read_tasks(session):
-    """The session's real task list: [(id, subject, status)] from its folder, oldest first.
-    A missing or empty folder is an empty list."""
-    folder = task_folder(session) if session else ""
+def read_tasks(session, folder=None):
+    """The session's real task list: [(id, subject, status)] from its folder (task_folder's,
+    unless given), oldest first. A missing or empty folder is an empty list."""
+    folder = folder if folder is not None else task_folder(session) if session else ""
     out = []
     for name in os.listdir(folder) if folder and os.path.isdir(folder) else []:
         if not name.endswith(".json"):
