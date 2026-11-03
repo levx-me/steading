@@ -4,16 +4,18 @@ workspace in herdr's sidebar while N agents work there: the main agent (while it
 plus its subagents.
 
 Started by bin/sidebar.py on a tool call, the main agent's or a subagent's; one per pane (a pid
-file in the deck's state dir). Every frame goes straight to herdr's socket (~8 a second, far
-lighter than the CLI). It recounts once a second (the subagents at work by Claude Code's hooks,
+file, crew.pid, in the deck's state dir): a thread of bin/steadingd.py, or its own process
+(crew PANE SUBAGENTS_DIR) when the daemon cannot start. Every frame goes straight to herdr's
+socket (~8 a second, far lighter than the CLI). It recounts once a second (the subagents at work by Claude Code's hooks,
 as bin/subagents.py records them for the deck too, plus the main agent while its turn runs),
 and once none is at work it clears the tokens
 and exits. Each report lapses in 3 s, so a crash leaves nothing behind."""
 import json, os, shutil, socket, sys, time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # -I leaves the script's folder out
-import reexec, subagents  # noqa: E402
+import reexec, steadingd, subagents  # noqa: E402
 
+OWNERS = ("crew", "steadingd.py")  # who may hold a pane's crew.pid: this script, or the daemon running it
 FRAMES = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
 QUIET = 90  # fallback, a subagent the hooks never named: seconds without writing before it stops
 
@@ -71,10 +73,18 @@ def at_work(state, folder):
     return live(os.path.dirname(state), folder) + lead
 
 
-def main(pane, folder, state):
+def paths(pane):
+    """The pane's state folder and its crew's pid file."""
+    state = os.path.join(os.environ.get("TMPDIR", "/tmp"), "steading", pane.replace(":", "_").replace("/", "_"))
+    return state, os.path.join(state, "crew.pid")
+
+
+def main(pane, folder, state, watch=True):
+    """The loop; it returns once none is at work. watch=False in the daemon, whose own watcher
+    re-execs it."""
     space = call("pane.get", {"pane_id": pane}).get("pane", {}).get("workspace_id")
     n, counted, frame = at_work(state, folder), 0.0, 0
-    check = reexec.watcher()
+    check = reexec.watcher() if watch else (lambda: None)
     while True:
         check()
         if time.time() - counted >= 1:
@@ -89,26 +99,14 @@ def main(pane, folder, state):
 
 if __name__ == "__main__":
     pane, folder = sys.argv[1], sys.argv[2]
-    state = os.path.join(os.environ.get("TMPDIR", "/tmp"), "steading", pane.replace(":", "_").replace("/", "_"))
+    state, pidfile = paths(pane)
     os.makedirs(state, exist_ok=True)
-    pidfile = os.path.join(state, "crew.pid")
     shutil.rmtree(os.path.join(state, "agents"), ignore_errors=True)  # markers of the old format: nothing reads them now
-    try:  # one spinner per pane (a re-exec keeps its own pid)
-        pid = int(open(pidfile).read())
-        if pid != os.getpid():
-            os.kill(pid, 0)
-            sys.exit(0)
-    except (OSError, ValueError):
-        pass
-    with open(pidfile, "w") as f:
-        f.write(str(os.getpid()))
+    if not steadingd.claim(pidfile, OWNERS):  # one spinner per pane, here or in the daemon
+        sys.exit(0)
     try:
         main(pane, folder, state)
     except (OSError, ValueError, KeyError):
         pass
     finally:
-        try:
-            if open(pidfile).read() == str(os.getpid()):
-                os.remove(pidfile)
-        except OSError:
-            pass
+        steadingd.release(pidfile)

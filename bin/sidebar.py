@@ -16,6 +16,7 @@ It also names the pane and its tab after the session's title, when that changes.
 subagents work, bin/crew spins $crew ("⠋ N") on the pane and its workspace.
 
 Tool calls report at most every 3 seconds; the end of a turn always reports."""
+import functools
 import json
 import os
 import re
@@ -40,6 +41,52 @@ if os.environ.get("HERDR_ENV") != "1" or not pane:
     sys.exit(0)  # outside herdr
 state = os.path.join(os.environ.get("TMPDIR", "/tmp"), "steading", pane.replace(":", "_").replace("/", "_"))
 herdr = os.environ.get("HERDR_BIN_PATH", "herdr")
+os.environ.setdefault("STEADING_BASE", state)
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)  # -I leaves the script's folder out
+import steadingd  # noqa: E402
+
+
+@functools.lru_cache(maxsize=None)
+def daemon():
+    """Whether bin/steadingd.py, the machine's one daemon, answers: started when it does not, and
+    waited on for up to 1 s (this runs in the background, so no tool call waits). Asked once a run."""
+    try:
+        steadingd.ask("/ping")
+        return True
+    except (OSError, ValueError):
+        pass
+    subprocess.Popen([os.path.join(HERE, "py"), "-I", os.path.join(HERE, "steadingd.py")],
+                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+    for _ in range(20):
+        time.sleep(0.05)
+        try:
+            steadingd.ask("/ping")
+            return True
+        except (OSError, ValueError):
+            pass
+    return False
+
+
+def helper(kind, helper_args, script):
+    """A helper (usage.py, steading_run.py, crew) run in the daemon; as its own process, as
+    before it, only when the daemon cannot start. None can do anything without herdr's socket."""
+    if not os.path.exists(os.environ.get("HERDR_SOCKET_PATH", "")):
+        return
+    try:
+        if daemon():
+            steadingd.ask("/start", {"kind": kind, "args": helper_args})
+            return
+    except (OSError, ValueError):
+        pass
+    subprocess.Popen([sys.executable, "-I", os.path.join(HERE, script), *helper_args],
+                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+
+
+def spin():
+    """bin/crew spins $crew while agents work here and exits once none does (one per pane)."""
+    helper("crew", [pane, event.get("transcript_path", "")[:-len(".jsonl")] + "/subagents"], "crew")
+
 
 # The main agent's turn, as Claude Code's own hooks see it: herdr reads Claude off the screen and
 # calls it idle while a tool runs. A request or a tool call marks the turn; its end clears it.
@@ -66,18 +113,8 @@ elif not event.get("agent_id"):
         os.makedirs(state, exist_ok=True)
         open(lead_mark, "w").close()
         if hook_name == "UserPromptSubmit":
-            subprocess.Popen([sys.executable, "-I", os.path.join(os.path.dirname(os.path.abspath(__file__)), "crew"), pane,
-                              event.get("transcript_path", "")[:-len(".jsonl")] + "/subagents"],
-                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                             start_new_session=True)
+            spin()
             sys.exit(0)
-
-
-def spin():
-    """bin/crew spins $crew while agents work here and exits once none does (one per pane)."""
-    folder = event.get("transcript_path", "")[:-len(".jsonl")] + "/subagents"
-    subprocess.Popen([sys.executable, "-I", os.path.join(os.path.dirname(os.path.abspath(__file__)), "crew"), pane, folder],
-                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
 
 
 if event.get("agent_id"):
@@ -107,10 +144,7 @@ open(stamp, "w").close()
 if event.get("hook_event_name") != "Stop":
     spin()  # the main agent at work counts too
 
-os.environ.setdefault("STEADING_BASE", state)
-HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, HERE)  # -I leaves the script's folder out
-import steading_run, steadingd  # noqa: E402
+import steading_run  # noqa: E402
 from tasklist import task_folder  # noqa: E402
 from transcripts import Digest, context_use, git_state  # noqa: E402
 
@@ -220,41 +254,10 @@ try:
 except (OSError, subprocess.TimeoutExpired, ValueError, KeyError):
     pass
 
-
-def daemon():
-    """Whether bin/steadingd.py, the machine's one daemon, answers: started when it does not, and
-    waited on for up to 1 s (this runs in the background, so no tool call waits)."""
-    try:
-        steadingd.ask("/ping")
-        return True
-    except (OSError, ValueError):
-        pass
-    subprocess.Popen([os.path.join(HERE, "py"), "-I", os.path.join(HERE, "steadingd.py")],
-                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
-    for _ in range(20):
-        time.sleep(0.05)
-        try:
-            steadingd.ask("/ping")
-            return True
-        except (OSError, ValueError):
-            pass
-    return False
-
-
 # The helpers: $usage (bin/usage.py, one for the machine) and, while something runs, the
-# workspace's refresher. Both run in the daemon; each as its own process, as before it, only
-# when the daemon cannot start. Neither can do anything without herdr's socket.
-if os.path.exists(os.environ.get("HERDR_SOCKET_PATH", "")):
-    up = daemon()
-    for kind, helper_args, script in wanted:
-        try:
-            if up:
-                steadingd.ask("/start", {"kind": kind, "args": helper_args})
-                continue
-        except (OSError, ValueError):
-            pass
-        subprocess.Popen([sys.executable, "-I", os.path.join(HERE, script), *helper_args],
-                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+# workspace's refresher, in the daemon (see helper above).
+for kind, helper_args, script in wanted:
+    helper(kind, helper_args, script)
 
 # The pane's name: the session's title (one set with /rename, else Claude's own, which changes
 # only when the talk turns to something else), so the pane and its tab read as the conversation

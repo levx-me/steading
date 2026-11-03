@@ -2816,6 +2816,8 @@ class Agents(Runs):
 PLATFORM = sys.platform  # the tests set it to draw another system
 SAMPLE_SECS = 2
 SHARED = os.path.join(os.path.dirname(BASE), "system.json")  # the last sample, drawn by every deck on this tab
+WANT = os.path.join(os.path.dirname(BASE), "system.want")  # touched while on this tab: bin/steadingd.py samples then
+DAEMON = os.path.join(os.path.dirname(BASE), "daemon.pid")
 Row = collections.namedtuple("Row", "pid depth name command user rss cpu kind open")
 
 
@@ -3002,6 +3004,8 @@ class System:
         self.servers = servers  # the servers section, whose scan finds this project's dev servers
         self.stats, self.labels = {}, {}
         self.sampled_at, self.sampling, self.was, self.shared_at = 0.0, False, None, 0.0
+        self.wanted = self.want_since = 0.0  # system.want last touched; since when, on the tab this time
+        self.daemon = False                  # whether bin/steadingd.py runs, to sample for the decks
         self.by, self.mine = "cpu", False  # s: by cpu or memory; u: this user's processes only
         self.unfolded = set()              # Claude sessions showing what runs under them
         # The selection is a row, as in btop: after a re-sort it is whatever process lands there. The
@@ -3030,9 +3034,15 @@ class System:
         return self.sampled_at + SAMPLE_SECS - time.time()
 
     def share(self):
-        """One deck samples for all of them: each draws the last sample from SHARED, and the deck
-        that took it takes the next. Another steps in once it has not come for a while (that deck
-        left the tab, or closed); two stepping in at once only sample twice."""
+        """One samples for all the decks: each draws the last sample from SHARED. bin/steadingd.py
+        does, while a deck touches WANT; with no daemon, the deck that took the last sample takes
+        the next. A deck steps in once none has come for a while (the deck sampling left the tab,
+        or closed; the daemon gets 5 s to begin); two stepping in at once only sample twice."""
+        now = time.time()
+        if now - self.wanted >= 1:
+            if now - self.wanted > 3:  # back on the tab
+                self.want_since = now
+            self.wanted, self.daemon = now, self.want()
         try:
             at = os.path.getmtime(SHARED)
         except OSError:
@@ -3048,9 +3058,26 @@ class System:
             except (OSError, ValueError, TypeError):
                 pass
         mine = not at or (at == self.shared_at and self.wrote)
+        if self.daemon and now - self.want_since < 2 * SAMPLE_SECS + 1:
+            return
         if not self.sampling and time.time() - max(at, self.sampled_at) >= (SAMPLE_SECS if mine else 2 * SAMPLE_SECS + 1):
             self.sampling = True
             background(self.sample)
+
+    def want(self):
+        """Ask bin/steadingd.py to sample, naming this project's servers for it to mark; whether
+        it runs."""
+        try:
+            with open(WANT, "a"):
+                pass
+            os.utime(WANT)
+            with open(os.path.join(BASE, "system.servers"), "w") as f:
+                json.dump(self.servers.found, f)
+            with open(DAEMON) as f:
+                os.kill(int(f.read()), 0)
+            return True
+        except (OSError, ValueError):
+            return False
 
     wrote = False  # whether the last sample in SHARED is this deck's
 

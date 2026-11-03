@@ -81,10 +81,25 @@ except (OSError, ValueError) as e:
   const sidebar = () => Bun.spawnSync(["python3", "-I", join(bin, "sidebar.py")], { env, cwd: www,
     stdin: Buffer.from(JSON.stringify({ hook_event_name: "Stop", session_id: "abcd1234-0000", cwd: www })) });
   const pid = () => pidIn(join(base, "daemon.pid"));
-  const watch = () => { for (const f of ["daemon.pid", "usage.pid", "run-w1.pid"]) { const p = pidIn(join(base, f)); if (p) started.push(p); } };
+  const watch = () => { for (const f of ["daemon.pid", "usage.pid", "run-w1.pid", "test_p0/crew.pid"]) { const p = pidIn(join(base, f)); if (p) started.push(p); } };
   const lines = () => (existsSync(log) ? readFileSync(log, "utf8").trim().split("\n").filter(Boolean) : []);
-  return { dir, base, env, bin, daemon, ask, sidebar, pid, watch, lines, www };
+  const helpers = () => { try { return JSON.parse(readFileSync(join(base, "daemon.helpers.json"), "utf8")); } catch { return null; } };
+  return { dir, base, env, bin, daemon, ask, sidebar, pid, watch, lines, www, helpers };
 }
+
+// A copy of bin/, so touching its files leaves the repository's alone.
+function binCopy() {
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), "sdbin-")));
+  dirs.push(dir);
+  const bin = join(dir, "bin");
+  cpSync(join(root, "bin"), bin, { recursive: true });
+  rmSync(join(bin, "__pycache__"), { recursive: true, force: true });
+  return bin;
+}
+
+// The ps states (Z: a zombie) of pid's children whose command line holds text.
+const children = (pid: number, text: string) => Bun.spawnSync(["ps", "-A", "-o", "ppid=,stat=,args="]).stdout.toString()
+  .split("\n").map((l) => l.trim().split(/\s+/)).filter(([ppid, , ...args]) => Number(ppid) === pid && args.join(" ").includes(text)).map(([, stat]) => stat);
 
 describe("the daemon", () => {
   test("two started at once leave one, which answers /ping with its pid", async () => {
@@ -97,6 +112,38 @@ describe("the daemon", () => {
     expect(s.ask("/ping")).toEqual({ pid: winner.pid });
     expect(winner.exitCode).toBe(null);
   });
+
+  test("five started at once, twenty times over, always leave exactly one, and nothing in its log", async () => {
+    for (let round = 0; round < 20; round++) {
+      const s = await setup();
+      const all = [1, 2, 3, 4, 5].map(() => s.daemon());
+      const winner = await until(() => { const live = all.filter((p) => p.exitCode === null); return live.length === 1 && live[0]; }, 8000);
+      expect(winner && winner.pid).toBe(s.pid());
+      expect(s.ask("/ping")).toEqual({ pid: s.pid() });
+      for (const p of all) if (p !== winner) expect(p.exitCode).toBe(0);
+      expect(existsSync(join(s.base, "daemon.log"))).toBe(false);
+      expect(require("node:fs").readdirSync(s.base).filter((f: string) => f.startsWith("daemon.pid."))).toEqual([]); // no pid file of its own left
+      for (const p of all) try { p.kill(9); } catch {}
+    }
+  }, 60000);
+
+  test("a pane that names a folder above the state dirs, a body too big, or a NUL is refused; the daemon goes on", async () => {
+    const s = await setup();
+    s.daemon();
+    await until(() => s.pid() && s.ask("/ping").pid);
+    for (const pane of [".", ".."]) {
+      expect(s.ask("/start", { kind: "crew", args: [pane, "/x"] }).failed).toContain("400");
+      expect(s.ask("/start", { kind: "run", args: [pane, "w1", s.www, "0"] }).failed).toContain("400");
+    }
+    expect(s.ask("/start", { kind: "crew", args: ["test:p0", "/x\u0000y"] }).failed).toContain("400");
+    // A 50 MB body is refused from its header alone, at once, not read first.
+    const big = Bun.spawnSync(["python3", "-I", "-c", `import socket, sys
+s = socket.socket(socket.AF_UNIX); s.settimeout(2); s.connect(sys.argv[1])
+s.sendall(b"POST /start HTTP/1.0\\r\\nContent-Length: 50000000\\r\\n\\r\\n")
+print(s.recv(100).split(b"\\r\\n")[0].decode())`, join(s.base, "daemon.sock")]);
+    expect(big.stdout.toString()).toStartWith("HTTP/1.0 413 "); // (its phrase differs between Pythons)
+    expect(s.ask("/ping")).toEqual({ pid: s.pid() });
+  }, 15000);
 
   test("the sidebar starts it with both helpers; killed with -9, the next sidebar run brings all back", async () => {
     const s = await setup();
@@ -144,6 +191,7 @@ describe("the daemon", () => {
     expect(await until(() => existsSync(log) && readFileSync(log, "utf8").includes("KeyError: 'HERDR_SOCKET_PATH'"))).toBe(true);
     expect(s.ask("/ping")).toEqual({ pid: s.pid() });
     expect(await until(() => !existsSync(join(s.base, "usage.pid")))).toBe(true); // given back as it ended
+    expect(await until(() => JSON.stringify(s.helpers()) === "[]")).toBe(true); // and no longer to restart
     expect(s.ask("/start", { kind: "usage", args: [] })).toEqual({ state: "started" });
     // A request that names no helper is refused, and the daemon goes on.
     expect(s.ask("/start", { kind: "run", args: ["test:p0"] }).failed).toContain("400");
@@ -167,6 +215,139 @@ describe("the daemon", () => {
     expect(await until(() => s.ask("/ping").pid)).toBe(pid);
     expect(s.pid()).toBe(pid);
   }, 15000);
+
+  test("its helpers run again after a re-exec, and after kill -9 once it is started again", async () => {
+    const s = await setup({ bin: binCopy() });
+    writeFileSync(join(s.base, "test_p0", "main-busy"), ""); // the main agent's turn runs: the crew spins
+    s.daemon();
+    const first = await until(() => s.pid() && s.ask("/ping").pid);
+    const crew = { kind: "crew", args: ["test:p0", join(s.dir, "subagents")] };
+    const run = { kind: "run", args: ["test:p0", "w1", s.www, "0"] };
+    for (const h of [{ kind: "usage", args: [] }, run, crew]) expect(s.ask("/start", h)).toEqual({ state: "started" });
+    expect(s.helpers()).toEqual([{ kind: "usage", args: [] }, run, crew].map((h) => [h.kind, h.args]));
+    const sock = join(s.base, "daemon.sock");
+    const bound = statSync(sock);
+    const later = Date.now() / 1000 + 5;
+    utimesSync(join(s.bin, "steadingd.py"), later, later);
+    expect(await until(() => { try { const now = statSync(sock); return now.ino !== bound.ino || now.birthtimeMs !== bound.birthtimeMs; } catch { return false; } })).toBe(true);
+    // Re-exec'd, it holds every pid file again and runs each: asked, each is "running", not started anew.
+    const crewPid = join(s.base, "test_p0", "crew.pid");
+    expect(await until(() => s.ask("/ping").pid)).toBe(first);
+    expect(s.ask("/start", { kind: "usage", args: [] })).toEqual({ state: "running" });
+    expect(s.ask("/ping")).toEqual({ pid: first });
+    expect(s.ask("/start", run)).toEqual({ state: "running" });
+    expect(s.ask("/start", crew)).toEqual({ state: "running" });
+    process.kill(first, "SIGKILL");
+    await until(() => !alive(first));
+    s.daemon();
+    s.watch();
+    const second = await until(() => s.pid() !== first && s.pid() && s.ask("/ping").pid);
+    expect(second).not.toBe(first);
+    for (const f of ["usage.pid", "run-w1.pid", "test_p0/crew.pid"]) expect(await until(() => pidIn(join(s.base, f)) === second)).toBe(true);
+    expect(s.ask("/start", crew)).toEqual({ state: "running" });
+    expect(pidIn(crewPid)).toBe(second);
+  }, 30000);
+
+  test("the crew spins in the daemon: one per pane, a standalone one exits, and it ends once none works", async () => {
+    const s = await setup();
+    const busy = join(s.base, "test_p0", "main-busy");
+    writeFileSync(busy, "");
+    s.daemon();
+    await until(() => s.pid() && s.ask("/ping").pid);
+    const crew = { kind: "crew", args: ["test:p0", join(s.dir, "subagents")] };
+    expect(s.ask("/start", crew)).toEqual({ state: "started" });
+    expect(s.ask("/start", crew)).toEqual({ state: "running" });
+    const crewPid = join(s.base, "test_p0", "crew.pid");
+    expect(pidIn(crewPid)).toBe(s.pid());
+    // It spins at its 8 frames a second, each report lapsing in 3 s.
+    const spins = () => s.lines().filter((l) => l.includes('"pane.report_metadata"') && l.includes("steading-crew") && l.includes('"crew": "')).length;
+    const before = spins();
+    await Bun.sleep(1000);
+    const frames = spins() - before;
+    expect(frames).toBeGreaterThanOrEqual(5);
+    expect(frames).toBeLessThanOrEqual(9);
+    expect(s.lines().some((l) => l.includes("steading-crew") && l.includes('"ttl_ms": 3000'))).toBe(true);
+    const p = Bun.spawn(["python3", "-I", join(s.bin, "crew"), ...crew.args], { env: s.env, stdout: "ignore", stderr: "ignore" });
+    started.push(p.pid);
+    expect(await Promise.race([p.exited, Bun.sleep(3000).then(() => -1)])).toBe(0);
+    expect(pidIn(crewPid)).toBe(s.pid());
+    rmSync(busy); // the turn is over: the token is cleared, the thread ends and gives its pid file back
+    expect(await until(() => !existsSync(crewPid), 4000)).toBe(true);
+    expect(s.lines().at(-1)).toContain('"crew": null');
+    expect(s.helpers()).toEqual([]);
+    // A request for a crew that names no folder is refused.
+    expect(s.ask("/start", { kind: "crew", args: ["test:p0"] }).failed).toContain("400");
+  }, 15000);
+
+  test("a deck on the System tab has the daemon sample: system.json comes fresh, macmon runs under it, and both stop once none asks", async () => {
+    const s = await setup();
+    const tools = join(s.dir, "tools");
+    mkdirSync(tools);
+    writeFileSync(join(tools, "macmon"), `#!/bin/sh\nwhile :; do echo '{"all_power": 1}'; sleep 0.2; done\n`);
+    chmodSync(join(tools, "macmon"), 0o755);
+    s.env.PATH = `${tools}:${s.env.PATH}`;
+    // A deck names its project's servers for the daemon to mark.
+    writeFileSync(join(s.base, "test_p0", "system.servers"), JSON.stringify([["3000", String(process.pid), "bun test"]]));
+    const daemon = s.daemon();
+    await until(() => s.pid() && s.ask("/ping").pid);
+    const want = join(s.base, "system.want");
+    const shared = join(s.base, "system.json");
+    const touch = () => { writeFileSync(want, ""); writeFileSync(join(s.base, "test_p0", "system.servers"), JSON.stringify([["3000", String(process.pid), "bun test"]])); };
+    touch();
+    const toucher = setInterval(touch, 1000);
+    try {
+      const t0 = Date.now();
+      expect(await until(() => existsSync(shared), 4500)).toBe(true); // within 2 * SAMPLE_SECS
+      expect(Date.now() - t0).toBeLessThan(4500);
+      const [stats] = JSON.parse(readFileSync(shared, "utf8"));
+      expect(stats.cpu).toBeGreaterThanOrEqual(0);
+      expect(stats.ports).toEqual({ [String(process.pid)]: "3000" });
+      // A sample every SAMPLE_SECS.
+      const was = statSync(shared).mtimeMs;
+      expect(await until(() => statSync(shared).mtimeMs > was, 3500)).toBe(true);
+      if (process.platform === "darwin") expect(await until(() => children(daemon.pid, "macmon pipe").length === 1)).toBe(true);
+    } finally {
+      clearInterval(toucher);
+    }
+    // No deck asks: within 5 s the want is stale, the thread ends, macmon is killed and reaped.
+    expect(await until(() => children(daemon.pid, "macmon pipe").length === 0 && Date.now() - statSync(shared).mtimeMs > 2500, 10000)).toBe(true);
+    const last = statSync(shared).mtimeMs;
+    await Bun.sleep(2500);
+    expect(statSync(shared).mtimeMs).toBe(last);
+    expect(s.ask("/ping")).toEqual({ pid: s.pid() });
+  }, 30000);
+
+  test("a deck draws the daemon's fresh sample and takes none; with a daemon it waits for one; with none it samples as before", () => {
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), "sdsys-")));
+    dirs.push(dir);
+    const base = join(dir, "steading", "test_p0");
+    mkdirSync(base, { recursive: true });
+    const r = Bun.spawnSync(["python3", "-I", "-c", `import json, os, sys, time, types, importlib.util as u
+sys.argv = ["v", sys.argv[1]]
+spec = u.spec_from_file_location("v", ${JSON.stringify(join(root, "bin/viewer.py"))})
+m = u.module_from_spec(spec); spec.loader.exec_module(m)
+calls = []
+m.background = lambda fn, *a: calls.append(fn.__name__)
+top = os.path.dirname(m.BASE)
+def deck(found=()):
+    return m.System(types.SimpleNamespace(found=list(found)))
+out = {}
+# none: the deck samples at once, as before the daemon
+s = deck(); s.share(); out["none"] = calls[:]; del calls[:]
+# a live daemon, no sample yet: the deck waits for it, touching system.want and naming its servers
+open(os.path.join(top, "daemon.pid"), "w").write(str(os.getpid()))
+s = deck([("3000", "1", "node")]); s.share()
+out["daemon"] = [calls[:], os.path.exists(os.path.join(top, "system.want")), json.load(open(os.path.join(m.BASE, "system.servers")))]
+del calls[:]
+# the daemon's sample, fresh (the election alone, no grace): drawn, no sample taken
+os.remove(os.path.join(top, "daemon.pid"))
+with open(m.SHARED, "w") as f:
+    json.dump([{"cpu": 42.0, "have": [], "procs": {}}, None], f)
+s = deck(); s.share(); out["fresh"] = [calls[:], s.stats.get("cpu")]
+print(json.dumps(out))`, base], { env: { PATH: process.env.PATH! } });
+    expect(r.stderr.toString()).toBe("");
+    expect(JSON.parse(r.stdout.toString())).toEqual({ none: ["sample"], daemon: [[], true, [["3000", "1", "node"]]], fresh: [[], 42] });
+  });
 
   test("when it cannot start (a socket path too long to bind), the sidebar runs the helpers as their own processes", async () => {
     const s = await setup({ tmp: "t".repeat(90) });
