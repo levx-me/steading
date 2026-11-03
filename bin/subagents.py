@@ -136,12 +136,16 @@ def pending(launched, ended, since=0, now=None):
 
 
 def exited(output):
-    """Whether a background command's output file ends with Claude Code's "[exited with code N]"."""
+    """Whether a background command has ended by its output file: it ends with Claude Code's
+    "[exited with code N]", or it is gone (Claude Code made it before the command started, so a
+    missing file, or tasks folder, means its session was cleaned up)."""
     try:
         with open(output, "rb") as f:
             f.seek(max(0, os.path.getsize(output) - 200))
             return bool(EXITED.search(f.read()))
-    except OSError:
+    except (FileNotFoundError, NotADirectoryError):
+        return True
+    except OSError:  # there but unreadable (permissions, ...): no word either way, so still pending
         return False
 
 

@@ -616,7 +616,13 @@ agent("pm5", {}, row(type="user", message={"content": [{"type": "tool_result", "
       "content": f"Command running in background with ID: bg5. Output is being written to: {d}/bg5.output. You will be notified."}]},
       toolUseResult={"backgroundTaskId": "bg5"}))
 agent("pm6", {"finished": True}, launch.replace("bg1", "bg6"))    # its run is over: whatever it left runs on unwatched
-for a in ("pm1", "pm2", "pm3", "pm4", "pm5", "pm6"):
+launched_to = lambda t, out: row(type="user", message={"content": [{"type": "tool_result", "tool_use_id": t,
+      "content": f"Command running in background with ID: {t}. Output is being written to: {out}. You will be notified."}]},
+      toolUseResult={"backgroundTaskId": t})
+agent("pm7", {}, launched_to("bg7", f"{d}/gone/tasks/bg7.output"))     # its tasks folder was cleaned up: ended
+open(f"{d}/bg8.output", "w").write("running\\n"); os.chmod(f"{d}/bg8.output", 0)
+agent("pm8", {}, launched_to("bg8", f"{d}/bg8.output"))           # unreadable: no word either way, still waited on
+for a in ("pm1", "pm2", "pm3", "pm4", "pm5", "pm6", "pm7", "pm8"):
     rec("SubagentStart", a); rec("SubagentStop", a)
 rec("SubagentStart", "w2")
 open(f"{d}/s1.jsonl", "w").write(row(type="user", message={"content": "go"}))
@@ -636,13 +642,14 @@ print(json.dumps([show(), pm1.status()[0]]))
     expect(r.stderr.toString()).toBe("");
     const [listed, more, after] = r.stdout.toString().trim().split("\n").map((l) => JSON.parse(l));
     expect(listed.sort()).toEqual(["* w2: ", "◷ pm1: waits on 1 background command", "◷ pm2: waits on 1 subagent",
-      "◷ pm3: waits on 2 teammates"].sort());
+      "◷ pm3: waits on 2 teammates", "◷ pm8: waits on 1 background command"].sort());
     // Waiting is no work for the $crew: only w2 is counted. The main agent's team card shows the waiting ones.
     expect(more).toEqual(["waiting", 1, expect.arrayContaining(["pm1", "pm2", "pm3"])]);
     expect(more[2]).not.toContain("pm4");
     expect(more[2]).not.toContain("pm5");
     expect(more[2]).not.toContain("pm6");
-    expect([after[0].sort(), after[1]]).toEqual([["* w2: ", "◷ pm2: waits on 1 subagent", "◷ pm3: waits on 2 teammates"].sort(), "✓"]);
+    expect([after[0].sort(), after[1]]).toEqual([["* w2: ", "◷ pm2: waits on 1 subagent", "◷ pm3: waits on 2 teammates",
+      "◷ pm8: waits on 1 background command"].sort(), "✓"]);
   });
 
   test("a manager waiting quietly on its workers stays listed, its workers under it", () => {
