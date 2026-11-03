@@ -611,7 +611,12 @@ agent("pm3", {})                                                  # its teammate
 for t in ("t3a", "t3b"):
     agent(t, {"parentAgentId": "pm3", "taskKind": subagents.TEAMMATE}); rec("SubagentStart", t); rec("TeammateIdle", t)
 agent("pm4", {})                                                  # nothing left: done
-for a in ("pm1", "pm2", "pm3", "pm4"):
+open(f"{d}/bg5.output", "w").write("ok\\n\\n[exited with code 0]\\n")    # its command has exited, no notification yet
+agent("pm5", {}, row(type="user", message={"content": [{"type": "tool_result", "tool_use_id": "u5",
+      "content": f"Command running in background with ID: bg5. Output is being written to: {d}/bg5.output. You will be notified."}]},
+      toolUseResult={"backgroundTaskId": "bg5"}))
+agent("pm6", {"finished": True}, launch.replace("bg1", "bg6"))    # its run is over: whatever it left runs on unwatched
+for a in ("pm1", "pm2", "pm3", "pm4", "pm5", "pm6"):
     rec("SubagentStart", a); rec("SubagentStop", a)
 rec("SubagentStart", "w2")
 open(f"{d}/s1.jsonl", "w").write(row(type="user", message={"content": "go"}))
@@ -635,6 +640,8 @@ print(json.dumps([show(), pm1.status()[0]]))
     // Waiting is no work for the $crew: only w2 is counted. The main agent's team card shows the waiting ones.
     expect(more).toEqual(["waiting", 1, expect.arrayContaining(["pm1", "pm2", "pm3"])]);
     expect(more[2]).not.toContain("pm4");
+    expect(more[2]).not.toContain("pm5");
+    expect(more[2]).not.toContain("pm6");
     expect([after[0].sort(), after[1]]).toEqual([["* w2: ", "◷ pm2: waits on 1 subagent", "◷ pm3: waits on 2 teammates"].sort(), "✓"]);
   });
 

@@ -98,32 +98,51 @@ def states(root, sid, now=None):
 
 # An agent's own background work, from its transcript: a command it started in the background (Bash
 # run_in_background, or one moved there on its timeout) gets a backgroundTaskId in its tool result,
-# and the task-notification that says it ended names that id. The text is matched as bytes, line by
-# line, with no JSON parsing; a quoted notification only ends a task early.
+# with the file its output goes to; the task-notification that says it ended names that id. An agent
+# whose turn is over gets no notification until it runs again, so the output file says it too: Claude
+# Code ends it with "[exited with code N]". The text is matched as bytes, line by line, with no JSON
+# parsing; a quoted notification only ends a task early.
 LAUNCHED = re.compile(rb'"backgroundTaskId":\s*"([^"]+)"')
+OUTPUT = re.compile(rb"Output is being written to: ([^\s\"\\]+?)\.?(?:\s|\\n|\")")
 ENDED = re.compile(rb"<task-id>([^<]+)</task-id>")
+EXITED = re.compile(rb"\[exited with code -?\d+\]\s*$")
 STAMP = re.compile(rb'"timestamp":\s*"(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d)')
 
 
 def scan_background(data, launched, ended):
-    """Note the launches ({task id: when, in seconds}) and the ends (task ids) in data, whole lines
-    of a transcript."""
+    """Note the launches ({task id: (when, in seconds; its output file)}) and the ends (task ids) in
+    data, whole lines of a transcript."""
     for m in LAUNCHED.finditer(data):
-        end = data.find(b"\n", m.end())
-        at = STAMP.search(data, data.rfind(b"\n", 0, m.start()) + 1, end if end >= 0 else len(data))  # its line's
+        start, end = data.rfind(b"\n", 0, m.start()) + 1, data.find(b"\n", m.end())
+        end = end if end >= 0 else len(data)
+        at, out = STAMP.search(data, start, end), OUTPUT.search(data, start, end)  # its line's
         try:
-            launched[m.group(1).decode()] = calendar.timegm(time.strptime(at.group(1).decode(), "%Y-%m-%dT%H:%M:%S"))
+            when = calendar.timegm(time.strptime(at.group(1).decode(), "%Y-%m-%dT%H:%M:%S"))
         except (AttributeError, ValueError):
-            launched[m.group(1).decode()] = time.time()
+            when = time.time()
+        launched[m.group(1).decode()] = (when, out.group(1).decode() if out else "")
     ended.update(m.group(1).decode().strip() for m in ENDED.finditer(data))
 
 
 def pending(launched, ended, since=0, now=None):
-    """The background commands still running, as far as the transcript says: launched, not ended,
-    not started before since (the session's latest clear: a new process, so they died with the old
+    """The background commands still running, as far as the transcript says: launched, not ended
+    (no notification, no exit line in its output), not started before since (the session's latest clear: a new process, so they died with the old
     one) nor over STALE ago."""
     now = now or time.time()
-    return sorted(t for t, at in launched.items() if t not in ended and at >= since and now - at < STALE)
+    for t, (at, out) in launched.items():
+        if t not in ended and out and exited(out):
+            ended.add(t)  # (for good: it is not read again)
+    return sorted(t for t, (at, out) in launched.items() if t not in ended and at >= since and now - at < STALE)
+
+
+def exited(output):
+    """Whether a background command's output file ends with Claude Code's "[exited with code N]"."""
+    try:
+        with open(output, "rb") as f:
+            f.seek(max(0, os.path.getsize(output) - 200))
+            return bool(EXITED.search(f.read()))
+    except OSError:
+        return False
 
 
 def cleared(root, sid):

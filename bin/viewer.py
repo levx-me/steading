@@ -2573,6 +2573,20 @@ class AgentRun(Run):
             cache_save(self.path, self, {"read_to": self.read_to, "digest": self.digest, "stamps": self.stamps,
                                          "launched": self.launched, "ended_tasks": self.ended_tasks})
 
+    def finished(self):
+        """Whether its run is over for good: Claude Code marks its meta "finished" when it hands its
+        report back (read again whenever the meta file changes)."""
+        meta = self.path[:-len(".jsonl")] + ".meta.json"
+        try:
+            at = os.stat(meta).st_mtime_ns
+            if at != getattr(self, "meta_at", at):
+                with open(meta) as f:
+                    self.meta = json.load(f)
+            self.meta_at = at
+        except (OSError, ValueError):
+            pass
+        return bool(self.meta.get("finished"))
+
     def parent(self):
         """The subagent that started this one (a subagent's subagent), or None."""
         pid = self.meta.get("parentAgentId")
@@ -3075,7 +3089,7 @@ class Agents(Runs):
             if r in waits:
                 return waits[r]
             waits[r] = None  # (a loop in the tree reads as nothing)
-            if act[r] not in ("done", "idle"):
+            if act[r] not in ("done", "idle") or r.finished():  # at work, or its run is over: nothing it waits on
                 return None
             commands = 0
             try:

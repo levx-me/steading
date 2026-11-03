@@ -37,11 +37,11 @@ thinking for minutes without a word stays listed and an idle teammate leaves; th
 
 **Waiting.** A subagent whose own turn has ended (done, or a teammate gone idle) while work it started
 goes on stays listed as `◷`, dimmed, its row saying what it waits on: `waits on 1 background command ·
-2 teammates`. That work is a command it ran in the background (or one moved there on its timeout) whose
-task-notification has not reached its transcript yet, and subagents it started that are still there:
+2 teammates`. That work is a command it ran in the background (or one moved there on its timeout) with
+no task-notification in its transcript and no exit line in its output file yet, and subagents it started that are still there:
 at work, waiting themselves, or idle teammates (an idle teammate counts, since it can still be sent a
-message). It leaves the list once none is left. A background command started before the session's
-process restarted, or over 3 h ago, counts as gone. Waiting is not work: the sidebar's `$crew` does not
+message). It leaves the list once none is left, or once it has handed its report back (its run is over
+for good). A background command started before the session's process restarted, or over 3 h ago, counts as gone. Waiting is not work: the sidebar's `$crew` does not
 count it, and the team card shows it with `◷`.
 
 ## jobs
