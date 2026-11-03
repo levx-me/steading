@@ -1,7 +1,7 @@
 # Steading
 
 Agentic development environment on herdr: a deck pane beside the agent with
-agents, jobs, servers, build, test, git and deploy sections (`bin/viewer.py`), fed by
+agents, files, jobs, servers, build, test, git, deploy and system sections (`bin/viewer.py`), fed by
 Claude Code hooks (`bin/hook`, `bin/record`, `bin/open`) and herdr events (`bin/deck`).
 
 ## Rules
