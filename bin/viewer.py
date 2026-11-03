@@ -1393,7 +1393,9 @@ class Runs:
                 # Labels bright while the cursor is in the list, dim while it is in the log.
                 text = BRIGHT_RGB if self.focus == "list" else DIMMED_RGB
                 text = MUTED_RGB if sub and self.focus == "list" else text
-                lines.append(f"  {fg(colour)}{icon} {fg(text)}{label}{fg(ACCENT['agents'] if self.focus == 'list' else text)}{doing}"
+                waiting = getattr(run, "waiting", None)  # an agent waiting on its work: dimmed
+                text = DIMMED_RGB if waiting and not sub else text
+                lines.append(f"  {fg(colour)}{icon} {fg(text)}{label}{fg(ACCENT['agents'] if self.focus == 'list' and not waiting else text)}{doing}"
                              f"{fg(MUTED_RGB)}{gap}{shown} {RESET}")
         return lines
 
@@ -2521,6 +2523,8 @@ def task_story(d, tid, cols):
 class AgentRun(Run):
     """One subagent: its row (description, type, state) and its head. No log."""
 
+    waiting = None  # what it waits on, done or idle itself (Agents.refresh): "waits on 1 background command"
+
     def __init__(self, path, deck):
         self.path, self.deck = path, deck   # the agent's transcript; the Agents view
         self.id = os.path.basename(path)[len("agent-"):-len(".jsonl")]
@@ -2533,6 +2537,7 @@ class AgentRun(Run):
         self.full = self.cmd = self.meta.get("description") or self.id
         self.first, self.calls, self.read_to, self.stamps, self.cols = os.path.getmtime(path), 0, 0, [], 60
         self.digest = Digest()
+        self.launched, self.ended_tasks = {}, set()  # its background commands (subagents.scan_background)
         self.__dict__.update(cache_load(path) or {})
         self.count()
 
@@ -2540,11 +2545,14 @@ class AgentRun(Run):
         """Feed the transcript's new lines to the digest (its file only grows), a chunk at a time."""
         start = self.read_to
         try:
+            if getattr(self, "counted", None) == self.read_to == os.path.getsize(self.path):
+                return  # nothing new since the last count: not even opened
             with open(self.path, "rb") as f:
                 f.seek(self.read_to)
                 while True:
                     data = read_chunk(f)
                     done = data.rfind(b"\n") + 1
+                    subagents.scan_background(data[:done], self.launched, self.ended_tasks)
                     for raw in data[:done].splitlines():
                         try:
                             row = json.loads(raw)
@@ -2560,8 +2568,10 @@ class AgentRun(Run):
             return
         self.first = self.digest.first or self.first
         self.calls = sum(self.digest.kinds.values())
+        self.counted = self.read_to
         if self.read_to != start:
-            cache_save(self.path, self, {"read_to": self.read_to, "digest": self.digest, "stamps": self.stamps})
+            cache_save(self.path, self, {"read_to": self.read_to, "digest": self.digest, "stamps": self.stamps,
+                                         "launched": self.launched, "ended_tasks": self.ended_tasks})
 
     def parent(self):
         """The subagent that started this one (a subagent's subagent), or None."""
@@ -2607,8 +2617,11 @@ class AgentRun(Run):
         return "working" if quiet < LIVE_SECS else "idle"
 
     def status(self):
+        state = self.activity()
+        if state in ("done", "idle") and self.waiting:  # its turn ended, its own work goes on
+            return ("◷", MUTED_RGB)
         return {"working": (spinner(), AMBER_RGB), "idle": ("·", MUTED_RGB), "done": ("✓", GREEN_RGB),
-                "failed": ("✗", RED_RGB)}.get(self.activity(), ("⊘", MUTED_RGB))
+                "failed": ("✗", RED_RGB)}.get(state, ("⊘", MUTED_RGB))
 
     def rc(self):
         return {"done": "0", "failed": "1"}.get(self.ended(), "")
@@ -2640,7 +2653,10 @@ class AgentRun(Run):
         return f"{head}{' ' * (width - len(head))}  {self.doing()}".rstrip()
 
     def doing(self):
-        """What it is doing now: the call running, else its latest words, else its last call."""
+        """What it is doing now: the call running, else its latest words, else its last call;
+        waiting, what it waits on."""
+        if self.waiting:
+            return self.waiting
         self.count()
         d = self.digest
         if d.open or (d.last_tool and not d.says):
@@ -2699,6 +2715,8 @@ class AgentRun(Run):
         icon, colour = self.status()
         end = self.ended()
         stamps = self.stamps or [self.first]
+        if icon == "◷":
+            return "waiting", colour, icon, f"for {took(time.time() - stamps[-1])}"
         if end:
             return end, colour, icon, f"after {took(stamps[-1] - stamps[0])}"
         if colour == AMBER_RGB:
@@ -2908,7 +2926,7 @@ class Agents(Runs):
         # Its transcript and task folder are looked for afresh when herdr names another session,
         # and every 30s (a resume elsewhere); in between, the ones found are kept.
         kept = getattr(self, "kept", None)
-        if kept and kept[0] == value and time.time() - kept[1] < 30 and (not kept[2] or os.path.isfile(kept[2])):
+        if kept and kept[0] == value and time.time() - kept[1] < 30 and kept[2] and os.path.isfile(kept[2]):  # (none yet: look again)
             session, tasks = kept[2], kept[3]
         else:
             found = []
@@ -3033,7 +3051,47 @@ class Agents(Runs):
         # A subagent's own subagents hang off it with branch lines (├ └, │ carrying on past
         # a branch that has more below it), so a manager and its workers read as one group.
         act = {r: r.activity() for r in self.every}  # once a tick each: it stats the transcript
-        working = [r for r in self.every if act[r] == "working"]
+        # Each agent's team, for its detail: the subagents it started that are still there, at
+        # work or a teammate waiting for its next message. One that ended has gone; one the hooks
+        # never named that never reported back and has been quiet for long is gone too.
+        def alive(k):
+            state = act[k]
+            if state == "working" or state == "idle" and k.id in self.records:
+                return True
+            try:
+                return state == "idle" and time.time() - os.path.getmtime(k.path) < ALIVE_SECS
+            except OSError:
+                return False
+        # Grouped by parent once: a session with hundreds of subagents is not scanned once per agent.
+        kids = collections.defaultdict(list)
+        for k in self.every:
+            kids[k.meta.get("parentAgentId")].append(k)
+        waits, since = {}, subagents.cleared(os.path.dirname(BASE), sid) if self.session else 0
+
+        def waits_on(r):
+            """Waiting: its own turn has ended (done, or an idle teammate) while work it started goes
+            on: a background command its transcript has no notification for, or subagents under it
+            still there (at work, idle teammates, which can be messaged, or waiting themselves)."""
+            if r in waits:
+                return waits[r]
+            waits[r] = None  # (a loop in the tree reads as nothing)
+            if act[r] not in ("done", "idle"):
+                return None
+            commands = 0
+            try:
+                if time.time() - os.path.getmtime(r.path) < subagents.STALE:  # else none can be running
+                    r.count()  # its new lines only (none: one stat)
+                    commands = len(subagents.pending(r.launched, r.ended_tasks, since))
+            except OSError:
+                pass
+            busy = [k for k in kids.get(r.id, ()) if alive(k) or waits_on(k)]
+            mates = sum(1 for k in busy if k.meta.get("taskKind") == subagents.TEAMMATE)
+            parts = [(commands, "background command"), (mates, "teammate"), (len(busy) - mates, "subagent")]
+            waits[r] = " · ".join(f"{n} {what}{'s' * (n != 1)}" for n, what in parts if n) or None
+            return waits[r]
+        for r in self.every:
+            r.waiting = waits_on(r) and f"waits on {waits_on(r)}"
+        working = [r for r in self.every if act[r] == "working" or r.waiting]
         # A manager waiting on its workers writes nothing while it waits, so it reads as
         # quiet; it stays listed while any of its subagents works, so they hang under it.
         for r in list(working):
@@ -3057,24 +3115,9 @@ class Agents(Runs):
                 out += [r] + under(r.id, below)
             return out
         runs = under(None)[::-1] + ([self.main] if self.session else [])
-        # Each agent's team, for its detail: the subagents it started that are still there, at
-        # work or a teammate waiting for its next message. One that ended has gone; one the hooks
-        # never named that never reported back and has been quiet for long is gone too.
-        def alive(k):
-            state = act[k]
-            if state == "working" or state == "idle" and k.id in self.records:
-                return True
-            try:
-                return state == "idle" and time.time() - os.path.getmtime(k.path) < ALIVE_SECS
-            except OSError:
-                return False
-        # Grouped by parent once: a session with hundreds of subagents is not scanned once per agent.
-        kids = collections.defaultdict(list)
-        for k in self.every:
-            kids[k.meta.get("parentAgentId")].append(k)
         for r in self.every + ([self.main] if self.main else []):
             mine = None if isinstance(r, MainRun) else r.id
-            r.team = sorted((k for k in kids.get(mine, ()) if alive(k)), key=lambda k: -k.first)
+            r.team = sorted((k for k in kids.get(mine, ()) if alive(k) or k.waiting), key=lambda k: -k.first)
         # New: a subagent never seen before. (An ended one can show as at work for a moment
         # until the main transcript is read; coming back is not being new.)
         ever = getattr(self, "ever", None)
@@ -3841,6 +3884,7 @@ class Deck:
         # The frame as last built (rows, spinners as SPIN_MARK), what it was built from, and when;
         # the rows on screen. Built again only when something it shows changed (see draw).
         self.built, self.token, self.built_at, self.screen = None, None, 0.0, None
+        self.painted = (0, 0, -1, 0.0)  # the size and tab every row was last written for, and when
         self.dirty = True  # a key, the mouse, focus or the tabs' data moved: build it again
         self.refreshed = None  # the section whose data was last refreshed
         self.focus_path = os.path.join(BASE, "focus")
@@ -4077,10 +4121,15 @@ class Deck:
         glyph = spin_glyph()
         shown = [row.replace(SPIN_MARK, glyph) for row in self.built]
         frame = "".join(shown)
-        if frame == self.last_frame:  # nothing changed: leave the screen alone
+        # Every row is written again (a pane herdr cleared or garbled heals) the first time, at a new
+        # size, on another tab, on focus coming back (screen dropped), and every 30s.
+        full = self.screen is None or len(self.screen) != len(shown) or self.painted[:3] != (cols, rows, self.section) \
+            or now - self.painted[3] >= 30
+        if frame == self.last_frame and not full:  # nothing changed: leave the screen alone
             self.still += 1
             return
-        self.last_frame, self.still = frame, 0
+        self.still = self.still + 1 if frame == self.last_frame else 0
+        self.last_frame = frame
         whole = "".join(f"\033[{n};1H{row}" for n, row in enumerate(shown, 1))
         # Kept for the next deck of this agent at this size: it shows it at once (see shown_cached).
         if time.time() - getattr(self, "cached_at", 0) > 2:
@@ -4090,8 +4139,8 @@ class Deck:
                     f.write(whole)
             except OSError:
                 pass
-        if self.screen is None or len(self.screen) != len(shown):  # first, or a new size: every row
-            out = whole
+        if full:
+            out, self.painted = whole, (cols, rows, self.section, now)  # (each row clears its own tail: no flash)
         else:
             out = "".join(f"\033[{n};1H{row}" for n, (row, was) in enumerate(zip(shown, self.screen), 1) if row != was)
         self.screen = shown
@@ -4255,10 +4304,12 @@ def wake():
             pass
 
 
-def back_key(view, key):
+def back_key(view, key, settings=False):
     """A key outside a search: in a log or a detail (what enter opened), q and backspace (or ctrl+h)
     are esc, leaving it. Elsewhere q is nothing (None): a stray q no longer closes the deck, ctrl+c
-    (or prefix+t) does; backspace goes on as itself."""
+    (or prefix+t) does; backspace goes on as itself. Over the settings popup both are q: it closes."""
+    if settings and key in ("q", "\x7f", "\x08"):
+        return "q"
     inside = getattr(view, "focus", "list") == "log"
     if key in ("q", "\x7f", "\x08") and inside:
         return "\x1b"
@@ -4294,6 +4345,7 @@ def main():
     WAKE[:] = os.pipe()
     for end in WAKE:
         os.set_blocking(end, False)
+    signal.signal(signal.SIGWINCH, lambda *_: wake())  # a new size: drawn at once, every row
     deck = Deck()
     me = os.path.abspath(__file__)
     born = os.path.getmtime(me)
@@ -4352,13 +4404,12 @@ def main():
                         typing = getattr(view, "search", None) is not None
                         if key in ("\x1b[I", "\x1b[O"):  # the pane got or lost the keyboard
                             FOCUS["pane"] = key == "\x1b[I"
+                            if FOCUS["pane"]:  # back: every row again, should herdr have cleared it meanwhile
+                                deck.screen = None
                             continue
                         if key == "\x03":  # ctrl+c, when the keyboard protocol sends it as a key, not a signal
                             return
-                        if key == "q" and deck.settings_open:  # q closes the settings popup
-                            deck.key(key)
-                            continue
-                        key = key if typing else back_key(view, key)
+                        key = key if typing else back_key(view, key, deck.settings_open)
                         if key is not None:
                             deck.key(key if typing else ARROWS.get(key, key))
             except Exception:  # nor a key that trips something

@@ -502,38 +502,9 @@
 <g class="t t25">
 <text x="1433.6" y="141.7" textLength="50.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">2m 39s</text>
 </g>
-<g class="b b0">
-<text x="1030.4" y="160.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠋</text>
-</g>
-<g class="b b1">
-<text x="1030.4" y="160.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠙</text>
-</g>
-<g class="b b2">
-<text x="1030.4" y="160.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠹</text>
-</g>
-<g class="b b3">
-<text x="1030.4" y="160.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠸</text>
-</g>
-<g class="b b4">
-<text x="1030.4" y="160.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠼</text>
-</g>
-<g class="b b5">
-<text x="1030.4" y="160.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠴</text>
-</g>
-<g class="b b6">
-<text x="1030.4" y="160.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠦</text>
-</g>
-<g class="b b7">
-<text x="1030.4" y="160.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠧</text>
-</g>
-<g class="b b8">
-<text x="1030.4" y="160.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠇</text>
-</g>
-<g class="b b9">
-<text x="1030.4" y="160.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠏</text>
-</g>
-<text x="1064.0" y="160.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#abb2bf">└ foreman</text>
-<text x="1240.4" y="160.7" textLength="117.6" lengthAdjust="spacingAndGlyphs" fill="#8fa8d2">Splitting work</text>
+<text x="1030.4" y="160.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">◷</text>
+<text x="1064.0" y="160.7" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#585e69">└ foreman</text>
+<text x="1240.4" y="160.7" textLength="151.2" lengthAdjust="spacingAndGlyphs" fill="#585e69">waits on 2 subage…</text>
 <text x="1400.0" y="160.7" textLength="84.0" lengthAdjust="spacingAndGlyphs" fill="#dcdfe4">sonnet-5-5</text>
 <text x="1097.6" y="179.7" textLength="151.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">Map the auth tests</text>
 <g class="t t0">
@@ -1124,39 +1095,10 @@
 <text x="1484.0" y="502.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
 <text x="1022.0" y="521.7" textLength="470.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">╰──────────────────────────────────────────────────────╯</text>
 <text x="1022.0" y="540.7" textLength="16.8" lengthAdjust="spacingAndGlyphs" fill="#464c58">╭─</text>
-<text x="1047.2" y="540.7" textLength="176.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">subagents 1/1 at work</text>
+<text x="1047.2" y="540.7" textLength="176.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">subagents 0/1 at work</text>
 <text x="1232.0" y="540.7" textLength="260.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">──────────────────────────────╮</text>
 <text x="1022.0" y="559.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#464c58">│</text>
-<g class="b b0">
-<text x="1038.8" y="559.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠋</text>
-</g>
-<g class="b b1">
-<text x="1038.8" y="559.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠙</text>
-</g>
-<g class="b b2">
-<text x="1038.8" y="559.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠹</text>
-</g>
-<g class="b b3">
-<text x="1038.8" y="559.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠸</text>
-</g>
-<g class="b b4">
-<text x="1038.8" y="559.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠼</text>
-</g>
-<g class="b b5">
-<text x="1038.8" y="559.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠴</text>
-</g>
-<g class="b b6">
-<text x="1038.8" y="559.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠦</text>
-</g>
-<g class="b b7">
-<text x="1038.8" y="559.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠧</text>
-</g>
-<g class="b b8">
-<text x="1038.8" y="559.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠇</text>
-</g>
-<g class="b b9">
-<text x="1038.8" y="559.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#d8b46a">⠏</text>
-</g>
+<text x="1038.8" y="559.7" textLength="8.4" lengthAdjust="spacingAndGlyphs" fill="#787f8c">◷</text>
 <text x="1055.6" y="559.7" textLength="58.8" lengthAdjust="spacingAndGlyphs" fill="#abb2bf">foreman</text>
 <g class="t t0">
 <text x="1232.0" y="559.7" textLength="151.2" lengthAdjust="spacingAndGlyphs" fill="#787f8c">sonnet-5-5     38s</text>

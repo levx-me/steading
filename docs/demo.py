@@ -311,14 +311,19 @@ def run_box(rows, accent, noun, picked=0, fade=None, state=None):
         sub = not icon and right  # an agent's second row: what it does, then (text, colour) runs
         mark = [(SPIN, colour), (" ", colour)] if icon == SPIN else [(f"{icon} " if icon else "  ", colour)]
         if isinstance(label, tuple):  # an agent's first row: its name, then what it does now
-            name, doing = label
+            name, doing, *waiting = label
             body = [(name, BRIGHT if on else TEXT, on), (doing, ACCENT["AGENTS"])]  # the doing text in the section's colour, as in the deck
+            if waiting:  # its turn over, its work going on: dimmed, saying what it waits on
+                body = [(name, DIMMED), (doing, DIMMED)]
         else:
             body = [(label, MUTED) if sub else (label, BRIGHT if on else TEXT, on)]
         left = [("   ", MUTED), *mark, *body]
         room = D - 2 - (3 + 2 + sum(len(t) for t, *_ in body)) - 1
         if isinstance(right, list):
             width = sum(max(len(t(n)) for n in range(CYCLE)) if callable(t) else len(t) for t, _ in right)
+            if isinstance(label, tuple) and room - width < 1:  # too long: what it does is cut, as cut() does
+                body[1] = (body[1][0][:len(body[1][0]) - (1 - room + width) - 1] + "…", body[1][1])
+                left, room = [("   ", MUTED), *mark, *body], width + 1
             text(d0, first + i, left + [(" " * (room - width), MUTED), *right], end)
             continue
         tail = (lambda n: lambda t: right(t).rjust(n))(room) if callable(right) else right.rjust(room)
@@ -465,8 +470,8 @@ def scene_agents():
     row = run_box([(SPIN, AMBER, (pad("", "main"), "  ◐ Fix expiry"), [("opus-5-5 · high", BRIGHT)]),
                    ("", AMBER, "  auth refresh tokens", [("▰▰▰", GREEN), ("▱▱", DIMMED), (" 3/5  ", MUTED),
                                                     (lambda t: took(134 + t).rjust(6), MUTED)]),
-                   # A manager and its workers, on branch lines.
-                   (SPIN, AMBER, (pad("  └ ", "foreman"), "  Splitting work"), [("sonnet-5-5", BRIGHT)]),
+                   # A manager and its workers, on branch lines: its turn over, it waits on them.
+                   ("◷", MUTED, (pad("  └ ", "foreman"), "  waits on 2 subagents", True), [("sonnet-5-5", BRIGHT)]),
                    ("", AMBER, "      Map the auth tests", [(lambda t: took(38 + t).rjust(6), MUTED)]),
                    (SPIN, AMBER, (pad("    ├ ", "foreman-scout"), "  Searching"), [("haiku-5-5", BRIGHT)]),
                    ("", AMBER, "        Find every refresh call", [(lambda t: took(21 + t).rjust(6), MUTED)]),
@@ -489,7 +494,7 @@ def scene_agents():
             [("tools   ", MUTED), *bar([(9, GREEN), (6, BLUE), (5, AMBER), (2, CYAN)], 22)],
             [("        ", MUTED), ("■ ", GREEN), ("run 9  ", MUTED), ("■ ", BLUE), ("read 6  ", MUTED),
              ("■ ", AMBER), ("edit 5  ", MUTED), ("■ ", CYAN), ("search 2", MUTED)]]),
-        *card("subagents 1/1 at work", [[(SPIN, AMBER), (" foreman", TEXT), (lambda t: f"sonnet-5-5  {took(38 + t):>6}".rjust(D - 8 - 20), MUTED)]]),
+        *card("subagents 0/1 at work", [[("◷", MUTED), (" foreman", TEXT), (lambda t: f"sonnet-5-5  {took(38 + t):>6}".rjust(D - 8 - 20), MUTED)]]),
         *card("session", [[("add refresh tokens to the auth middleware", BRIGHT, True)]]),
         *card("activity", [
             [(SPIN, AMBER), (" Run the auth tests", BRIGHT), (lambda t: f"{12 + t}s".rjust(D - 8 - 20), MUTED)],

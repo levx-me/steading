@@ -35,6 +35,15 @@ kind, and its task list, and a **team** card listing the subagents it started th
 subagent is at work comes from Claude Code's SubagentStart and SubagentStop hooks (the record the sidebar's `$crew` reads too), so one
 thinking for minutes without a word stays listed and an idle teammate leaves; the rest is read from the session's transcripts, as [zoetrope](https://github.com/furkankly/zoetrope) does.
 
+**Waiting.** A subagent whose own turn has ended (done, or a teammate gone idle) while work it started
+goes on stays listed as `◷`, dimmed, its row saying what it waits on: `waits on 1 background command ·
+2 teammates`. That work is a command it ran in the background (or one moved there on its timeout) whose
+task-notification has not reached its transcript yet, and subagents it started that are still there:
+at work, waiting themselves, or idle teammates (an idle teammate counts, since it can still be sent a
+message). It leaves the list once none is left. A background command started before the session's
+process restarted, or over 3 h ago, counts as gone. Waiting is not work: the sidebar's `$crew` does not
+count it, and the team card shows it with `◷`.
+
 ## jobs
 
 **Shows** the commands that take a while and are neither tests nor builds: a wait loop, an install, a

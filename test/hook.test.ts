@@ -584,6 +584,60 @@ print(*(k.id for k in p1.team), "|", v.ANSI.sub("", v.team_card(p1.team, 60)[0])
     expect(team).toBe("k1 | subagents 1/1 at work"); // k2 reported back, so it has gone
   });
 
+  test("an agent whose turn ended waits on its background command, its subagents at work or its idle teammates, dimmed, and leaves once they end", () => {
+    const dir = mkdtempSync(join(tmpdir(), "steading-waiting-"));
+    const check = `
+import os, sys, json, time
+from importlib.machinery import SourceFileLoader
+args = sys.argv[1:]; sys.argv = sys.argv[:1]
+d = args[1]
+v = SourceFileLoader("v", args[0]).load_module()
+crew = SourceFileLoader("crew", os.path.join(os.path.dirname(args[0]), "crew")).load_module()
+import subagents
+v.background = lambda fn, *a: fn(*a)
+sub = f"{d}/s1/subagents"; os.makedirs(sub)
+now = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime())
+row = lambda **o: json.dumps({"timestamp": now, **o}) + "\\n"
+def agent(id, meta, *rows):
+    json.dump({"agentType": "pm", "description": id, **meta}, open(f"{sub}/agent-{id}.meta.json", "w"))
+    open(f"{sub}/agent-{id}.jsonl", "w").write("".join(rows) or row(type="user", message={"content": "go"}))
+launch = row(type="user", message={"content": [{"type": "tool_result", "tool_use_id": "u1", "content": "Command running in background with ID: bg1."}]},
+             toolUseResult={"backgroundTaskId": "bg1"})
+root = os.path.dirname(v.BASE)
+rec = lambda event, a: subagents.record(root, {"hook_event_name": event, "session_id": "s1", "agent_id": a})
+agent("pm1", {}, launch)                                          # its background command runs on
+agent("pm2", {}); agent("w2", {"parentAgentId": "pm2"})           # its subagent works
+agent("pm3", {})                                                  # its teammates wait for a message
+for t in ("t3a", "t3b"):
+    agent(t, {"parentAgentId": "pm3", "taskKind": subagents.TEAMMATE}); rec("SubagentStart", t); rec("TeammateIdle", t)
+agent("pm4", {})                                                  # nothing left: done
+for a in ("pm1", "pm2", "pm3", "pm4"):
+    rec("SubagentStart", a); rec("SubagentStop", a)
+rec("SubagentStart", "w2")
+open(f"{d}/s1.jsonl", "w").write(row(type="user", message={"content": "go"}))
+s = v.Agents(); s.session, s.looked = f"{d}/s1.jsonl", time.time()
+s.read_main(); s.refresh()
+show = lambda: [f"{r.status()[0].replace(v.SPIN_MARK, '*')} {r.id}: {r.waiting or ''}" for r in reversed(s.runs[:-1])]
+print(json.dumps(show()))
+pm1 = next(r for r in s.every if r.id == "pm1")
+print(json.dumps([pm1.state()[0], crew.live(root, sub), [k.id for k in s.main.team]]))
+open(f"{sub}/agent-pm1.jsonl", "a").write(row(type="user", message={"content": "<task-notification>\\n<task-id>bg1</task-id>\\n<status>completed</status>\\n</task-notification>"}))
+s.refresh()
+print(json.dumps([show(), pm1.status()[0]]))
+`;
+    const r = Bun.spawnSync(["python3", "-I", "-c", check, join(root, "bin/viewer.py"), dir], {
+      env: { PATH: process.env.PATH!, STEADING_BASE: join(dir, "st", "w1_p1"), STEADING_CACHE: join(dir, "cache") },
+    });
+    expect(r.stderr.toString()).toBe("");
+    const [listed, more, after] = r.stdout.toString().trim().split("\n").map((l) => JSON.parse(l));
+    expect(listed.sort()).toEqual(["* w2: ", "◷ pm1: waits on 1 background command", "◷ pm2: waits on 1 subagent",
+      "◷ pm3: waits on 2 teammates"].sort());
+    // Waiting is no work for the $crew: only w2 is counted. The main agent's team card shows the waiting ones.
+    expect(more).toEqual(["waiting", 1, expect.arrayContaining(["pm1", "pm2", "pm3"])]);
+    expect(more[2]).not.toContain("pm4");
+    expect([after[0].sort(), after[1]]).toEqual([["* w2: ", "◷ pm2: waits on 1 subagent", "◷ pm3: waits on 2 teammates"].sort(), "✓"]);
+  });
+
   test("a manager waiting quietly on its workers stays listed, its workers under it", () => {
     const { utimesSync } = require("node:fs");
     const dir = mkdtempSync(join(tmpdir(), "steading-session-"));
@@ -614,8 +668,9 @@ print(" | ".join(r.label() for r in reversed(s.runs)))
       env: { PATH: process.env.PATH!, STEADING_BASE: join(dir, "base") },
     });
     expect(r.stderr.toString()).toBe("");
-    // Names in one column, then what each is doing (main: its request), lined up after the longest name.
-    expect(r.stdout.toString().trim()).toBe(`${"main".padEnd(20)}  go |   dash-quality |   └ foreman-designer`);
+    // Names in one column, then what each is doing (main: its request), lined up after the longest name;
+    // the quiet manager waits on its worker.
+    expect(r.stdout.toString().trim()).toBe(`${"main".padEnd(20)}  go |   dash-quality        waits on 1 subagent |   └ foreman-designer`);
   });
 
   test("the activity card shows a call that ran long with a button to its output in the jobs tab", () => {
@@ -2098,11 +2153,57 @@ print(json.dumps([first == rows, tick[0], tick[1].count(";1H"), "working" in tic
     expect(out).toEqual([true, 1, 1, true, false, 2, 3, [4, true]]);
   });
 
+  test("a session whose transcript is not there yet is looked for again on the next look, not 30s later", () => {
+    const home = mkdtempSync(join(tmpdir(), "steading-home-"));
+    const out = py(`os.environ["HOME"] = ${JSON.stringify(home)}
+os.makedirs(os.path.join(${JSON.stringify(home)}, ".claude", "projects", "p"))
+m.herdr_api = lambda *a: {"pane": {"agent_session": {"agent": "claude", "value": "abc"}}}
+a = m.Agents(); a.find_session(); before = a.session
+open(os.path.join(${JSON.stringify(home)}, ".claude", "projects", "p", "abc.jsonl"), "w").write("{}\\n")
+a.find_session()
+print(json.dumps([before, os.path.basename(a.session)]))`);
+    expect(out).toEqual(["", "abc.jsonl"]);
+  });
+
+  test("every row is written again on another tab, a new size, focus coming back and every 30s", () => {
+    const base = mkdtempSync(join(tmpdir(), "steading-repaint-"));
+    const out = py(`m.BASE = ${JSON.stringify(base)}
+m.background = lambda fn, *a: None
+d = m.Deck()
+class View:
+    focus = "list"
+    def __init__(self, kind): self.kind = kind
+    def frame(self, cols, rows): return ["same text"], []
+    def hints(self): return []
+    def badge(self): return ("·", m.MUTED_RGB)
+d.views = [View(v.kind) for v in d.views]
+written = []
+class Out:
+    def write(self, s): written.append(s.count(";1H"))
+    def flush(self): pass
+sys.stdout = Out()
+t, size = [100.0], [os.terminal_size((60, 20))]
+m.time.time = lambda: t[0]
+m.shutil.get_terminal_size = lambda: size[0]
+def step(change):
+    change(); t[0] += 0.13; n = len(written); d.draw(); return written[n:]
+steps = [step(lambda: None), step(lambda: None),                       # first: all; unchanged: nothing
+         step(lambda: setattr(d, "section", 1)),                       # another tab
+         step(lambda: size.__setitem__(0, os.terminal_size((61, 20)))),  # a new size
+         step(lambda: setattr(d, "screen", None)),                     # focus back (the main loop drops it)
+         step(lambda: None), step(lambda: t.__setitem__(0, t[0] + 30))]  # nothing; 30s on
+sys.stdout = sys.__stdout__
+print(json.dumps(steps))`);
+    expect(out).toEqual([[20], [], [20], [20], [20], [], [20]]);
+  });
+
   test("backspace (and ctrl+h) leaves a log or a detail as esc does; q too; in a list q is nothing and backspace itself", () => {
     const out = py(`inside, listed = types.SimpleNamespace(focus="log"), types.SimpleNamespace(focus="list")
 print(json.dumps([[m.back_key(inside, k) for k in ("\\x7f", "\\x08", "q", "j")],
-                  [m.back_key(listed, k) for k in ("\\x7f", "\\x08", "q", "j")], m.back_key(m.System(types.SimpleNamespace(found=[])), "\\x7f")]))`);
-    expect(out).toEqual([["\x1b", "\x1b", "\x1b", "j"], ["\x7f", "\x08", null, "j"], "\x7f"]);
+                  [m.back_key(listed, k) for k in ("\\x7f", "\\x08", "q", "j")], m.back_key(m.System(types.SimpleNamespace(found=[])), "\\x7f"),
+                  [m.back_key(v, k, True) for v in (inside, listed) for k in ("\\x7f", "q")]]))`);
+    // Over the settings popup, backspace is q there (it closes), whatever the tab behind it shows.
+    expect(out).toEqual([["\x1b", "\x1b", "\x1b", "j"], ["\x7f", "\x08", null, "j"], "\x7f", ["q", "q", "q", "q"]]);
   });
 
   test("the subagents' transcripts are listed as glob lists them, again only when a folder changes", () => {
