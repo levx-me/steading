@@ -18,8 +18,8 @@ Claude Code hooks (`bin/hook`, `bin/record`, `bin/open`) and herdr events (`bin/
 
   Check it renders (`xmllint --noout docs/demo.svg`, and look at a scene) before committing.
 - Run the tests (`bun test`) and read the whole summary, failures included, before committing.
-  The full suite takes about 90-120 seconds (the daemon tests): while working, run only the tests you touch
+  The full suite takes about 2 minutes (the daemon tests): while working, run only the tests you touch
   (`bun test -t "<name>"`), and the full suite once, right before the commit.
 - Editing `bin/viewer.py` restarts every open deck with the new code: a crash closes all of them.
-- Saving a file in `bin/` also re-execs the live daemon (`bin/steadingd.py`) that every session's hooks use,
+- Saving a `bin/` module the live daemon (`bin/steadingd.py`) loaded also re-execs it, and every session's hooks use it,
   so check a `bin/` change on a scratch copy first.

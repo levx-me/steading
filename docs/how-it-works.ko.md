@@ -70,7 +70,7 @@ herdr에 pane 토큰으로 알려 줍니다. deck이 열려 있지 않아도 됩
 
 ### 데몬과 캐시
 
-- `bin/steadingd.py`는 컴퓨터에 하나만 도는 데몬입니다(`$TMPDIR/steading/daemon.pid`, 그리고 권한 0600의 HTTP 소켓 `daemon.sock`). `usage`, `$wsrun` 갱신, crew, System 탭의 샘플러(덱이 그 탭을 보여 주는 동안)를 스레드로 돌려서 각각 프로세스를 따로 띄울 때보다 가볍습니다. 첫 훅이 띄우고, 스스로 끝나지 않으며, `bin/` 파일이 바뀌면 다시 실행하고 그 뒤에 헬퍼도 다시 시작합니다(`daemon.helpers.json`, 오류는 `daemon.log`).
+- `bin/steadingd.py`는 컴퓨터에 하나만 도는 데몬입니다(`$TMPDIR/steading/daemon.pid`, 그리고 권한 0600의 HTTP 소켓 `daemon.sock`). `usage`, `$wsrun` 갱신, crew, System 탭의 샘플러(덱이 그 탭을 보여 주는 동안)를 스레드로 돌려서 각각 프로세스를 따로 띄울 때보다 가볍습니다. 첫 훅이 띄우고, 스스로 끝나지 않으며, 자기가 불러온 `bin/` 모듈이 바뀌면 다시 실행하고 그 뒤에 헬퍼도 다시 시작합니다(`daemon.helpers.json`, 오류는 `daemon.log`).
 - `bin/sidebar`는 이벤트를 `curl --unix-socket`으로 데몬에 넘기고, 서브에이전트 기록은 훅이 끝나기 전에 써집니다. 데몬이나 `curl`이 없으면 예전처럼 훅이 스크립트를 직접 돌리고, 헬퍼도 각자 프로세스로 돕니다.
 - 스크립트는 가장 새로운 Python으로 돕니다: `$STEADING_PYTHON`, Homebrew, `/usr/local`, 그다음 `python3`(`bin/py.sh`, `bin/py`). 3.9부터 3.15까지 됩니다.
 - `bin/transcripts.py`가 대화 기록을 파싱하고, 결과를 `$STEADING_CACHE`(없으면 `${XDG_CACHE_HOME:-~/.cache}/steading`, 권한 0700)에 저장합니다. 캐시 키가 파서 자신의 소스라서 덱의 그리기 코드를 고쳐도 유지됩니다. 14일간 안 쓴 항목은 지웁니다. 535 MB 대화 기록 옆에서 덱을 다시 시작해도 5.8초가 아니라 0.2초면 준비됩니다.

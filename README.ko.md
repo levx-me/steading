@@ -41,7 +41,7 @@
 
 ## 빠른 시작
 
-필요한 것: herdr 0.9+, Claude Code, `jq`, `python3`.
+필요한 것: herdr 0.9+, Claude Code, `jq`, `python3`(3.9 이상, Homebrew 것이 있으면 그것을 씁니다). `curl`은 선택 사항입니다. 있으면 훅이 더 가볍습니다.
 
 | | `python3` | `jq` |
 |---|---|---|
