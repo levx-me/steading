@@ -166,7 +166,7 @@ def main():
     import types
     sys.path.insert(0, HERE)  # -I leaves the script's folder out
     import reexec, steading_run, usage  # noqa: E401
-    import sidebar, subagents, tasklist, transcripts  # noqa: E401,F401 (loaded before the watcher: an edit re-execs)
+    import files, sidebar, subagents, tasklist, transcripts  # noqa: E401,F401 (loaded before the watcher: an edit re-execs)
 
     os.makedirs(BASE, exist_ok=True)
     if not claim(PIDFILE, ("steadingd.py",)):

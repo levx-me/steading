@@ -37,7 +37,7 @@ ENV = ("HERDR_ENV", "HERDR_PANE_ID", "HERDR_BIN_PATH", "HERDR_SOCKET_PATH", "STE
        "STEADING_SIDEBAR_TREE", "STEADING_BASE")
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)  # -I leaves the script's folder out
-import steadingd  # noqa: E402
+import files, steadingd  # noqa: E402,E401
 
 
 @functools.lru_cache(maxsize=None)
@@ -65,6 +65,10 @@ def run(event, env, start=None):
     """The hook's work for one event. env is the hook's environment: os.environ for the script,
     the daemon's own copy with the hook's ENV in it; start is the daemon's start() there (asking
     its socket from inside would wait on itself: it answers one request at a time)."""
+    try:
+        files.record(os.path.join(env.get("TMPDIR", "/tmp"), "steading"), event)
+    except Exception:
+        pass  # a hook never fails the session
     pane = env.get("HERDR_PANE_ID", "")
     if env.get("HERDR_ENV") != "1" or not pane:
         return  # outside herdr
