@@ -1,0 +1,5 @@
+#!/bin/sh
+# Runs its arguments on the Python from py.sh. For callers that need one executable (re-exec,
+# herdr's command); the hooks source py.sh themselves, which saves this extra exec.
+. "$(dirname "$0")/py.sh"
+exec "$py" "$@"

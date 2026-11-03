@@ -10,6 +10,7 @@ set -u
 
 input=$(cat)
 [ "${HERDR_ENV:-}" = 1 ] && [ -n "${HERDR_PANE_ID:-}" ] || exit 0
+. "$(dirname "$0")/py.sh"
 cmd=$(printf '%s' "$input" | jq -r '.tool_input.command // empty')
 [ -n "$cmd" ] || exit 0
 
@@ -49,7 +50,7 @@ case $cmd in *"/bin/run\" "*) exit 0 ;; esac # routed through bin/run: already r
 # What it ran, on shell tokens (bin/classify): test, build, deploy, or a git
 # command that changes something. Read-only git, echo/grep mentioning a runner,
 # and heredoc bodies do not count.
-what=$(printf '%s' "$cmd" | python3 -I "$(dirname "$0")/classify")
+what=$(printf '%s' "$cmd" | "$py" -I "$(dirname "$0")/classify")
 kind=$(printf '%s' "$what" | jq -r .kind)
 label=$(printf '%s' "$what" | jq -r .label)
 # The session note asks for "<kind>: <command>" descriptions; one names the

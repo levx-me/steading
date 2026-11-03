@@ -7,9 +7,10 @@
 [ "${HERDR_ENV:-}" = 1 ] && [ -n "${HERDR_PANE_ID:-}" ] || exit 0
 input=$(cat)
 dir=$(dirname "$0")
+. "$dir/py.sh"
 if [[ $input =~ \"hook_event_name\"[[:space:]]*:[[:space:]]*\"(SubagentStart|SubagentStop|TeammateIdle|SessionStart)\" ]]; then
-  printf '%s' "$input" | python3 -I "$dir/subagents.py" >/dev/null 2>&1
+  printf '%s' "$input" | "$py" -I "$dir/subagents.py" >/dev/null 2>&1
   case ${BASH_REMATCH[1]} in SubagentStop | TeammateIdle) exit 0 ;; esac  # nothing more to report
 fi
-(printf '%s' "$input" | python3 -I "$dir/sidebar.py" >/dev/null 2>&1 &)
+(printf '%s' "$input" | "$py" -I "$dir/sidebar.py" >/dev/null 2>&1 &)
 exit 0

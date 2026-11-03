@@ -12,6 +12,7 @@ set -u
 
 input=$(cat)
 [ "${HERDR_ENV:-}" = 1 ] && [ -n "${HERDR_PANE_ID:-}" ] || exit 0
+. "$(dirname "$0")/py.sh"
 cmd=$(printf '%s' "$input" | jq -r '.tool_input.command // empty')
 [ -n "$cmd" ] || exit 0
 
@@ -49,10 +50,10 @@ job() {
   printf '%s\n' "$id" > "$r/id"
   # The output files there now, before the command starts: its own is the one that appears.
   ls /tmp/claude-"$(id -u)"/*/"$sid"/tasks "${TMPDIR:-/tmp}"/claude-"$(id -u)"/*/"$sid"/tasks 2>/dev/null > "$r/before"
-  (python3 -I "$(dirname "$0")/job" "$r" "$sid" >/dev/null 2>&1 &)
+  ("$py" -I "$(dirname "$0")/job" "$r" "$sid" >/dev/null 2>&1 &)
 }
 
-what=$(printf '%s' "$cmd" | python3 -I "$(dirname "$0")/classify")
+what=$(printf '%s' "$cmd" | "$py" -I "$(dirname "$0")/classify")
 [ "$(printf '%s' "$what" | jq -r .routable)" = true ] || { job; exit 0; }
 kind=$(printf '%s' "$what" | jq -r .kind)
 core=$(printf '%s' "$what" | jq -r .core)

@@ -7,6 +7,7 @@
 set -u
 input=$(cat)
 [ "${HERDR_ENV:-}" = 1 ] && [ -n "${HERDR_PANE_ID:-}" ] || exit 0
+. "$(dirname "$0")/py.sh"
 [ -n "$(printf '%s' "$input" | jq -r '.agent_id // empty')" ] && exit 0 # not for subagents
 
 # Runs are kept per herdr pane: a session resumed in a new pane (or after /tmp
@@ -14,7 +15,7 @@ input=$(cat)
 base="${TMPDIR:-/tmp}/steading/$(printf '%s' "$HERDR_PANE_ID" | tr ':/' '__')"
 transcript=$(printf '%s' "$input" | jq -r '.transcript_path // empty')
 if [ -s "$transcript" ] && ! compgen -G "$base/*/runs/*" >/dev/null; then
-  (python3 -I "$(dirname "$0")/restore" "$transcript" >/dev/null 2>&1 &)
+  ("$py" -I "$(dirname "$0")/restore" "$transcript" >/dev/null 2>&1 &)
 fi
 
 note="Steading shows this session's tests, builds and git commands live in a herdr pane beside you. \
