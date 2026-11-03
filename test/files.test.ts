@@ -181,9 +181,9 @@ tracked, new, outside = diff(1), diff(5), diff(7)
 f.key("\\x1b"); after_esc = f.focus
 f.list_key("\\r"); f.key(m.back_key(f, "q")); after_q = f.focus
 f.select(1); f.list_key("y"); f.list_key("o")
-msg = f.msg
+msg, hints = f.msg, f.hints()[:3]
 f.select(0); f.list_key("\\r"); folder = f.focus
-print(json.dumps([tracked, new, outside, after_esc, after_q, copied, msg, folder, f.hints()[:3]]))`);
+print(json.dumps([tracked, new, outside, after_esc, after_q, copied, msg, folder, hints]))`);
     expect(out[0][0]).toBe("log");
     expect(out[0][1]).toEqual(expect.arrayContaining(["-b", "+c", "+d"]));
     expect(out[1][1]).toEqual(expect.arrayContaining(["+1", "+2", "+3"]));
@@ -192,7 +192,7 @@ print(json.dumps([tracked, new, outside, after_esc, after_q, copied, msg, folder
     expect(out[4]).toBe("list");
     expect(out[5]).toEqual([join(repo, "src/lib/x.py")]);
     expect(out[6]).toBe(`outside herdr: open ${join(repo, "src/lib/x.py")} in your editor`);
-    expect(out[7]).toBe("list");  // a folder has no diff
+    expect(out[7]).toBe("list");  // a folder has no diff: enter folds it
     expect(out[8]).toEqual([["enter", "diff"], ["o", "edit"], ["y", "copy path"]]);
   });
 
@@ -223,21 +223,65 @@ print(json.dumps([counts, calls[:2]]))`);
     expect(out[1]).toEqual(["diff", "ls-files"]);  // one numstat, and ls-files for the written files it does not list
   });
 
-  test("the tab is F (9), empty without a record, and lists the newest 500 of many", () => {
+  test("the tab is F (2, after agents), empty without a record, and lists the newest 500 of many", () => {
     const dir = mkdtempSync(join(tmpdir(), "files-tab-"));
     const base = join(dir, "st", "agent");
     mkdirSync(join(dir, "st", "sessions"), { recursive: true });
     mkdirSync(base);
     const out = deck(base, `d = m.Deck(); d.key("F"); tab = m.SECTIONS[d.section]
-d.key("1"); d.key("9"); nine = m.SECTIONS[d.section]
-empty = plain(f.frame(80, 30)[0])
+d.key("1"); d.key("2"); two = m.SECTIONS[d.section]
+keys = []
+for k in "123456789":
+    d.key(k); keys.append(m.SECTIONS[d.section])
+empty, hints = plain(f.frame(80, 30)[0]), f.hints()
 with open(${JSON.stringify(join(dir, "st/sessions/sid.files"))}, "w") as fh:
     for n in range(600):
         fh.write(f"{n + 1} - main W /far/f{n}.txt\\n")
 f.refresh()
 files = [r for r in f.runs if not r.folder]
-print(json.dumps([tab, nine, any("No files touched yet" in l for l in empty), len(files), files[0].name, plain(f.run_list(80))[0]]))`);
+print(json.dumps([tab, two, any("No files touched yet" in l for l in empty), len(files), files[0].name, plain(f.run_list(80))[0],
+                  keys, [k for k, _ in hints]]))`);
     expect(out.slice(0, 5)).toEqual(["files", "files", true, 500, "f100.txt"]);
     expect(out[5]).toMatch(/files · 500 .*✎ 500 ◦ 0/);
+    expect(out[6]).toEqual(["agents", "files", "jobs", "servers", "build", "test", "git", "deploy", "system"]);
+    expect(out[7]).toEqual(["L", "[ ]", ",", "ctrl+c"]);  // nothing listed: no enter, o or y
+  });
+
+  test("enter (or l) on a folder folds it, ▸, its subtree hidden, kept across refreshes; again unfolds it", () => {
+    const { base } = setup();
+    const out = deck(base, `f.refresh(); names = lambda: [r.name for r in f.runs]
+whole = names()
+f.select(0); f.list_key("\\r"); folded, mark, hint = names(), plain(f.rows(90))[0][2:4], f.hints()[0]
+f.shape = None; f.refresh(); kept = names()
+f.list_key("l"); back, hint2 = names(), f.hints()[0]
+print(json.dumps([whole, folded, mark, hint, kept, back, hint2, f.runs[0].count]))`);
+    expect(out[1]).toEqual(out[0].filter((n: string) => n !== "x.py"));
+    expect(out[2]).toBe("▸ ");
+    expect(out[3]).toEqual(["enter", "unfold"]);
+    expect(out[4]).toEqual(out[1]);   // built again, still folded
+    expect(out[5]).toEqual(out[0]);
+    expect(out[6]).toEqual(["enter", "fold"]);
+    expect(out[7]).toBe(1);           // a folder counts its files, folded or not
+  });
+
+  test("narrow, the right side drops when, then who, then the lines; the name keeps 12 cells", () => {
+    const { base } = setup();
+    const out = deck(base, `f.refresh()
+print(json.dumps([plain(f.rows(w))[1] for w in (90, 38, 30, 24)]))`);
+    expect(out[0]).toMatch(/x\.py\s+\* editing builder \+2 -1 8s ago$/);
+    expect(out[1]).toMatch(/x\.py\s+\* editing builder \+2 -1$/);
+    expect(out[2]).toMatch(/x\.py\s+\* editing \+2 -1$/);
+    expect(out[3]).toMatch(/x\.py\s+\* editing$/);
+  });
+
+  test("a word on the info line (herdr did not open a pane) goes when the tab is left or shown again", () => {
+    const { base } = setup();
+    const out = deck(base, `d = m.Deck(); f = d.views[1]; f.agents = agents
+d.choose(1); d.refresh(); f.msg = "herdr did not open a pane"
+d.choose(2); d.refresh(); left = f.msg
+f.msg = "late"; d.choose(1); d.refresh(); back = f.msg
+d.refresh(); f.msg = "stays"; d.refresh()
+print(json.dumps([left, back, f.msg]))`);
+    expect(out).toEqual(["", "", "stays"]);
   });
 });

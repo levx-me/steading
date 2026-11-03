@@ -94,8 +94,9 @@ agent = [
 ]
 ROWS = len(agent)
 
-SECTIONS = [("AGENTS", SPIN, AMBER), ("JOBS", SPIN, AMBER), ("SERVERS", "●", GREEN), ("BUILD", SPIN, AMBER), ("TEST", SPIN, AMBER),
-            ("GIT", "✓", GREEN), ("DEPLOY", "·", MUTED), ("SYSTEM", "·", MUTED), ("FILES", "✎", ACCENT["FILES"])]
+SECTIONS = [("AGENTS", SPIN, AMBER), ("FILES", "✎", ACCENT["FILES"]), ("JOBS", SPIN, AMBER), ("SERVERS", "●", GREEN),
+            ("BUILD", SPIN, AMBER), ("TEST", SPIN, AMBER), ("GIT", "✓", GREEN), ("DEPLOY", "·", MUTED), ("SYSTEM", "·", MUTED)]
+TAB = {name: i for i, (name, _, _) in enumerate(SECTIONS)}  # a tab's place in the strip (bin/viewer.py SECTIONS)
 
 out = []
 
@@ -252,7 +253,7 @@ def section_bar(active):
     """The tabs, scrolled as bin/viewer.py's strip() does so the active one shows."""
     rect(d0, 0, D, STRIP)
     widths = [len(name) + 4 for name, _, _ in SECTIONS]
-    count = " 1 new " if active < 3 else ""  # the build tab, new until shown (bin/viewer.py strip)
+    count = " 1 new " if active < TAB["BUILD"] else ""  # the build tab, new until shown (bin/viewer.py strip)
     close = 3  # " ✕ " first: a click closes the deck (bin/viewer.py CLOSE_W)
     room = D - close - 2 - (len(count) + 1 if count else 0)
     first = 0
@@ -520,7 +521,7 @@ RUN_KEYS = [("L", "side"), ("[ ]", "sections"), (",", "settings"), ("ctrl+c", "c
 
 
 def scene_jobs():
-    browse(1, [(SPIN, AMBER, "Wait for the API to answer", lambda t: f"running {t + 9}s"),
+    browse(TAB["JOBS"], [(SPIN, AMBER, "Wait for the API to answer", lambda t: f"running {t + 9}s"),
                ("✓", GREEN, "Install Playwright's Chromium", "1m 12s · 4m ago"),
                ("✓", GREEN, "Seed the dev database", "48s · 26m ago")], ACCENT["JOBS"], "jobs", [
         [[("$ ", MUTED), ("until curl -sf localhost:3000/health; do sleep 2; done", BRIGHT, True)],
@@ -542,7 +543,7 @@ def scene_jobs():
 
 def scene_servers():
     log = lambda *lines: [*lines]
-    browse(2, [("●", GREEN, "next dev --turbopack", ":3000"), ("●", GREEN, "anvil --block-time 2", ":8545"),
+    browse(TAB["SERVERS"], [("●", GREEN, "next dev --turbopack", ":3000"), ("●", GREEN, "anvil --block-time 2", ":8545"),
                ("●", GREEN, "wrangler dev", ":8787")], ACCENT["SERVERS"], "servers", [
         log([("$ ", MUTED), ("next dev --turbopack", BRIGHT, True)],
             [("  ", MUTED), ("http://localhost:3000", CYAN), (" · pid 41233 · log file", MUTED)], RULE,
@@ -571,7 +572,7 @@ def scene_servers():
 
 
 def scene_build():
-    browse(3, [(SPIN, AMBER, "Building the project", "now"), ("✓", GREEN, "Building the project", "6m ago"),
+    browse(TAB["BUILD"], [(SPIN, AMBER, "Building the project", "now"), ("✓", GREEN, "Building the project", "6m ago"),
                ("✗", RED, "Building the project", "21m ago")], ACCENT["BUILD"], "runs", [
         [[("$ ", MUTED), ("npm run build", BRIGHT, True)],
          [("  ~/app · ", MUTED), (lambda t: f"{9 + t}s", MUTED), (" · running", MUTED)], RULE,
@@ -603,7 +604,7 @@ def scene_build():
 
 
 def scene_test():
-    browse(4, [(SPIN, AMBER, "Running all the tests", "now"), ("✗", RED, "Running all the tests", "1m ago"),
+    browse(TAB["TEST"], [(SPIN, AMBER, "Running all the tests", "now"), ("✗", RED, "Running all the tests", "1m ago"),
                ("✓", GREEN, "Testing auth", "9m ago"), ("✓", GREEN, "Running all the tests", "24m ago"),
                ("✓", GREEN, "Running all the tests", "1h ago")], ACCENT["TEST"], "runs", [
         [[("$ ", MUTED), ("npm test", BRIGHT, True)],
@@ -637,7 +638,7 @@ def scene_test():
 
 def scene_git():
     bar_ = ("  │ ", ACCENT["GIT"])
-    browse(5, [("✓", GREEN, "git add", "feat/refresh  1m ago  a41c9e2"),
+    browse(TAB["GIT"], [("✓", GREEN, "git add", "feat/refresh  1m ago  a41c9e2"),
                ("", MUTED, 'git commit "Refresh-token rotation"', ""),
                ("✓", GREEN, "git push", "feat/refresh  9m ago  7d03b18"),
                ("✓", GREEN, "git switch -c feat/refresh", "feat/refresh  14m ago"),
@@ -664,7 +665,7 @@ def scene_git():
 
 
 def scene_deploy():
-    browse(6, [("✓", GREEN, "Deploying to production", "2m ago"), ("✓", GREEN, "Deploying with vercel", "18m ago"),
+    browse(TAB["DEPLOY"], [("✓", GREEN, "Deploying to production", "2m ago"), ("✓", GREEN, "Deploying with vercel", "18m ago"),
                ("✗", RED, "Deploying to production", "1h ago")], ACCENT["DEPLOY"], "runs", [
         [[("$ ", MUTED), ("vercel --prod", BRIGHT, True)],
          [("  ~/app · 41s · exit 0", MUTED)], RULE,
@@ -691,7 +692,7 @@ def scene_system():
     """The machine, then every process as btop lists them, busiest first (bin/viewer.py System):
     a Claude session one row with what runs under it summed (the selected one unfolded), the
     servers tab's servers in green."""
-    section_bar(7)
+    section_bar(TAB["SYSTEM"])
     inner = D - 4  # a card the deck's width
     cut = lambda s, n: s if len(s) <= n else s[:n - 1] + "…"
     session, server = ACCENT["AGENTS"], GREEN
@@ -751,8 +752,8 @@ def scene_files():
     Files): ✎ written, ◦ read and dimmed, a folder grey; on the right a spinner while an agent at work
     wrote it (the main agent is testing), ✓ after, who touched it last, its lines, when. The picked
     file's diff under it, a second each."""
-    section_bar(8)
-    start = sum(SCENE_TIMES[:8])
+    section_bar(TAB["FILES"])
+    start = sum(SCENE_TIMES[:TAB["FILES"]])
     pen = ACCENT["FILES"]
     folder = lambda name: ("▾", MUTED, [(name, MUTED)], "")
     def written(name, busy, who, added, removed, age):
@@ -799,8 +800,8 @@ def scene_files():
 
 
 # In the order of the tabs.
-scenes = [scene_agents, scene_jobs, scene_servers, scene_build, scene_test, scene_git, scene_deploy, scene_system,
-          scene_files]
+scenes = [scene_agents, scene_files, scene_jobs, scene_servers, scene_build, scene_test, scene_git, scene_deploy,
+          scene_system]
 for i, draw in enumerate(scenes):
     layer("s", i, draw)
 layers("s", len(scenes), CYCLE, SCENE_TIMES)

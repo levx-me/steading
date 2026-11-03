@@ -17,7 +17,7 @@ unfolds it), the project's dev servers on rows of their own with their port; s s
 this user's, K ends the selected one after a y. Sampled every 2s while shown; o opens btop (and
 macmon) in a herdr workspace named system. The files section lists the files the session's agents
 read (◦) or wrote (✎) as a tree from the repository's root, each with who touched it last, when,
-and its +/- lines; enter shows its diff, o opens it in $EDITOR in a herdr split, y copies its path.
+and its +/- lines; enter shows its diff (on a folder folds it), o opens it in $EDITOR in a herdr split, y copies its path.
 
 Keys: [ ] (or tab/shift-tab) and 1-9 switch sections,
 ctrl+c closes the pane (q only leaves a log), L reopens it on the other side of the agent (right or above). In a run section j/k pick a run from the list and enter (or l)
@@ -66,7 +66,7 @@ from transcripts import (Digest, _classify, agent_state, command_phrase, context
 
 BASE = sys.argv[1] if len(sys.argv) > 1 else os.environ["STEADING_BASE"]  # plugin panes pass it in the env
 SERVERS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "servers")
-SECTIONS = ["agents", "jobs", "servers", "build", "test", "git", "deploy", "system", "files"]
+SECTIONS = ["agents", "files", "jobs", "servers", "build", "test", "git", "deploy", "system"]
 FOCUS = {"pane": True}  # whether the deck's pane has the keyboard; without it the accents go grey
 SHOWN = {"kind": ""}  # the section on screen: what the others show is looked at less often
 
@@ -104,7 +104,7 @@ def save_settings(values):
     except OSError:
         pass
 # shift and a letter of the tab's name goes there: its first, but git's I (G is vim's bottom) and system's Y (S is servers).
-TAB_KEYS = ["A", "J", "S", "B", "T", "I", "D", "Y", "F"]
+TAB_KEYS = ["A", "F", "J", "S", "B", "T", "I", "D", "Y"]
 # Screen rows (1-based, as in mouse reports): section tabs, then the section's
 # head (run list box, command, info line, rule) and its body.
 HEAD_ROW = 2
@@ -1820,7 +1820,7 @@ class FileRun(Run):
 
     def status(self):
         if self.folder:
-            return ("▾", MUTED_RGB)
+            return ("▸" if self.path in self.owner.folded else "▾", MUTED_RGB)
         return ("✎", ACCENT["files"]) if self.mode == "W" else ("◦", DIMMED_RGB)
 
     def label(self):
@@ -1858,14 +1858,15 @@ class FileRun(Run):
             return [(f"+{added}", GREEN_RGB), ("new", MUTED_RGB)]
         return [(f"+{added}", GREEN_RGB), (f"-{removed}", RED_RGB)]
 
-    def right(self):
-        """The row's right side, plain and in colour: its state, who touched it last, its lines, when."""
+    def right(self, room=None):
+        """The row's right side, plain and in colour: its state, who touched it last, its lines, when.
+        Wider than room: when goes first, then who, then the lines; the state stays."""
         if self.folder:
             return "", ""
-        parts = []
-        if self.mode == "W":
-            parts.append((f"{spinner()} editing", AMBER_RGB) if self.busy else ("✓", GREEN_RGB))
-        parts += [(self.agent, MUTED_RGB)] + self.counts() + [(self.age(), MUTED_RGB)]
+        state = [(f"{spinner()} editing", AMBER_RGB) if self.busy else ("✓", GREEN_RGB)] if self.mode == "W" else []
+        who, lines, when = [(self.agent, MUTED_RGB)], self.counts(), [(self.age(), MUTED_RGB)]
+        fits = [state + who + lines + when, state + who + lines, state + lines, state]
+        parts = next((p for p in fits if room is None or cells(" ".join(t for t, _ in p)) <= room), state)
         return " ".join(t for t, _ in parts), " ".join(f"{fg(rgb)}{t}" for t, rgb in parts)
 
     def command(self, cols):
@@ -1930,6 +1931,7 @@ class Files(Runs):
         self.counts, self.untracked, self.version = {}, set(), 0  # the latest numstat, and how many so far
         self.reading, self.read_at, self.read_key = False, 0.0, None
         self.shape, self.kept = None, {}
+        self.folded = set()  # the folders folded by hand (their row's path), kept across refreshes
 
     def refresh(self):
         if SHOWN["kind"] != "files":  # hidden: nothing read, nothing run
@@ -2001,7 +2003,7 @@ class Files(Runs):
         picked = self.runs[self.tab].path if self.runs else None
         rows = []
 
-        def walk(node, depth, prefix):
+        def walk(node, depth, prefix, shown):
             count = 0
             for name in sorted(node, key=lambda n: (not n.endswith("/"), n.lower(), n)):
                 sub = node[name]
@@ -2012,21 +2014,25 @@ class Files(Runs):
                     key = "\0" + prefix + name
                     run = self.kept.get(key) or FileRun(key, self, folder=True)
                     run.name, run.depth = name, depth
-                    rows.append(run)
-                    run.count = walk(sub, depth + 1, prefix + name)
+                    if shown:
+                        rows.append(run)
+                    run.count = walk(sub, depth + 1, prefix + name, shown and key not in self.folded)
                     count += run.count
                 else:
                     run = self.kept.get(sub) or FileRun(sub, self)
                     mode, _, kind, ns = states[sub]
                     run.name, run.depth, run.mode, run.ns = name, depth, mode, ns
                     run.agent, run.busy = kind.rsplit(":", 1)[-1] or "main", sub in busy  # wanjang:builder -> builder
-                    rows.append(run)
+                    if shown:
+                        rows.append(run)
                     count += 1
+                kept[run.path] = run
             return count
 
-        walk(tree, 0, "")
-        walk(outside, 0, "/")
-        self.runs, self.kept = rows, {r.path: r for r in rows}
+        kept = {}  # every row's run, a folded folder's too, so unfolding brings them back as they were
+        walk(tree, 0, "", True)
+        walk(outside, 0, "/", True)
+        self.runs, self.kept = rows, kept
         paths = [r.path for r in rows]
         self.tab = paths.index(picked) if picked in paths else max(0, min(self.tab, len(rows) - 1))
 
@@ -2063,8 +2069,10 @@ class Files(Runs):
         for i in self.listed:
             run = self.runs[i]
             icon, colour = run.status()
-            right, shown = run.right()
-            label = cut("  " * run.depth + run.name, max(2, cols - 6 - cells(right)))
+            indent = "  " * run.depth
+            # Narrow: the right side drops its parts so the name keeps 12 cells at least.
+            right, shown = run.right(cols - 6 - cells(indent) - min(12, cells(run.name)))
+            label = cut(indent + run.name, max(2, cols - 6 - cells(right)))
             gap = " " * max(1, cols - 5 - cells(label) - cells(right))
             if i == self.tab:
                 arrow = fg(MUTED_RGB) + ("➜" if self.focus == "log" else " ")
@@ -2078,12 +2086,14 @@ class Files(Runs):
 
     def hints(self):
         if self.focus == "list" and self.search is None:
-            return [("enter", "diff"), ("o", "edit"), ("y", "copy path"), ("L", "side"), ("[ ]", "tabs"),
-                    (",", "settings"), ("ctrl+c", "close")]
+            run = self.runs[self.tab] if self.runs else None
+            keys = [] if not run else [("enter", "unfold" if run.path in self.folded else "fold")] if run.folder else \
+                [("enter", "diff"), ("o", "edit"), ("y", "copy path")]
+            return keys + [("L", "side"), ("[ ]", "tabs"), (",", "settings"), ("ctrl+c", "close")]
         return super().hints()
 
     def list_key(self, k):
-        """j/k down and up the tree, gg G its ends; enter (or l) into the file's diff, o opens it in
+        """j/k down and up the tree, gg G its ends; enter (or l) into the file's diff (a folder: folds it), o opens it in
         $EDITOR in a herdr split, y copies its path."""
         if not self.runs:
             return
@@ -2099,7 +2109,9 @@ class Files(Runs):
         elif k == "G":
             self.select(last)
         elif run.folder:
-            return
+            if k in ("\r", "\n", "l"):  # folds it, or unfolds it
+                self.folded ^= {run.path}
+                self.build(*self.shape[:2])
         elif k in ("\r", "\n", "l"):
             self.focus, self.follow, self.cy, self.cx, self.offset = "log", False, 0, 0, 0
         elif k == "y":
@@ -3776,10 +3788,11 @@ SCROLLS = {"\x04": lambda h: h // 2 or 1, "\x15": lambda h: -(h // 2 or 1), "\x0
 
 class Deck:
     def __init__(self):
-        self.views = [Agents(), Jobs(), Servers()] + [Git() if k == "git" else Runs(k) for k in SECTIONS[3:7]]
-        self.views.append(System(self.views[2]))  # its process rows take the servers the servers tab found
-        self.views.append(Files(self.views[0]))  # the files of the session the agents tab follows
-        self.views[0].jump = self.jump  # a job in an agent's detail leads to the jobs tab
+        agents, servers = Agents(), Servers()
+        # Files: the session the agents tab follows; system's process rows take the servers the servers tab found.
+        self.views = [agents, Files(agents), Jobs(), servers] + [Git() if k == "git" else Runs(k) for k in SECTIONS[4:8]]
+        self.views.append(System(servers))
+        agents.jump = self.jump  # a job in an agent's detail leads to the jobs tab
         self.section = 0
         self.unseen = set()  # tabs with something new not shown yet
         self.settings, self.settings_open, self.setting = settings(), False, 0
@@ -3941,6 +3954,9 @@ class Deck:
         if hidden:
             self.hidden_at, self.dirty = time.time(), True
         SHOWN["kind"] = self.views[self.section].kind
+        if self.refreshed != self.section:  # switched: a word left on the info line goes, on the tab left and the one shown
+            for i in {self.refreshed, self.section} - {None}:
+                self.views[i].msg = ""
         for i, view in enumerate(self.views):
             arrived = i == self.section and self.refreshed != i  # just switched to: its data now
             if arrived:
