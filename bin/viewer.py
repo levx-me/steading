@@ -3071,8 +3071,10 @@ class System:
             with open(WANT, "a"):
                 pass
             os.utime(WANT)
-            with open(os.path.join(BASE, "system.servers"), "w") as f:
+            path = os.path.join(BASE, "system.servers")
+            with open("%s.%d" % (path, os.getpid()), "w") as f:
                 json.dump(self.servers.found, f)
+            os.replace("%s.%d" % (path, os.getpid()), path)
             with open(DAEMON) as f:
                 os.kill(int(f.read()), 0)
             return True

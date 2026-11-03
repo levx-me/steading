@@ -303,7 +303,7 @@ def main():
             while wanted():
                 s.servers.found = deck_servers()
                 s.sample()
-                time.sleep(max(0.0, s.sampled_at + v.SAMPLE_SECS - time.time()))
+                time.sleep(max(1.0, s.sampled_at + v.SAMPLE_SECS - time.time()))  # 1 s at least: a failing sample leaves sampled_at 0
         finally:
             stop_macmon()
 
