@@ -1586,7 +1586,7 @@ ${PYLOAD}
 v = load("v", sys.argv[1])
 v.background = lambda fn, *a: fn(*a)
 if int(sys.argv[3]):
-    v.CHUNK = int(sys.argv[3])
+    sys.modules["transcripts"].CHUNK = int(sys.argv[3])  # the parser reads in its own chunks
 n = [0]; loads = json.loads
 def counted(raw, *a, **k):
     n[0] += isinstance(raw, bytes)

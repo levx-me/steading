@@ -18,6 +18,7 @@ subagents work, bin/crew spins $crew ("⠋ N") on the pane and its workspace.
 Tool calls report at most every 3 seconds; the end of a turn always reports."""
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -110,12 +111,16 @@ os.environ.setdefault("STEADING_BASE", state)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # -I leaves the script's folder out
 import steading_run  # noqa: E402
 from tasklist import task_folder  # noqa: E402
+from transcripts import Digest, context_use, git_state  # noqa: E402
 
-v = steading_run.load("viewer", os.path.join(os.path.dirname(os.path.abspath(__file__)), "viewer.py"))
-
-# The repository: as the git tab's border shows it.
+# The repository: as the git tab's border shows it ("main ↑2", "1 changed").
 cwd = event.get("cwd") or os.getcwd()
-repo, _, repostate = v.ANSI.sub("", v.repo_state(cwd)).strip().partition(" · ")  # "main ↑2", "1 changed"
+repo = repostate = ""
+git = git_state(cwd)
+if git:
+    branch, ahead, behind, changed = git
+    repo = branch + (f" ↑{ahead}" if ahead else "") + (f" ↓{behind}" if behind else "")
+    repostate = f"{changed} changed" if changed else "clean"
 
 nogit = False
 if not repo:  # git said "not a git repository" (any other failure keeps the row empty)
@@ -127,7 +132,7 @@ if not repo:  # git said "not a git repository" (any other failure keeps the row
     repo = "no git" if nogit else ""
 
 # The context: the latest request's tokens, from the end of the transcript.
-d = v.Digest()
+d = Digest()
 d.sid = event.get("session_id") or ""
 try:
     with open(event.get("transcript_path", ""), "rb") as f:
@@ -139,10 +144,10 @@ try:
                 pass
 except OSError:
     pass
-model = v.re.sub(r"-\d{8}$", "", (d.model or d.requested or "").replace("claude-", ""))
+model = re.sub(r"-\d{8}$", "", (d.model or d.requested or "").replace("claude-", ""))
 ctx = ""
 if d.context:
-    pct, _ = v.context_use(d)
+    pct, _ = context_use(d)
     filled = min(5, round(pct / 20))
     ctx = f"{'▰' * filled}{'▱' * (5 - filled)} {pct}%"
 
@@ -165,7 +170,7 @@ if tasks:
     bar = f"{'▰' * filled}{'▱' * (5 - filled)} {done}/{len(tasks)}"
 
 args = [os.environ.get("HERDR_BIN_PATH", "herdr"), "pane", "report-metadata", pane, "--source", "steading"]
-hot = ctx and v.context_use(d)[0] >= 80
+hot = ctx and context_use(d)[0] >= 80
 values = {"repo": repo, "model": model, "ctx": "" if hot else ctx, "ctxhot": ctx if hot else "", "tasks": bar, "repostate": repostate}
 shown = [r for r in ROWS if any(values[n] for n in r)]
 for name in values:
@@ -199,6 +204,8 @@ try:
     # The third row, what runs here: the servers' ports and the jobs still going, as the deck lists them.
     # $wstree/$wsrun/$wstree2 share one source with no lifetime: bin/steading_run.py refreshes it
     # while something runs, since a server can stop with no hook to say so.
+    # (compute takes the deck's own herdr_panes, read and Jobs: viewer.py is loaded for it alone)
+    v = steading_run.load("viewer", os.path.join(os.path.dirname(os.path.abspath(__file__)), "viewer.py"))
     run = steading_run.compute(v, state, cwd, space)
     has_repo = bool(values["repo"])
     guides = steading_run.tokens(run, has_repo)
