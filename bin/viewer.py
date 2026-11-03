@@ -148,6 +148,15 @@ def tail_of(path, end):
         return f.read(min(TAIL, end))
 
 
+CHUNK = 1 << 24  # a transcript is read 16 MB at a time: one of 500 MB is never held whole
+
+
+def read_chunk(f):
+    """The next CHUNK bytes of f, and the rest of the line they end in."""
+    data = f.read(CHUNK)
+    return data + f.readline() if len(data) == CHUNK else data
+
+
 def cache_load(path):
     """The saved parse state of a transcript that is still the same file and only grew, else None."""
     try:
@@ -2468,26 +2477,30 @@ class AgentRun(Run):
         self.count()
 
     def count(self):
-        """Feed the transcript's new lines to the digest (its file only grows)."""
+        """Feed the transcript's new lines to the digest (its file only grows), a chunk at a time."""
+        start = self.read_to
         try:
             with open(self.path, "rb") as f:
                 f.seek(self.read_to)
-                data = f.read()
+                while True:
+                    data = read_chunk(f)
+                    done = data.rfind(b"\n") + 1
+                    for raw in data[:done].splitlines():
+                        try:
+                            row = json.loads(raw)
+                        except ValueError:
+                            continue
+                        self.digest.feed(row)
+                        if self.digest.last and (not self.stamps or self.stamps[-1] != self.digest.last):
+                            self.stamps.append(self.digest.last)
+                    self.read_to += done
+                    if len(data) < CHUNK or done < len(data):  # the end, or a half-written last line
+                        break
         except OSError:
             return
-        done = data.rfind(b"\n") + 1
-        for raw in data[:done].splitlines():
-            try:
-                row = json.loads(raw)
-            except ValueError:
-                continue
-            self.digest.feed(row)
-            if self.digest.last and (not self.stamps or self.stamps[-1] != self.digest.last):
-                self.stamps.append(self.digest.last)
-        self.read_to += done
         self.first = self.digest.first or self.first
         self.calls = sum(self.digest.kinds.values())
-        if done:
+        if self.read_to != start:
             cache_save(self.path, self, {"read_to": self.read_to, "digest": self.digest, "stamps": self.stamps})
 
     def parent(self):
@@ -2507,9 +2520,11 @@ class AgentRun(Run):
         end = self.deck.notified.get(self.id, "")
         # A background subagent can be sent a message after it finished: it works again,
         # writing its transcript after the notification that said it was done.
-        if end and os.path.exists(self.path) and \
-                os.path.getmtime(self.path) > getattr(self.deck, "notified_at", {}).get(self.id, 0) + RESUME_SECS:
-            return ""
+        try:  # one stat: it runs for every subagent on every tick
+            if end and os.path.getmtime(self.path) > getattr(self.deck, "notified_at", {}).get(self.id, 0) + RESUME_SECS:
+                return ""
+        except OSError:
+            pass
         return end
 
     def activity(self):
@@ -2834,7 +2849,7 @@ class Agents(Runs):
         try:
             with open(self.session, "rb") as f:
                 f.seek(self.read_to)
-                data = f.read()
+                data = read_chunk(f)  # a long one is read on over the next ticks
         except OSError:
             data = b""
         done = data.rfind(b"\n") + 1  # leave a half-written last line for next time
@@ -2920,7 +2935,8 @@ class Agents(Runs):
         # is built top down and turned round, the main agent last.
         # A subagent's own subagents hang off it with branch lines (├ └, │ carrying on past
         # a branch that has more below it), so a manager and its workers read as one group.
-        working = [r for r in self.every if r.status()[1] == AMBER_RGB]
+        act = {r: r.activity() for r in self.every}  # once a tick each: it stats the transcript
+        working = [r for r in self.every if act[r] == "working"]
         # A manager waiting on its workers writes nothing while it waits, so it reads as
         # quiet; it stays listed while any of its subagents works, so they hang under it.
         for r in list(working):
@@ -2948,17 +2964,20 @@ class Agents(Runs):
         # work or a teammate waiting for its next message. One that ended has gone; one the hooks
         # never named that never reported back and has been quiet for long is gone too.
         def alive(k):
-            state = k.activity()
+            state = act[k]
             if state == "working" or state == "idle" and k.id in self.records:
                 return True
             try:
                 return state == "idle" and time.time() - os.path.getmtime(k.path) < ALIVE_SECS
             except OSError:
                 return False
+        # Grouped by parent once: a session with hundreds of subagents is not scanned once per agent.
+        kids = collections.defaultdict(list)
+        for k in self.every:
+            kids[k.meta.get("parentAgentId")].append(k)
         for r in self.every + ([self.main] if self.main else []):
             mine = None if isinstance(r, MainRun) else r.id
-            r.team = sorted((k for k in self.every if k.meta.get("parentAgentId") == mine and alive(k)),
-                            key=lambda k: -k.first)
+            r.team = sorted((k for k in kids.get(mine, ()) if alive(k)), key=lambda k: -k.first)
         # New: a subagent never seen before. (An ended one can show as at work for a moment
         # until the main transcript is read; coming back is not being new.)
         ever = getattr(self, "ever", None)
@@ -3264,8 +3283,10 @@ def macmon_line():
             for line in p.stdout:
                 _macmon["line"], _macmon["wait"] = line, 0.0
                 if time.time() - _macmon["wanted"] > 5 * SAMPLE_SECS:
-                    return p.terminate()  # no longer asked for: a stop, not a death
-            # It ended by itself: wait before the next start.
+                    p.terminate()  # no longer asked for: a stop, not a death
+                    return p.wait()  # reaped, not left a zombie under the deck
+            # It ended by itself: reaped, then a wait before the next start.
+            p.wait()
             _macmon["wait"] = min(60.0, _macmon["wait"] * 2 or SAMPLE_SECS)
             _macmon["next"] = time.time() + _macmon["wait"]
         background(follow)
@@ -3822,9 +3843,13 @@ class Deck:
         at = self.mtime(SETTINGS_PATH)
         if at != getattr(self, "settings_at", None):  # changed here or in another deck
             self.settings_at, self.settings = at, settings()
-        # Something new elsewhere marks its tab, or (following) takes the deck there.
+        # Something new elsewhere marks its tab, or (following) takes the deck there. The tabs not
+        # shown look once a second, not every frame: a session with hundreds of subagents costs.
+        hidden = time.time() - getattr(self, "hidden_at", 0) >= 1
+        if hidden:
+            self.hidden_at = time.time()
         for i, view in enumerate(self.views):
-            if view.refresh() and i != self.section:
+            if (hidden or i == self.section) and view.refresh() and i != self.section:
                 self.arrived(i)
         if not getattr(self, "warmed", False):  # once: every tab's rows read ahead, so a first switch is instant
             self.warmed = True
@@ -4046,7 +4071,19 @@ def shown_cached():
         pass
 
 
+def reap():
+    """Reap what an earlier run of this process left (the exec below keeps the pid and its children,
+    but not the Popen objects that would wait for them): each would stay a zombie until the deck
+    closes. Only before this run starts any child of its own."""
+    try:
+        while os.waitpid(-1, os.WNOHANG)[0]:
+            pass
+    except ChildProcessError:
+        pass
+
+
 def main():
+    reap()
     deck = Deck()
     me = os.path.abspath(__file__)
     born = os.path.getmtime(me)
@@ -4069,6 +4106,9 @@ def main():
         while True:
             if os.path.getmtime(me) != born:  # edited: restart in place with the new code
                 restore()
+                if _macmon["proc"]:  # its pipe closes with the exec: ended and reaped now, not orphaned
+                    _macmon["proc"].kill()
+                    _macmon["proc"].wait()
                 os.execv(sys.executable, [sys.executable, me] + sys.argv[1:])
             try:
                 deck.refresh()

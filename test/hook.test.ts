@@ -1490,25 +1490,31 @@ describe("the agents section keeps what it parsed of a transcript", () => {
     return { dir, main, sagent, cache: join(dir, "cache") };
   };
   // One deck's whole parse in a fresh process: the state it ends with and how many rows it parsed.
-  const run = (dir: string, main: string, cache: string) => {
+  const run = (dir: string, main: string, cache: string, chunk = 0) => {
     const code = `
 import json, sys, time
 from importlib.machinery import SourceFileLoader
 v = SourceFileLoader("v", sys.argv[1]).load_module()
 v.background = lambda fn, *a: fn(*a)
+if int(sys.argv[3]):
+    v.CHUNK = int(sys.argv[3])
 n = [0]; loads = json.loads
 def counted(raw, *a, **k):
     n[0] += isinstance(raw, bytes)
     return loads(raw, *a, **k)
 json.loads = counted
 s = v.Agents(); s.session, s.looked = sys.argv[2], time.time()
-s.read_main(); s.refresh()
+while True:  # one chunk a read: read on to the end, as the ticks do
+    at = s.read_to; s.read_main()
+    if s.read_to == at:
+        break
+s.refresh()
 sub = next(r for r in s.every if r.id == "aaa")
 dump = lambda o: json.dumps(o.__dict__, sort_keys=True, default=lambda x: sorted(x) if isinstance(x, set) else str(type(x)))
 print(json.dumps({"parsed": n[0], "read_to": s.read_to, "results": s.results, "notified": s.notified,
                   "main": dump(s.digest), "sub": dump(sub.digest), "calls": sub.calls}))
 `;
-    const r = Bun.spawnSync(["python3", "-I", "-c", code, join(root, "bin/viewer.py"), main], {
+    const r = Bun.spawnSync(["python3", "-I", "-c", code, join(root, "bin/viewer.py"), main, String(chunk)], {
       env: { PATH: process.env.PATH!, STEADING_BASE: join(dir, "base"), STEADING_CACHE: cache },
     });
     expect(r.stderr.toString()).toBe("");
@@ -1531,6 +1537,16 @@ print(json.dumps({"parsed": n[0], "read_to": s.read_to, "results": s.results, "n
     same(second, fresh);
     expect(second.calls).toBe(3);
     expect(Object.keys(second.results).sort()).toEqual(["t1", "t2", "t3"]);
+  });
+
+  test("a transcript read in small chunks ends as one read whole", () => {
+    const { dir, main, sagent } = setup();
+    appendFileSync(main, result("t3") + note("ccc"));
+    appendFileSync(sagent, call("x3") + call("x4"));
+    const chunked = run(dir, main, join(dir, "chunked"), 10); // shorter than a line: a line a read
+    same(chunked, full(dir, main));
+    expect(chunked.calls).toBe(4);
+    expect(Object.keys(chunked.results).sort()).toEqual(["t1", "t2", "t3"]);
   });
 
   test("a transcript that was replaced, cut short or changed before the offset is parsed from scratch", () => {
@@ -1905,6 +1921,46 @@ for _ in range(3):
     m._macmon["next"] = 0  # as if the wait were over
 print(json.dumps([waits, len(open(${JSON.stringify(runs)}).read().split())]))`, { PATH: `${bin}:/usr/bin:/bin` });
     expect(out).toEqual([[2, 4, 8], 3]);
+  });
+
+  test("a macmon that ends, or is stopped when no longer asked for, is reaped, not left a zombie", () => {
+    const bin = fakeBin({});
+    writeFileSync(join(bin, "macmon"), `#!/bin/sh\n[ -n "$KEEP" ] || exit 0\nwhile :; do echo '{}'; sleep 0.05; done\n`);
+    chmodSync(join(bin, "macmon"), 0o755);
+    const reaped = (env: Record<string, string>) => py(`m.SAMPLE_SECS = 0.01  # asked for 0.05s at most
+m.macmon_line()
+p = m._macmon["proc"]
+for _ in range(100):  # nothing calls poll(): only the reader thread can reap it
+    if p.returncode is not None:
+        break
+    time.sleep(0.05)
+print(json.dumps(p.returncode))`, { PATH: `${bin}:/usr/bin:/bin`, ...env });
+    expect(reaped({})).toBe(0); // ended by itself
+    expect(reaped({ KEEP: "1" })).toBe(-15); // stopped: SIGTERM
+  });
+
+  test("a deck restarted in place reaps the children its earlier run left as zombies", () => {
+    const out = py(`import subprocess
+pid = subprocess.Popen(["true"]).pid
+time.sleep(0.3)  # ended, not waited for: a zombie, as after the exec
+subprocess._active.clear()  # the new run has no Popen object for it
+was = os.popen(f"ps -o stat= -p {pid}").read().strip()
+m.reap()
+print(json.dumps([was[:1], os.popen(f"ps -o stat= -p {pid}").read().strip()]))`);
+    expect(out).toEqual(["Z", ""]);
+  });
+
+  test("the tab shown refreshes every frame, the others once a second", () => {
+    const out = py(`m.background = lambda fn, *a: None
+d = m.Deck(); n = [0] * len(d.views)
+for i, view in enumerate(d.views):
+    view.refresh = (lambda i: lambda: n.__setitem__(i, n[i] + 1))(i)
+for _ in range(5):
+    d.refresh()
+d.hidden_at -= 1  # a second on
+d.refresh()
+print(json.dumps([n[d.section], sorted({c for i, c in enumerate(n) if i != d.section})]))`);
+    expect(out).toEqual([6, [2]]);
   });
 
   test("a sample shared with the other decks clears temp files a dead deck left over a minute ago", () => {
