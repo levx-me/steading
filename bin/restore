@@ -12,10 +12,15 @@ import re
 import subprocess
 import sys
 from datetime import datetime
+import importlib.util
 from importlib.machinery import SourceFileLoader
 
 BIN = os.path.dirname(os.path.abspath(__file__))
-classify = SourceFileLoader("classify", os.path.join(BIN, "classify")).load_module().classify
+_loader = SourceFileLoader("classify", os.path.join(BIN, "classify"))
+_mod = importlib.util.module_from_spec(importlib.util.spec_from_loader("classify", _loader))
+sys.modules["classify"] = _mod
+_loader.exec_module(_mod)
+classify = _mod.classify
 DESC = re.compile(r"^(test|build|git|deploy):\s*\S")
 
 

@@ -4,6 +4,16 @@ import { join } from "node:path";
 const root = join(import.meta.dir, "..");
 const hook = join(root, "bin/hook");
 
+// Python snippets load a bin/ file by path: the old loader method is gone in Python 3.15.
+const PYLOAD = `import importlib.util, sys
+from importlib.machinery import SourceFileLoader
+def load(name, path):
+    loader = SourceFileLoader(name, path)
+    mod = importlib.util.module_from_spec(importlib.util.spec_from_loader(name, loader))
+    sys.modules[name] = mod
+    loader.exec_module(mod)
+    return mod`;
+
 // Run bin/hook on a Bash tool call; returns the rewritten command or null.
 function rewrite(command: string, env: Record<string, string> = {}) {
   const input = JSON.stringify({ tool_name: "Bash", tool_input: { command, description: "x" } });
@@ -513,8 +523,8 @@ describe("the agents section reads the session's subagents", () => {
     ].map(line).join("\n") + "\n");
     const check = `
 import os, sys, time
-from importlib.machinery import SourceFileLoader
-v = SourceFileLoader("v", sys.argv[1]).load_module()
+${PYLOAD}
+v = load("v", sys.argv[1])
 v.background = lambda fn, *a: fn(*a)  # inline, for the test
 s = v.Agents(); s.session, s.looked = sys.argv[2], time.time()
 s.read_main(); s.refresh()
@@ -561,8 +571,8 @@ for r in s.every:
     writeFileSync(main, JSON.stringify({ type: "user", timestamp: now, message: { content: "hi" } }) + "\n");
     const check = `
 import sys, time
-from importlib.machinery import SourceFileLoader
-v = SourceFileLoader("v", sys.argv[1]).load_module()
+${PYLOAD}
+v = load("v", sys.argv[1])
 v.background = lambda fn, *a: fn(*a)
 s = v.Agents(); s.session, s.looked = sys.argv[2], time.time()
 s.read_main(); s.refresh()
@@ -588,11 +598,11 @@ print(*(k.id for k in p1.team), "|", v.ANSI.sub("", v.team_card(p1.team, 60)[0])
     const dir = mkdtempSync(join(tmpdir(), "steading-waiting-"));
     const check = `
 import os, sys, json, time
-from importlib.machinery import SourceFileLoader
+${PYLOAD}
 args = sys.argv[1:]; sys.argv = sys.argv[:1]
 d = args[1]
-v = SourceFileLoader("v", args[0]).load_module()
-crew = SourceFileLoader("crew", os.path.join(os.path.dirname(args[0]), "crew")).load_module()
+v = load("v", args[0])
+crew = load("crew", os.path.join(os.path.dirname(args[0]), "crew"))
 import subagents
 v.background = lambda fn, *a: fn(*a)
 sub = f"{d}/s1/subagents"; os.makedirs(sub)
@@ -670,9 +680,9 @@ print(json.dumps([show(), pm1.status()[0]]))
     writeFileSync(main, JSON.stringify(go[0]) + "\n");
     const check = `
 import sys, time
-from importlib.machinery import SourceFileLoader
+${PYLOAD}
 args = sys.argv[1:]; sys.argv = sys.argv[:1]
-v = SourceFileLoader("v", args[0]).load_module()
+v = load("v", args[0])
 v.background = lambda fn, *a: fn(*a)
 s = v.Agents(); s.session, s.looked = args[1], time.time()
 s.read_main(); s.refresh()
@@ -700,9 +710,9 @@ print(" | ".join(r.label() for r in reversed(s.runs)))
       message: { content: [{ type: "tool_use", id: "tj", name: "Bash", input: { command: "sleep 60" } }] } }) + "\n");
     const check = `
 import sys, time
-from importlib.machinery import SourceFileLoader
+${PYLOAD}
 args = sys.argv[1:]; sys.argv = sys.argv[:1]  # the viewer takes its base from argv, else STEADING_BASE
-v = SourceFileLoader("v", args[0]).load_module()
+v = load("v", args[0])
 v.background = lambda fn, *a: fn(*a)
 s = v.Agents(); s.session, s.looked = args[1], time.time()
 s.read_main(); s.refresh()
@@ -736,9 +746,9 @@ print(m.activate(row), went[0][0], went[0][1] == args[2])
     writeFileSync(main, rows.map((r) => JSON.stringify(r)).join("\n") + "\n");
     const check = `
 import sys, time
-from importlib.machinery import SourceFileLoader
+${PYLOAD}
 args = sys.argv[1:]; sys.argv = sys.argv[:1]
-v = SourceFileLoader("v", args[0]).load_module()
+v = load("v", args[0])
 v.background = lambda fn, *a: fn(*a)
 s = v.Agents(); s.session, s.looked = args[1], time.time()
 s.read_main(); s.refresh()
@@ -767,9 +777,9 @@ print(s.inside(), s.focus, m.focus_key, any("▾ 25 more" in l for l in p))
 describe("a reported run's log: error lines and the test summary", () => {
   const check = `
 import sys
-from importlib.machinery import SourceFileLoader
+${PYLOAD}
 sys.argv = ["v", "/tmp"]
-v = SourceFileLoader("v", "${join(root, "bin/viewer.py")}").load_module()
+v = load("v", "${join(root, "bin/viewer.py")}")
 for line in ["AssertionError: expected 401", "44 passed, 0 failed", "0 errors, 2 warnings", "error[E0308]: mismatched", "✓ all good"]:
     print(v.line_mark(line) or "-")
 for log in [[" 131 pass", " 0 fail"], ["=== 1 failed, 44 passed in 0.1s ==="], ["test result: FAILED. 44 passed; 1 failed; 2 ignored"],
@@ -790,9 +800,9 @@ describe("an agent's calls read as phrases", () => {
   test("a command's description, else its main step in words; a verb and what it works on", () => {
     const check = `
 import sys
-from importlib.machinery import SourceFileLoader
+${PYLOAD}
 sys.argv = ["v", "/tmp"]
-v = SourceFileLoader("v", "${join(root, "bin/viewer.py")}").load_module()
+v = load("v", "${join(root, "bin/viewer.py")}")
 for name, args in [("Bash", {"command": "cd x; python3 - <<'EOF'", "description": "Fix the dedupe"}),
                    ("Bash", {"command": "pnpm test\\necho done"}),
                    ("Bash", {"command": "cd /repo/x && ls -la docs"}),
@@ -944,11 +954,11 @@ describe("one record of the subagents at work, for the $crew and the deck", () =
   // Python beside the deck and the crew: both loaded, hook() runs bin/sidebar as Claude Code would.
   const prelude = `
 import json, os, random, subprocess, sys, time
-from importlib.machinery import SourceFileLoader
+${PYLOAD}
 args = sys.argv[1:]; sys.argv = sys.argv[:1]
 root, main = args[0], args[1]
-v = SourceFileLoader("v", os.path.join(root, "bin/viewer.py")).load_module()
-crew = SourceFileLoader("crew", os.path.join(root, "bin/crew")).load_module()
+v = load("v", os.path.join(root, "bin/viewer.py"))
+crew = load("crew", os.path.join(root, "bin/crew"))
 import subagents
 v.background = lambda fn, *a: fn(*a)
 state = os.environ["STEADING_BASE"]
@@ -1203,9 +1213,9 @@ exit 0
     mk("old", now - 7 * 3600, join(dir, "out"));
     const check = `
 import sys
-from importlib.machinery import SourceFileLoader
+${PYLOAD}
 a = sys.argv[1:]; sys.argv = sys.argv[:1]
-v = SourceFileLoader("v", a[0]).load_module()
+v = load("v", a[0])
 print([v.Jobs.shows(a[1] + "/" + n) for n in ("live", "gone", "old")])`;
     const r = Bun.spawnSync(["python3", "-I", "-c", check, join(root, "bin/viewer.py"), dir], { env: { PATH: process.env.PATH!, STEADING_BASE: dir } });
     expect(r.stderr.toString()).toBe("");
@@ -1232,9 +1242,9 @@ print([v.Jobs.shows(a[1] + "/" + n) for n in ("live", "gone", "old")])`;
     chmodSync(join(dir, "herdr"), 0o755);
     const check = `
 import sys
-from importlib.machinery import SourceFileLoader
+${PYLOAD}
 args = sys.argv[1:]; sys.argv = sys.argv[:1]
-v = SourceFileLoader("v", args[0]).load_module()
+v = load("v", args[0])
 v.background = lambda fn, *a: fn(*a)
 a = v.Agents()
 a.find_session(); a.read_main()
@@ -1358,9 +1368,9 @@ describe("a task's story", () => {
     writeFileSync(main, rows.map((r) => JSON.stringify(r)).join("\n") + "\n");
     const check = `
 import sys
-from importlib.machinery import SourceFileLoader
+${PYLOAD}
 args = sys.argv[1:]; sys.argv = sys.argv[:1]
-v = SourceFileLoader("v", args[0]).load_module()
+v = load("v", args[0])
 v.background = lambda fn, *a: fn(*a)
 a = v.Agents(); a.find_session = lambda: None; a.session = args[1]; a.read_main(); a.refresh()
 show = lambda: [v.ANSI.sub("", l) for l in a.frame(70, 40)[0]]
@@ -1409,9 +1419,9 @@ describe("a run folder emptied by the system's temp cleanup", () => {
     writeFileSync(join(dir, "deploy", "runs", "3", "start"), now + "\n");
     const check = `
 import sys
-from importlib.machinery import SourceFileLoader
+${PYLOAD}
 args = sys.argv[1:]; sys.argv = sys.argv[:1]
-v = SourceFileLoader("v", args[0]).load_module()
+v = load("v", args[0])
 t = v.Runs("deploy"); t.refresh()
 print(*[r.n for r in t.runs])
 `;
@@ -1435,9 +1445,9 @@ describe("search in a run's output", () => {
     writeFileSync(join(run, "log"), ["alpha", "beta", "needle here", "gamma"].join("\n") + "\n");
     const check = `
 import sys, time
-from importlib.machinery import SourceFileLoader
+${PYLOAD}
 args = sys.argv[1:]; sys.argv = sys.argv[:1]
-v = SourceFileLoader("v", args[0]).load_module()
+v = load("v", args[0])
 v.background = lambda fn, *a: fn(*a)
 t = v.Runs("test")
 for _ in range(40):
@@ -1474,9 +1484,9 @@ describe("a long log line", () => {
     writeFileSync(join(run, "log"), ["one", "two", long, "three", "four"].join("\n") + "\n");
     const check = `
 import sys, time
-from importlib.machinery import SourceFileLoader
+${PYLOAD}
 args = sys.argv[1:]; sys.argv = sys.argv[:1]  # the viewer takes its base from argv, else STEADING_BASE
-v = SourceFileLoader("v", args[0]).load_module()
+v = load("v", args[0])
 v.background = lambda fn, *a: fn(*a)
 t = v.Runs("test")
 for _ in range(40):
@@ -1525,9 +1535,9 @@ describe("a resumed background subagent", () => {
     utimesSync(join(subs, "agent-gone.jsonl"), old, old);
     const check = `
 import sys, time
-from importlib.machinery import SourceFileLoader
+${PYLOAD}
 args = sys.argv[1:]; sys.argv = sys.argv[:1]
-v = SourceFileLoader("v", args[0]).load_module()
+v = load("v", args[0])
 v.background = lambda fn, *a: fn(*a)
 s = v.Agents(); s.find_session = lambda: None; s.session = args[1]
 s.read_main(); s.refresh(); s.refresh()
@@ -1564,8 +1574,8 @@ describe("the agents section keeps what it parsed of a transcript", () => {
   const run = (dir: string, main: string, cache: string, chunk = 0) => {
     const code = `
 import json, sys, time
-from importlib.machinery import SourceFileLoader
-v = SourceFileLoader("v", sys.argv[1]).load_module()
+${PYLOAD}
+v = load("v", sys.argv[1])
 v.background = lambda fn, *a: fn(*a)
 if int(sys.argv[3]):
     v.CHUNK = int(sys.argv[3])
@@ -2247,5 +2257,24 @@ s.measure = lambda was: {"cpu": 1.0}
 s.sample()
 print(json.dumps(sorted(os.listdir(${JSON.stringify(dir)}))))`);
     expect(out).toEqual(["system.json", "system.json.2"]);
+  });
+
+  test("a deck-style watcher restarts on a change to a bin/ module it imported", () => {
+    const { cpSync } = require("node:fs");
+    const bin = join(mkdtempSync(join(tmpdir(), "steading-bin-")), "bin");
+    cpSync(join(root, "bin"), bin, { recursive: true });
+    const code = `import os, sys
+sys.path.insert(0, ${JSON.stringify(bin)})
+import reexec, tasklist
+fired = []
+check = reexec.watcher(os.path.join(${JSON.stringify(bin)}, "viewer.py"), every=0, exec_=lambda *a: fired.append(a))
+check(); quiet = len(fired)
+t = os.stat(tasklist.__file__).st_mtime + 5
+os.utime(tasklist.__file__, (t, t))
+check()
+print(quiet, len(fired))`;
+    const r = Bun.spawnSync([Bun.which("python3")!, "-I", "-c", code], { env: { PATH: process.env.PATH! } });
+    expect(r.stderr.toString()).toBe("");
+    expect(r.stdout.toString().trim()).toBe("0 1");
   });
 });

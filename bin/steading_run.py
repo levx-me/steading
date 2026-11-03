@@ -9,6 +9,7 @@ three tokens in one source with no lifetime, the same one the hooks use, so the 
 nothing runs it clears $wsrun and $wstree2, sets $wstree to "└", and exits, as it does when the
 workspace is gone (herdr answers with an error). Servers outlive sessions: nothing else stops it."""
 import glob, json, os, shutil, socket, subprocess, sys, time
+import importlib.util
 from importlib.machinery import SourceFileLoader
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -99,8 +100,17 @@ def report(pane, space, run, has_repo, state, force=False):
     mark_sent(state, source(pane), sent)
 
 
+def load(name, path):
+    """A file by path as a module (importlib: the old loader method is gone in Python 3.15)."""
+    loader = SourceFileLoader(name, path)
+    mod = importlib.util.module_from_spec(importlib.util.spec_from_loader(name, loader))
+    sys.modules[name] = mod
+    loader.exec_module(mod)
+    return mod
+
+
 def main(pane, space, cwd, has_repo, state):
-    v = SourceFileLoader("viewer", os.path.join(HERE, "viewer.py")).load_module()
+    v = load("viewer", os.path.join(HERE, "viewer.py"))
     first, check = True, reexec.watcher()
     while True:
         time.sleep(EVERY)

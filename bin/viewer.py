@@ -35,6 +35,7 @@ import ctypes.util
 import functools
 import glob
 import hashlib
+import importlib.util
 import json
 import os
 import pickle
@@ -59,6 +60,7 @@ import urllib.parse
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # -I leaves the script's folder out
 from procs import Proc, printable, program, read_ps, sessions  # noqa: E402
 from tasklist import read_tasks, task_folder  # noqa: E402
+import reexec  # noqa: E402
 import subagents  # noqa: E402
 
 BASE = sys.argv[1] if len(sys.argv) > 1 else os.environ["STEADING_BASE"]  # plugin panes pass it in the env
@@ -362,7 +364,10 @@ def _classify():
     global _CLASSIFY
     if "_CLASSIFY" not in globals():
         from importlib.machinery import SourceFileLoader
-        _CLASSIFY = SourceFileLoader("classify", os.path.join(os.path.dirname(os.path.abspath(__file__)), "classify")).load_module()
+        loader = SourceFileLoader("classify", os.path.join(os.path.dirname(os.path.abspath(__file__)), "classify"))
+        _CLASSIFY = importlib.util.module_from_spec(importlib.util.spec_from_loader("classify", loader))
+        sys.modules["classify"] = _CLASSIFY
+        loader.exec_module(_CLASSIFY)
     return _CLASSIFY
 
 
@@ -4362,7 +4367,6 @@ def main():
     signal.signal(signal.SIGWINCH, lambda *_: wake())  # a new size: drawn at once, every row
     deck = Deck()
     me = os.path.abspath(__file__)
-    born = os.path.getmtime(me)
     fd = sys.stdin.fileno()
     saved = termios.tcgetattr(fd)
 
@@ -4370,6 +4374,15 @@ def main():
         termios.tcsetattr(fd, termios.TCSADRAIN, saved)
         sys.stdout.write("\033[?1004l\033[<u\033[?1006l\033[?1002l\033[?1000l\033[?7h\033[?25h\033[?1049l")
         sys.stdout.flush()
+
+    def restart(exe, argv):
+        restore()
+        if _macmon["proc"]:  # its pipe closes with the exec: ended and reaped now, not orphaned
+            _macmon["proc"].kill()
+            _macmon["proc"].wait()
+        os.execv(exe, argv)
+
+    check = reexec.watcher(me, every=1, exec_=restart)  # edited here or in a bin/ module: restart in place
 
     # Alternate screen, hidden cursor, no autowrap (long lines are cut, not
     # wrapped), and SGR mouse reports so clicks and the wheel reach the deck.
@@ -4380,12 +4393,7 @@ def main():
     try:
         tty.setcbreak(fd)
         while True:
-            if os.path.getmtime(me) != born:  # edited: restart in place with the new code
-                restore()
-                if _macmon["proc"]:  # its pipe closes with the exec: ended and reaped now, not orphaned
-                    _macmon["proc"].kill()
-                    _macmon["proc"].wait()
-                os.execv(sys.executable, [sys.executable, me] + sys.argv[1:])
+            check()
             try:
                 deck.refresh()
                 deck.draw()

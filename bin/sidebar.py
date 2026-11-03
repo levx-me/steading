@@ -107,13 +107,11 @@ if event.get("hook_event_name") != "Stop":
     spin()  # the main agent at work counts too
 
 os.environ.setdefault("STEADING_BASE", state)
-from importlib.machinery import SourceFileLoader  # noqa: E402
-
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # -I leaves the script's folder out
 import steading_run  # noqa: E402
 from tasklist import task_folder  # noqa: E402
 
-v = SourceFileLoader("viewer", os.path.join(os.path.dirname(os.path.abspath(__file__)), "viewer.py")).load_module()
+v = steading_run.load("viewer", os.path.join(os.path.dirname(os.path.abspath(__file__)), "viewer.py"))
 
 # The repository: as the git tab's border shows it.
 cwd = event.get("cwd") or os.getcwd()
