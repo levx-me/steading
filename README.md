@@ -20,18 +20,18 @@ beside the agent**, live, so you never scroll back through the conversation to f
 
 ![Claude Code building a feature in herdr, with the Steading deck beside it streaming the test run](docs/demo.svg)
 
-## Eight tabs, one glance each
+## Nine tabs, one glance each
 
 | Tab | What you see |
 |---|---|
 | **agents** | The agent and every subagent at work: what each is doing right now, its tasks and model, and for the one you pick a heartbeat, context, tokens and tools |
+| **files** | The files this session's agents read (`◦`) or wrote (`✎`) as a tree from the repository's root, a spinner on one being edited now, git `+N -M` beside each. `enter` shows its diff, `o` opens it in `$EDITOR` in a herdr split, `y` copies its path |
 | **jobs** | Any command that has run 10s or more, with what it is for and how long it has left before its timeout, output as it comes |
 | **servers** | Dev servers of the project and its herdr workspace, each with its log; one key opens it in the browser |
 | **build** · **test** | Runs streamed live and in colour, while the agent still gets plain text and the real exit code |
 | **git** | Every command that changes the repository, commit messages in full, and the branch, unpushed commits and uncommitted files in the border |
 | **deploy** | `vercel`, `fly deploy`, `terraform apply`, `forge script --broadcast` and 25+ more; status and list commands stay out |
 | **system** | CPU in all and per core, load and memory, on a Mac with [macmon](https://github.com/vladkens/macmon) also GPU, power and heat; every process as btop lists them, each Claude session one row with what runs under it summed (`enter` unfolds it), dev servers on green rows of their own; `K` ends one. `o` opens `btop` (and `macmon`) in a herdr workspace |
-| **files** | The files this session's agents read (`◦`) or wrote (`✎`) as a tree from the repository's root, a spinner on one being edited now, git `+N -M` beside each. `enter` shows its diff, `o` opens it in `$EDITOR` in a herdr split, `y` copies its path |
 
 ## Why it feels effortless
 
