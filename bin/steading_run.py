@@ -3,10 +3,11 @@
 $wstree2): the ports of its dev servers and the jobs still going.
 
 bin/sidebar.py computes it on every hook; a server can stop with no hook to say so, so when
-something runs it also starts this as a refresher (one per workspace, a pid file in the state
-dir; run: steading_run.py PANE WORKSPACE CWD HAS_REPO). Every 10 s it recomputes and reports the
+something runs it also has this refresher run: one per workspace (a pid file, run-<workspace>.pid,
+in the state dir), a thread of bin/steadingd.py, or its own process when the daemon cannot start
+(steading_run.py PANE WORKSPACE CWD HAS_REPO). Every 10 s it recomputes and reports the
 three tokens in one source with no lifetime, the same one the hooks use, so the two agree. Once
-nothing runs it clears $wsrun and $wstree2, sets $wstree to "└", and exits, as it does when the
+nothing runs it clears $wsrun and $wstree2, sets $wstree to "└", and ends, as it does when the
 workspace is gone (herdr answers with an error). Servers outlive sessions: nothing else stops it."""
 import glob, json, os, shutil, socket, subprocess, sys, time
 import importlib.util
@@ -14,9 +15,10 @@ from importlib.machinery import SourceFileLoader
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)  # -I leaves the script's folder out
-import reexec  # noqa: E402
+import reexec, steadingd  # noqa: E402
 TREE = os.environ.get("STEADING_SIDEBAR_TREE") != "0"
 EVERY = float(os.environ.get("STEADING_RUN_EVERY", "10"))
+OWNERS = ("steading_run.py", "steadingd.py")  # who may hold a refresher's pid file
 
 
 def source(pane):
@@ -109,9 +111,18 @@ def load(name, path):
     return mod
 
 
-def main(pane, space, cwd, has_repo, state):
-    v = load("viewer", os.path.join(HERE, "viewer.py"))
-    first, check = True, reexec.watcher()
+def paths(pane, space):
+    """The pane's state folder and the workspace's refresher pid file."""
+    base = os.path.join(os.environ.get("TMPDIR", "/tmp"), "steading")
+    return (os.path.join(base, pane.replace(":", "_").replace("/", "_")),
+            os.path.join(base, "run-" + space.replace(":", "_").replace("/", "_") + ".pid"))
+
+
+def main(pane, space, cwd, has_repo, state, watch=True):
+    """The loop; it returns once nothing runs. watch=False in the daemon, which has viewer.py
+    loaded already and whose own watcher re-execs it."""
+    v = sys.modules.get("viewer") or load("viewer", os.path.join(HERE, "viewer.py"))
+    first, check = True, reexec.watcher() if watch else (lambda: None)
     while True:
         time.sleep(EVERY)
         check()
@@ -124,27 +135,14 @@ def main(pane, space, cwd, has_repo, state):
 
 if __name__ == "__main__":
     pane, space, cwd, has_repo = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4] == "1"
-    base = os.path.join(os.environ.get("TMPDIR", "/tmp"), "steading")
-    state = os.path.join(base, pane.replace(":", "_").replace("/", "_"))
+    state, pidfile = paths(pane, space)
     os.environ.setdefault("STEADING_BASE", state)
-    os.makedirs(base, exist_ok=True)
-    pidfile = os.path.join(base, "run-" + space.replace(":", "_").replace("/", "_") + ".pid")
-    try:  # one refresher per workspace (a re-exec keeps its own pid)
-        pid = int(open(pidfile).read())
-        if pid != os.getpid():
-            os.kill(pid, 0)
-            sys.exit(0)
-    except (OSError, ValueError):
-        pass
-    with open(pidfile, "w") as f:
-        f.write(str(os.getpid()))
+    os.makedirs(os.path.dirname(pidfile), exist_ok=True)
+    if not steadingd.claim(pidfile, OWNERS):  # one refresher per workspace, here or in the daemon
+        sys.exit(0)
     try:
         main(pane, space, cwd, has_repo, state)
     except (OSError, ValueError, KeyError):
         pass
     finally:
-        try:
-            if open(pidfile).read() == str(os.getpid()):
-                os.remove(pidfile)
-        except OSError:
-            pass
+        steadingd.release(pidfile)

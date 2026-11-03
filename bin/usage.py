@@ -2,21 +2,21 @@
 """Each Claude session's CPU and memory on its herdr agent row: the pane token $usage
 ("15% 0.6G"), summed over the claude process and everything under it (MCP servers, node, shells).
 
-bin/sidebar.py starts it, one per machine (a pid file, usage.pid, beside the panes' state). Every
+One per machine (a pid file, usage.pid, beside the panes' state): a thread of bin/steadingd.py,
+which bin/sidebar.py asks for it, or its own process when the daemon cannot start. Every
 10 s it reads every process with one ps call, finds each herdr pane's claude (asked once per pane,
 and again when that process is gone), and reports a pane only when its rounded value changed:
 CPU to 5%, memory to 0.1 GB, so the sidebar seldom redraws. A pane whose claude has ended has its
-token cleared. It exits once no herdr pane runs Claude, or herdr is gone.
+token cleared. It ends once no herdr pane runs Claude, or herdr is gone.
 
     usage.py"""
 import os
-import subprocess
 import sys
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)  # -I leaves the script's folder out
-import reexec, steading_run  # noqa: E402
+import reexec, steading_run, steadingd  # noqa: E402
 from procs import is_claude, read_ps, sessions, usage_text  # noqa: E402
 
 EVERY = float(os.environ.get("STEADING_RUN_EVERY", "10"))
@@ -61,49 +61,25 @@ def report(pane, value):
 
 
 PIDFILE = os.path.join(BASE, "usage.pid")
+OWNERS = ("usage.py", "steadingd.py")  # who may hold it: this script, or the daemon running it
 
 
 def running(pidfile=PIDFILE):
-    """Whether the pid in pidfile is a live usage.py (a dead pid, or one reused by another
-    program, is not)."""
-    try:
-        with open(pidfile) as f:
-            pid = int(f.read())
-        os.kill(pid, 0)
-    except (OSError, ValueError):
-        return False
-    args = subprocess.run(["ps", "-o", "args=", "-p", str(pid)], capture_output=True, text=True).stdout
-    return any(os.path.basename(word) == "usage.py" for word in args.split())  # its script, not a command naming it
+    """Whether the pid in pidfile is a live usage.py, or the daemon running it (a dead pid, or
+    one reused by another program, is not)."""
+    return steadingd.running(pidfile, OWNERS)
 
 
 def claim(pidfile=PIDFILE):
-    """Take the pid file, made atomically (O_EXCL) so two starting at once cannot both win; a
-    stale one is replaced. False when another usage.py holds it."""
-    for _ in range(2):
-        try:
-            if int(open(pidfile).read()) == os.getpid():
-                return True  # re-exec'd: the file is already ours
-        except (OSError, ValueError):
-            pass
-        try:
-            fd = os.open(pidfile, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
-        except FileExistsError:
-            if running(pidfile):
-                return False
-            try:
-                os.remove(pidfile)
-            except OSError:
-                pass
-            continue
-        with os.fdopen(fd, "w") as f:
-            f.write(str(os.getpid()))
-        return True
-    return False
+    """Take the pid file, made atomically; False when another usage.py (or the daemon) holds it."""
+    return steadingd.claim(pidfile, OWNERS)
 
 
-def main():
+def main(watch=True):
+    """The loop; it returns once no pane runs Claude. watch=False in the daemon, whose own
+    watcher re-execs it."""
     pids, was, shown, idle = {}, {}, set(), 0
-    check = reexec.watcher()
+    check = reexec.watcher() if watch else (lambda: None)
     while True:
         check()
         procs, now = read_ps(), time.time()
@@ -130,7 +106,6 @@ def main():
 
 if __name__ == "__main__":
     os.makedirs(BASE, exist_ok=True)
-    pidfile = PIDFILE
     if not claim():  # one per machine
         sys.exit(0)
     try:
@@ -138,8 +113,4 @@ if __name__ == "__main__":
     except (OSError, ValueError, KeyError):
         pass
     finally:
-        try:
-            if open(pidfile).read() == str(os.getpid()):
-                os.remove(pidfile)
-        except OSError:
-            pass
+        steadingd.release(PIDFILE)

@@ -10,7 +10,7 @@ context use, as herdr pane tokens for its sidebar, with or without a deck open.
   $ctxhot  the same from 80% on, so a ui.sidebar.agents.rows layout can colour it
   $tasks   its task list: a bar and done/total, from ~/.claude/tasks/session-<id>
   $usage   its CPU and memory, the session's whole process tree ("15% 0.6G"): reported every
-           10 s by bin/usage.py, which this starts when none runs
+           10 s by bin/usage.py, which this has bin/steadingd.py run (see helpers below)
 
 It also names the pane and its tab after the session's title, when that changes. While
 subagents work, bin/crew spins $crew ("⠋ N") on the pane and its workspace.
@@ -108,8 +108,9 @@ if event.get("hook_event_name") != "Stop":
     spin()  # the main agent at work counts too
 
 os.environ.setdefault("STEADING_BASE", state)
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # -I leaves the script's folder out
-import steading_run  # noqa: E402
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)  # -I leaves the script's folder out
+import steading_run, steadingd  # noqa: E402
 from tasklist import task_folder  # noqa: E402
 from transcripts import Digest, context_use, git_state  # noqa: E402
 
@@ -195,6 +196,7 @@ def send(src, tokens, cmd):
         steading_run.mark_sent(state, src, tokens)
 
 
+wanted = [("usage", [], "usage.py")]  # (kind, args, script): the helpers to start, below
 try:
     send("pane-steading", values, args)
     # The Spaces panel's second row ($wstree, $wsrepo): herdr's own branch/git_status can't take a
@@ -214,18 +216,45 @@ try:
     for src, tokens in ((f"steading-repo-{pane}", {**ws, "wstree": ""}), (steading_run.source(pane), guides)):
         send(src, tokens, [herdr, "workspace", "report-metadata", space, "--source", src] + flat(tokens))
     if run:
-        subprocess.Popen([sys.executable, "-I", os.path.join(os.path.dirname(os.path.abspath(__file__)), "steading_run.py"),
-                          pane, space, cwd, "1" if has_repo else "0"],
-                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+        wanted.append(("run", [pane, space, cwd, "1" if has_repo else "0"], "steading_run.py"))
 except (OSError, subprocess.TimeoutExpired, ValueError, KeyError):
     pass
 
-# $usage comes from bin/usage.py, one for the machine: started here when none runs.
-import usage  # noqa: E402
 
-if not usage.running():
-    subprocess.Popen([sys.executable, "-I", os.path.join(os.path.dirname(os.path.abspath(__file__)), "usage.py")],
+def daemon():
+    """Whether bin/steadingd.py, the machine's one daemon, answers: started when it does not, and
+    waited on for up to 1 s (this runs in the background, so no tool call waits)."""
+    try:
+        steadingd.ask("/ping")
+        return True
+    except (OSError, ValueError):
+        pass
+    subprocess.Popen([os.path.join(HERE, "py"), "-I", os.path.join(HERE, "steadingd.py")],
                      stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+    for _ in range(20):
+        time.sleep(0.05)
+        try:
+            steadingd.ask("/ping")
+            return True
+        except (OSError, ValueError):
+            pass
+    return False
+
+
+# The helpers: $usage (bin/usage.py, one for the machine) and, while something runs, the
+# workspace's refresher. Both run in the daemon; each as its own process, as before it, only
+# when the daemon cannot start. Neither can do anything without herdr's socket.
+if os.path.exists(os.environ.get("HERDR_SOCKET_PATH", "")):
+    up = daemon()
+    for kind, helper_args, script in wanted:
+        try:
+            if up:
+                steadingd.ask("/start", {"kind": kind, "args": helper_args})
+                continue
+        except (OSError, ValueError):
+            pass
+        subprocess.Popen([sys.executable, "-I", os.path.join(HERE, script), *helper_args],
+                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
 
 # The pane's name: the session's title (one set with /rename, else Claude's own, which changes
 # only when the talk turns to something else), so the pane and its tab read as the conversation
