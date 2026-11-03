@@ -127,3 +127,27 @@ deck sampling for all that show it, never in the background, and the tab is neve
 time with `btop` wide and, on a Mac with macmon, `macmon` narrow beside it; from any deck after that,
 the deck goes there. A missing tool shows how to install it: `brew install btop macmon` on macOS,
 `btop` from the distribution's package manager on Linux.
+
+## files
+
+**Shows** the files this session's agents (the main one and its subagents) read or wrote, as a folder
+tree from the repository's root; files outside it sit under their own folder. Folders first, a chain of
+single-folder levels on one row, the newest 500 files.
+
+```
+▾ src
+  ▾ auth
+    ✎ refresh.ts     ⠋ builder  +12 -3   4s
+    ◦ session.ts     ✓ scout              1m
+```
+
+A row has `✎` for a file written or `◦` for one only read (dimmed); `⠋` while the agent that wrote it is
+working now, `✓` once it is done; the agent that touched it last (`builder`, `scout`, `main`); its git
+counts, `+N -M` from `git diff --numstat HEAD` (`+N new` for a file git does not know, `deleted`,
+`binary`); and the time since the last touch. `enter` (or `l`) shows the file's diff in the log view
+(`esc`, `q` or backspace leave it), `o` opens the file in `$EDITOR` (`vi` if unset) in a herdr split under the
+deck (outside herdr it shows a hint), `y` copies its path.
+
+**Comes in when** an agent's Read, Edit, Write or NotebookEdit call finishes: the sidebar hook adds it to
+the session's `<sid>.files` record. Nothing watches the filesystem. Git runs only while the tab is shown,
+at most once a second.

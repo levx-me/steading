@@ -121,3 +121,26 @@ btop처럼 모든 프로세스(Pid, Program, Command, User, MemB, Cpu%)를 CPU�
 넓게, Mac에서 macmon이 있으면 옆에 `macmon`을 좁게 엽니다. 그 뒤로는 어느 deck에서든 그 워크스페이스로
 갑니다. 도구가 없으면 설치 방법을 보여 줍니다. macOS는 `brew install btop macmon`, Linux는 배포판
 패키지 관리자로 `btop`.
+
+## files
+
+**보여 주는 것**: 이 세션의 에이전트(메인과 서브에이전트)가 읽거나 쓴 파일을 저장소 루트 기준의 폴더 트리로
+보여 줍니다. 저장소 밖의 파일은 자기 폴더 아래에 나옵니다. 폴더가 먼저 나오고, 폴더가 하나씩만 이어지면 한
+행으로 합치며, 최근 파일 500개까지 보여 줍니다.
+
+```
+▾ src
+  ▾ auth
+    ✎ refresh.ts     ⠋ builder  +12 -3   4s
+    ◦ session.ts     ✓ scout              1m
+```
+
+한 행은 쓴 파일이면 `✎`, 읽기만 했으면 `◦`(흐리게), 파일을 쓴 에이전트가 지금 일하는 중이면 `⠋`, 끝났으면
+`✓`, 마지막으로 손댄 에이전트(`builder`, `scout`, `main`), git 변경량, 마지막으로 손댄 뒤 지난 시간으로
+이루어집니다. 변경량은 `git diff --numstat HEAD`의 `+N -M`이고, git이 모르는 파일은 `+N new`, 지워진 파일은
+`deleted`, 바이너리는 `binary`로 나옵니다. `enter`(또는 `l`)는 그 파일의 diff를 로그 화면에 보여 주고(`esc`,
+`q`, 백스페이스로 나옴), `o`는 deck 아래에 herdr 분할 창을 열어 `$EDITOR`(없으면 `vi`)로 파일을 엽니다(herdr 밖에서는
+안내만 나옴). `y`는 경로를 복사합니다.
+
+**들어오는 때**: 에이전트의 Read, Edit, Write, NotebookEdit 호출이 끝났을 때입니다. sidebar 훅이 세션의
+`<sid>.files` 기록에 추가합니다. 파일 시스템을 감시하지 않습니다. git은 탭이 보이는 동안에만, 1초에 한 번까지만 실행합니다.

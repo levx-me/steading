@@ -27,8 +27,8 @@ apply right now.
 
 | Where | Keys | Action |
 |---|---|---|
-| anywhere | `[` `]` (and, outside a log, `tab` `shift+tab`), `1`–`8` | previous / next tab, jump to one |
-| | `A` `J` `S` `B` `T` `I` `D` `Y` | jump to a tab by its underlined letter (git is `I`: `G` stays vim's bottom; system is `Y`; not inside a log, where `B` moves the cursor) |
+| anywhere | `[` `]` (and, outside a log, `tab` `shift+tab`), `1`–`9` | previous / next tab, jump to one |
+| | `A` `J` `S` `B` `T` `I` `D` `Y` `F` | jump to a tab by its underlined letter (git is `I`: `G` stays vim's bottom; system is `Y`; files is `F`; not inside a log, where `B` moves the cursor) |
 | | `L` | move the deck to the other side of the agent |
 | | `,` | settings: follow new runs to their tab, open a deck with each agent, the jobs threshold (5, 10 or 30s) |
 | | `ctrl+c`, or a click on `✕` at the tabs' left end | close the deck (`q` only goes back from a log to the list, so a stray `q` closes nothing) |
@@ -47,6 +47,10 @@ apply right now.
 | | `K`, then `y` | end the process selected when `K` was pressed (SIGTERM; on a Claude session, its claude only), even if a re-sort has moved another onto the row; if that pid has since ended or names another process, nothing is ended. Any other key keeps it; the outcome shows in the hint line |
 | | `s`, `u` | sort by CPU or memory; all users' processes or only yours |
 | | `o` (or a click on its button) | go to the herdr workspace named `system`, or make it: `btop`, and `macmon` beside it on a Mac |
+| files | `j` `k` (or `↓` `↑`), `g` `G` | move the selected file, the first, the last |
+| | `enter` `l` | show its diff in the log view (`esc`, `q` or backspace leave it) |
+| | `o` | open it in `$EDITOR` (`vi` if unset) in a herdr split under the deck; outside herdr, a hint |
+| | `y` | copy its path |
 | agents | `enter`, then `j` `k`, `enter`, `esc` or backspace | in an agent's detail: move between its buttons and tasks, press one; `esc` or backspace goes back to the list |
 | | `enter` on a task, then `j` `k`, `ctrl+d` `ctrl+u`, `esc` or backspace | its story: when it was made and the request it came from, what Claude said as it started and finished it, and where Claude named it; `esc`, backspace or a click on `← task` goes back |
 | | on "▾ N more": `enter`, then `j` `k`, `ctrl+d` `ctrl+u`, `ctrl+f` `ctrl+b`, `ctrl+e` `ctrl+y`, `g` `G`, `esc` or backspace | the activity card unfolds and scrolls on its own, with its own cursor (vim's keys; `enter` on a long call opens its output in jobs); `esc` or backspace folds it |
