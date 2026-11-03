@@ -17,7 +17,8 @@ check(); assert not calls, "unchanged file must not re-exec"
 os.utime(__file__, (1, 1))
 check()
 exe, argv = calls[0]
-assert argv == [sys.executable, "-I", os.path.abspath(__file__), "x", "y"], argv
+assert exe == os.path.join(os.path.dirname(os.path.abspath(reexec.__file__)), "py"), exe
+assert argv == [exe, "-I", os.path.abspath(__file__), "x", "y"], argv
 print("ok")
 `);
   const r = Bun.spawnSync(["python3", "-I", script, "x", "y"]);

@@ -44,7 +44,7 @@ printf '%s\n' "$$" > "$r/pid"
 # On a pseudo-terminal (bin/ptyrun) runners colour their output as in a shell;
 # the colour variables cover the ones that still look at CI. CI=1 stops watch modes.
 CI=1 FORCE_COLOR=1 CLICOLOR_FORCE=1 PY_COLORS=1 CARGO_TERM_COLOR=always \
-  python3 "$root/bin/ptyrun" "$r/log" bash -c "$cmd"
+  "$root/bin/py" "$root/bin/ptyrun" "$r/log" bash -c "$cmd"
 rc=$?
 printf '%s\n' "$rc" > "$r/rc"
 date +%s > "$r/end"

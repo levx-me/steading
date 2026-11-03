@@ -80,7 +80,7 @@ if [ -z "$pane" ]; then
   herdr pane rename "$pane" "Steading" >/dev/null 2>&1
   sleep 0.4 # let the new shell reach its prompt
   # exec: the deck replaces the shell, so quitting it closes the pane.
-  herdr pane run "$pane" "exec python3 $(printf '%q' "$root/bin/viewer.py") $(printf '%q' "$base")" >/dev/null
+  herdr pane run "$pane" "exec $(printf '%q' "$root/bin/py") $(printf '%q' "$root/bin/viewer.py") $(printf '%q' "$base")" >/dev/null
 fi
 if [ "$placement" = up ]; then
   # The swap takes the focus along with the place: hand it back to the agent if it had it.
@@ -89,7 +89,7 @@ if [ "$placement" = up ]; then
   [ "$had" = true ] && herdr pane focus --pane "$pane" --direction down >/dev/null 2>&1
 fi
 # Splits come out even (or as asked); give the agent 60%, whichever side it is on.
-python3 -I - "$agent" "$pane" <<'PY' 2>/dev/null
+"$root/bin/py" -I - "$agent" "$pane" <<'PY' 2>/dev/null
 import json, os, socket, sys
 agent, deck = sys.argv[1:]
 def call(method, params):

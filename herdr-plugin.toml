@@ -37,4 +37,4 @@ command = ["bin/deck", "auto"]
 id = "deck"
 title = "Steading"
 placement = "split"
-command = ["python3", "bin/viewer.py"]
+command = ["bin/py", "bin/viewer.py"]

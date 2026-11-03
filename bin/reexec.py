@@ -1,6 +1,7 @@
 """Long-lived helpers (bin/crew, usage.py, steading_run.py) start the code they find and would
 keep it for hours. `check = reexec.watcher()` after the imports; calling `check()` in the loop
-then re-execs the process, same pid and argv, once its own file or a module it imported from
+then re-execs the process through bin/py (the interpreter it started on may be gone after a
+brew upgrade), same pid and argv, once its own file or a module it imported from
 bin/ changed mtime. Looks at most every `every` seconds."""
 import os
 import sys
@@ -38,6 +39,7 @@ def watcher(main_file=None, every=3, exec_=os.execv):
             return
         last[0] = time.time()
         if mtimes(files) != born:
-            exec_(sys.executable, [sys.executable, "-I", os.path.abspath(sys.argv[0]), *sys.argv[1:]])
+            py = os.path.join(HERE, "py")
+            exec_(py, [py, "-I", os.path.abspath(sys.argv[0]), *sys.argv[1:]])
 
     return check
