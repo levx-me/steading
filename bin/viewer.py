@@ -136,7 +136,8 @@ def background(fn, *args):
 # long session reads only what came after. Our own local file, keyed by the transcript's path
 # and by this file's source (any change here drops every old cache).
 CACHE = os.environ.get("STEADING_CACHE") or os.path.join(tempfile.gettempdir(), "steading", "cache")
-CODE = hashlib.sha1(open(__file__, "rb").read()).hexdigest()
+with open(__file__, "rb") as _f:
+    CODE = hashlib.sha1(_f.read()).hexdigest()
 TAIL, EVERY = 64, 20  # bytes checked before the offset; seconds between saves of one file
 
 
@@ -1843,7 +1844,6 @@ class Servers(Runs):
 # session began before the record) is at work while its file moves.
 
 LIVE_SECS = 300  # fallback, no record: a subagent unended and silent this long is no longer at work
-HARNESS_TOOLS = {"SubagentHandback"}  # the harness's own steps, not the agent's work
 NOTIFICATION = re.compile(r"<task-id>([^<]+)</task-id>.*?<status>([^<]+)</status>", re.S)
 
 
