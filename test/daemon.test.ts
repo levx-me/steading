@@ -406,9 +406,10 @@ print(json.dumps({a: s for a, (s, t) in (subagents.states(sys.argv[2], sys.argv[
 
 describe("the sidebar hook through the daemon", () => {
   test("it reports what the scripts report, event for event, and runs no Python", async () => {
-    const run = async (daemon: boolean) => {
+    const run = async (daemon: boolean, hookEnv: Record<string, string> = {}) => {
       const s = await hookSetup();
       if (daemon) expect(await s.up()).toBeGreaterThan(0);
+      Object.assign(s.env, hookEnv); // after the daemon started: only the hook's own env carries it
       const repo = join(s.dir, "repo");
       Bun.spawnSync(["git", "init", "-q", repo]);
       writeFileSync(join(repo, "a.txt"), "x");
@@ -445,7 +446,12 @@ describe("the sidebar hook through the daemon", () => {
     expect(daemon.python).toBe(0);
     expect(script.calls.length).toBeGreaterThan(4);
     expect(daemon).toEqual({ ...script, python: 0 });
-  }, 60000);
+    // the hook's settings, not the daemon's, decide: no tree guides, no icons
+    const off = { STEADING_SIDEBAR_TREE: "0", STEADING_SIDEBAR_ICONS: "0" };
+    const scriptOff = await run(false, off);
+    expect(scriptOff.calls.join("\n")).toContain("--clear-token wstree");
+    expect(await run(true, off)).toEqual({ ...scriptOff, python: 0 });
+  }, 120000);
 
   test("a burst of 20 subagents starting and 10 stopping ends in the same states as through the scripts, each recorded once", async () => {
     const burst = async (daemon: boolean) => {

@@ -70,9 +70,9 @@ def compute(v, state, cwd, space):
     return " · ".join(([("▶ " + " ".join(f":{n}" for n in ports[:4]))] if ports else []) + ([f"⏳ {len(jobs)} job{'s' * (len(jobs) > 1)}"] if jobs else []))
 
 
-def tokens(run, has_repo):
+def tokens(run, has_repo, tree=TREE):
     """Guides for the Spaces rows [wsrepo, wsrun]: "├" on a row another follows, "└" on the last one shown."""
-    return {"wstree": ("├" if run else "└") if TREE and has_repo else "", "wsrun": run, "wstree2": "└" if TREE and run else ""}
+    return {"wstree": ("├" if run else "└") if tree and has_repo else "", "wsrun": run, "wstree2": "└" if tree and run else ""}
 
 
 def call(method, params):

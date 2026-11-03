@@ -249,7 +249,7 @@ def run(event, env, start=None):
         v = sys.modules.get("viewer") or steading_run.load("viewer", os.path.join(HERE, "viewer.py"))
         running = steading_run.compute(v, state, cwd, space)
         has_repo = bool(values["repo"])
-        guides = steading_run.tokens(running, has_repo)
+        guides = steading_run.tokens(running, has_repo, tree)
         flat = lambda tokens: [a for k, w in tokens.items() for a in (["--token", f"{k}={w}"] if w else ["--clear-token", k])]  # noqa: E731
         ws = {"wsrepo": values["repo"], "wsrepostate": repostate}
         for src, tokens in ((f"steading-repo-{pane}", {**ws, "wstree": ""}), (steading_run.source(pane), guides)):
