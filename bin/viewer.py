@@ -43,6 +43,7 @@ import select
 import shlex
 import shutil
 import signal
+import socket
 import subprocess
 import sys
 import tempfile
@@ -64,6 +65,7 @@ BASE = sys.argv[1] if len(sys.argv) > 1 else os.environ["STEADING_BASE"]  # plug
 SERVERS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "servers")
 SECTIONS = ["agents", "jobs", "servers", "build", "test", "git", "deploy", "system"]
 FOCUS = {"pane": True}  # whether the deck's pane has the keyboard; without it the accents go grey
+SHOWN = {"kind": ""}  # the section on screen: what the others show is looked at less often
 
 # Settings, shared by every deck: the "," popup writes them, each deck rereads them when they change.
 SETTINGS_PATH = os.path.join(os.environ.get("HERDR_PLUGIN_CONFIG_DIR")
@@ -651,18 +653,47 @@ def herdr(*args):
         return {}
 
 
+def herdr_api(method, params, *cli):
+    """A herdr call's result over its socket, {} when herdr is missing, slow or says no. No
+    process to start, which a deck asking several times a second would; the CLI (cli, its
+    arguments) where there is no socket."""
+    path = os.environ.get("HERDR_SOCKET_PATH")
+    if not path:
+        return herdr(*cli)
+    try:
+        with socket.socket(socket.AF_UNIX) as s:
+            s.settimeout(3)
+            s.connect(path)
+            s.sendall((json.dumps({"id": "steading-deck", "method": method, "params": params}) + "\n").encode())
+            buf = b""
+            while not buf.endswith(b"\n"):
+                chunk = s.recv(1 << 16)
+                if not chunk:
+                    break
+                buf += chunk
+        return json.loads(buf).get("result") or {}
+    except (OSError, ValueError, AttributeError):
+        return {}
+
+
 def herdr_panes(fresh=False):
     """Every herdr pane as (pane id, workspace id, shell pid, tty), looked up
     at most every 10s unless fresh. Call it from a thread: it asks herdr once per pane."""
     global _panes
     if not fresh and time.time() - _panes[0] < 10:
         return _panes[1]
-    found = []
-    for pane in herdr("pane", "list").get("panes", []):
-        shell = herdr("pane", "process-info", "--pane", pane["pane_id"]).get("process_info", {}).get("shell_pid")
+    shells = []
+    for pane in herdr_api("pane.list", {}, "pane", "list").get("panes", []):
+        shell = herdr_api("pane.process_info", {"pane_id": pane["pane_id"]}, "pane", "process-info", "--pane",
+                          pane["pane_id"]).get("process_info", {}).get("shell_pid")
         if shell:
-            tty = subprocess.run(["ps", "-o", "tty=", "-p", str(shell)], capture_output=True, text=True).stdout.strip()
-            found.append((pane["pane_id"], pane.get("workspace_id", ""), str(shell), tty))
+            shells.append((pane["pane_id"], pane.get("workspace_id", ""), str(shell)))
+    ttys = {}  # one ps for every shell
+    if shells:
+        out = subprocess.run(["ps", "-o", "pid=,tty=", "-p", ",".join(sh for _, _, sh in shells)],
+                             capture_output=True, text=True).stdout
+        ttys = dict(line.split(None, 1) for line in out.splitlines() if len(line.split()) == 2)
+    found = [(pane, ws, shell, ttys.get(shell, "").strip()) for pane, ws, shell in shells]
     _panes = (time.time(), found)
     return found
 
@@ -1649,7 +1680,7 @@ class Git(Runs):
         self.repo, self.looked_at, self.reading = "", 0.0, False
 
     def refresh(self):
-        if time.time() - self.looked_at >= 3 and not self.reading:
+        if time.time() - self.looked_at >= (3 if SHOWN["kind"] == "git" else 30) and not self.reading:
             self.reading, self.looked_at = True, time.time()
             background(self.read_repo)
         return super().refresh()
@@ -1702,8 +1733,10 @@ class Servers(Runs):
         self.found, self.looked_at, self.scanning = [], 0.0, False
 
     def refresh(self):
-        # lsof takes ~0.2s: scan in a thread so the deck never waits on it.
-        if time.time() - self.looked_at >= 2 and not self.scanning:
+        # lsof takes ~0.2s: scan in a thread so the deck never waits on it. Every 2s while this
+        # tab or the system tab (its rows mark the servers) shows, else every 10s.
+        every = 2 if SHOWN["kind"] in ("servers", "system") else 10
+        if time.time() - self.looked_at >= every and not self.scanning:
             self.scanning = True
             threading.Thread(target=self.scan, daemon=True).start()
         # Keep each server's object (and its log) and the one picked; lowest port on top.
@@ -2814,12 +2847,7 @@ class Agents(Runs):
     def find_session(self):
         """The newest transcript of the Claude session herdr runs in the agent's pane."""
         agent = os.path.basename(BASE).replace("_", ":")
-        try:
-            out = subprocess.run([os.environ.get("HERDR_BIN_PATH", "herdr"), "pane", "get", agent],
-                                 capture_output=True, text=True, timeout=3).stdout
-            pane = json.loads(out)["result"]["pane"]
-        except (OSError, subprocess.SubprocessError, ValueError, KeyError):
-            pane = {}
+        pane = herdr_api("pane.get", {"pane_id": agent}, "pane", "get", agent).get("pane") or {}
         ref = pane.get("agent_session") or {}
         self.title = pane.get("label") or pane.get("terminal_title_stripped") or ""
         self.agent_status = pane.get("agent_status") or ""
@@ -3261,6 +3289,7 @@ def vm_stat_used(text):
     return int(page.group(1) if page else 4096) * (app + n.get("Pages wired down", 0) + n.get("Pages occupied by compressor", 0))
 
 
+_memsize = [""]  # the Mac's memory in bytes, as sysctl says once
 _macmon = {"proc": None, "line": "", "wanted": 0.0, "wait": 0.0, "next": 0.0}
 
 
@@ -3391,6 +3420,10 @@ class System:
     def badge(self):
         return ("·", MUTED_RGB)
 
+    def due(self):
+        """Seconds until the next sample is due, this deck's or the one it draws from."""
+        return self.sampled_at + SAMPLE_SECS - time.time()
+
     def share(self):
         """One deck samples for all of them: each draws the last sample from SHARED, and the deck
         that took it takes the next. Another steps in once it has not come for a while (that deck
@@ -3459,7 +3492,7 @@ class System:
         if os.path.exists("/proc/meminfo"):
             s["mem"] = proc_mem(read("/proc/meminfo"))
         elif PLATFORM == "darwin":
-            total = output(["sysctl", "-n", "hw.memsize"]).strip()
+            total = _memsize[0] = _memsize[0] or output(["sysctl", "-n", "hw.memsize"]).strip()  # asked once
             if total.isdigit():
                 s["mem"] = (vm_stat_used(output(["vm_stat"])), int(total))
         s["have"] = {t for t in ("btop", "macmon") if shutil.which(t)}
@@ -3730,7 +3763,7 @@ class Deck:
         self.section = 0
         self.unseen = set()  # tabs with something new not shown yet
         self.settings, self.settings_open, self.setting = settings(), False, 0
-        self.last_frame = None
+        self.last_frame, self.still = None, 0  # the last frame drawn, and how many since were the same
         self.focus_path = os.path.join(BASE, "focus")
         # The section last picked by hand in any deck, shared by all of them.
         self.shared_path = os.path.join(os.path.dirname(BASE), "section")
@@ -3826,18 +3859,44 @@ class Deck:
     def look_focus(self):
         """Ask herdr whether this deck's pane has the keyboard (when the terminal
         sends no focus reports)."""
-        try:
-            out = subprocess.run([os.environ.get("HERDR_BIN_PATH", "herdr"), "pane", "get", read(os.path.join(BASE, "pane"))],
-                                 capture_output=True, text=True, timeout=2).stdout
-            FOCUS["pane"] = bool(json.loads(out)["result"]["pane"]["focused"])
-        except (OSError, subprocess.SubprocessError, ValueError, KeyError):
-            pass
+        pane = read(os.path.join(BASE, "pane"))
+        got = herdr_api("pane.get", {"pane_id": pane}, "pane", "get", pane).get("pane") or {}
+        if "focused" in got:
+            FOCUS["pane"] = bool(got["focused"])
         self.looking = False
+
+    FOCUS_EVENTS = [{"type": t} for t in ("pane.focused", "tab.focused", "workspace.focused")]
+
+    def watch_focus(self, path):
+        """Focus as herdr moves it: one connection held open for its focus events, and the pane
+        asked again on each (and every 10s, should one be missed). Nothing runs in between."""
+        while True:
+            try:
+                with socket.socket(socket.AF_UNIX) as s:
+                    s.connect(path)
+                    s.sendall((json.dumps({"id": "steading-focus", "method": "events.subscribe",
+                                           "params": {"subscriptions": self.FOCUS_EVENTS}}) + "\n").encode())
+                    s.settimeout(10)
+                    while True:
+                        try:
+                            if not s.recv(1 << 16):  # herdr went away
+                                break
+                        except socket.timeout:
+                            pass
+                        self.look_focus()
+            except OSError:
+                pass
+            time.sleep(2)  # herdr restarting: connect again
 
     def refresh(self):
         # Focus reports arrive at once, when the terminal and herdr pass them on; herdr is
-        # asked as well, since focus moved by herdr itself (a key, the API) may send none.
-        if not getattr(self, "looking", False) and time.time() - getattr(self, "looked", 0) >= 0.5:
+        # asked as well, since focus moved by herdr itself (a key, the API) may send none:
+        # through its focus events, or, with no socket, twice a second.
+        path = os.environ.get("HERDR_SOCKET_PATH")
+        if path and not getattr(self, "watching", False):
+            self.watching = True
+            background(self.watch_focus, path)
+        elif not path and not getattr(self, "looking", False) and time.time() - getattr(self, "looked", 0) >= 0.5:
             self.looking, self.looked = True, time.time()
             background(self.look_focus)
         at = self.mtime(SETTINGS_PATH)
@@ -3848,6 +3907,7 @@ class Deck:
         hidden = time.time() - getattr(self, "hidden_at", 0) >= 1
         if hidden:
             self.hidden_at = time.time()
+        SHOWN["kind"] = self.views[self.section].kind
         for i, view in enumerate(self.views):
             if (hidden or i == self.section) and view.refresh() and i != self.section:
                 self.arrived(i)
@@ -3941,8 +4001,9 @@ class Deck:
         out += [f"\033[{rows};1H", bg(STRIP_RGB), " ", fit(hints, cols - 1), bg(STRIP_RGB), "\033[K", RESET]
         frame = "".join(out)
         if frame == self.last_frame:  # nothing changed: leave the screen alone
+            self.still += 1
             return
-        self.last_frame = frame
+        self.last_frame, self.still = frame, 0
         # Kept for the next deck of this agent at this size: it shows it at once (see shown_cached).
         if time.time() - getattr(self, "cached_at", 0) > 2:
             self.cached_at = time.time()
@@ -4071,6 +4132,19 @@ def shown_cached():
         pass
 
 
+def tick_wait(deck):
+    """How long the deck waits for a key before its next frame: 0.05s while a new row fades in,
+    0.3s while the frame changes, a second once three frames came out the same (a key still
+    wakes it at once). A tab that changes only at known moments (the system tab, at each
+    sample) is drawn then, a second apart at most."""
+    if any(time.time() - getattr(v, "fresh", (None, 0))[1] < FADE_SECS for v in deck.views):
+        return 0.05
+    due = getattr(deck.views[deck.section], "due", None)
+    if due:
+        return min(1.0, max(0.1, due()))
+    return 1.0 if deck.still >= 3 else 0.3
+
+
 def reap():
     """Reap what an earlier run of this process left (the exec below keeps the pid and its children,
     but not the Popen objects that would wait for them): each would stay a zombie until the deck
@@ -4118,8 +4192,7 @@ def main():
                 time.sleep(0.5)
                 continue
             try:
-                fading = any(time.time() - getattr(v, "fresh", (None, 0))[1] < FADE_SECS for v in deck.views)
-                if select.select([fd], [], [], 0.05 if fading else 0.3)[0]:
+                if select.select([fd], [], [], tick_wait(deck))[0]:
                     k = os.read(fd, 256).decode("utf-8", "replace")
                     events = MOUSE.findall(k)
                     for button, col, row, kind in events:

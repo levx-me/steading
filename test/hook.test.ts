@@ -1236,7 +1236,9 @@ socketserver.UnixStreamServer(sys.argv[1], H).serve_forever()`, sock, log]);
       }
       const r1 = refresher();
       await Bun.sleep(2500);
-      const lines = () => (existsSync(log) ? readFileSync(log, "utf8").trim().split("\n").filter(Boolean).map((l) => JSON.parse(l)) : []);
+      // Its reports (herdr_panes asks the same socket for the panes, too).
+      const lines = () => (existsSync(log) ? readFileSync(log, "utf8").trim().split("\n").filter(Boolean).map((l) => JSON.parse(l))
+        .filter((l) => l.method.endsWith("report_metadata")) : []);
       const last = () => lines().at(-1).params;
       expect(last().source).toBe("steading-run-w1:p1");
       expect(last().tokens).toEqual({ wstree: "├", wsrun: `▶ :${port}`, wstree2: "└" });
@@ -1948,6 +1950,81 @@ was = os.popen(f"ps -o stat= -p {pid}").read().strip()
 m.reap()
 print(json.dumps([was[:1], os.popen(f"ps -o stat= -p {pid}").read().strip()]))`);
     expect(out).toEqual(["Z", ""]);
+  });
+
+  test("focus comes from herdr's focus events over one held connection, with no process started", () => {
+    const sock = join(mkdtempSync(join(tmpdir(), "steading-focus-")), "herdr.sock");
+    const out = py(`import socket, threading, subprocess
+srv = socket.socket(socket.AF_UNIX); srv.bind(${JSON.stringify(sock)}); srv.listen(8)
+state, subs = {"focused": False}, []
+def serve():
+    while True:
+        c, _ = srv.accept()
+        req = json.loads(c.makefile("rb").readline())
+        if req["method"] == "events.subscribe":
+            subs.append(req["params"]["subscriptions"])
+            c.sendall(b'{"id":"x","result":{"type":"subscription_started"}}\\n'); subs.append(c)
+        else:
+            c.sendall((json.dumps({"id": req["id"], "result": {"pane": {"focused": state["focused"]}}}) + "\\n").encode()); c.close()
+threading.Thread(target=serve, daemon=True).start()
+os.environ["HERDR_SOCKET_PATH"] = ${JSON.stringify(sock)}
+spawned, orig = [], subprocess.Popen.__init__
+def init(self, *a, **k):
+    spawned.append(a[0]); orig(self, *a, **k)
+subprocess.Popen.__init__ = init
+m.background = lambda fn, *a: threading.Thread(target=fn, args=a, daemon=True).start()
+def until(cond):
+    for _ in range(200):
+        if cond():
+            return
+        time.sleep(0.02)
+d = m.Deck()
+for v in d.views:
+    v.refresh = lambda: False
+d.refresh()
+until(lambda: m.FOCUS["pane"] is False)
+was = m.FOCUS["pane"]
+state["focused"] = True
+subs[1].sendall(b'{"event":"pane_focused","data":{"pane_id":"w1:p1"}}\\n')
+until(lambda: m.FOCUS["pane"] is True)
+for _ in range(5):
+    d.refresh()
+print(json.dumps([was, m.FOCUS["pane"], [t["type"] for t in subs[0]], len(subs), spawned]))`);
+    expect(out).toEqual([false, true, ["pane.focused", "tab.focused", "workspace.focused"], 2, []]);
+  });
+
+  test("the deck waits a second between frames once three came out the same; the system tab until its sample", () => {
+    const out = py(`d = types.SimpleNamespace(views=[types.SimpleNamespace()], section=0, still=0)
+waits = [m.tick_wait(d)]
+d.still = 3; waits.append(m.tick_wait(d))
+d.views[0].fresh = (None, time.time()); waits.append(m.tick_wait(d))  # a row fading in
+for due in (0.5, -1, 5):
+    d.views = [types.SimpleNamespace(due=lambda: due)]; waits.append(m.tick_wait(d))
+m.BASE = ${JSON.stringify(mkdtempSync(join(tmpdir(), "steading-still-")))}
+m.background = lambda fn, *a: None
+deck = m.Deck(); stills = []
+sys.stdout = open(os.devnull, "w")
+for change in (False, False, False, True):
+    deck.settings_open = change
+    deck.draw(); stills.append(deck.still)
+sys.stdout = sys.__stdout__
+print(json.dumps([[round(w, 2) for w in waits], stills]))`);
+    expect(out).toEqual([[0.3, 1, 0.05, 0.5, 0.1, 1], [0, 1, 2, 0]]);
+  });
+
+  test("hidden, the servers scan every 10s (2s beside the system tab) and git every 30s", () => {
+    const out = py(`m.background = lambda fn, *a: None
+s = m.Servers(); s.scan = lambda: None
+g = m.Git(); g.read_repo = lambda: None
+seen = []
+for kind in ("build", "servers", "system", "git"):
+    m.SHOWN["kind"] = kind
+    s.scanning, s.looked_at, g.reading, g.looked_at = False, time.time() - 5, False, time.time() - 5
+    s.refresh(); g.refresh()
+    seen.append([s.scanning, g.reading])
+s.scanning, s.looked_at = False, time.time() - 11; m.SHOWN["kind"] = "build"; s.refresh()
+print(json.dumps([seen, s.scanning]))`);
+    expect(out).toEqual([[[false, false], [true, false], [true, false], [false, true]], true]);
   });
 
   test("the tab shown refreshes every frame, the others once a second", () => {
