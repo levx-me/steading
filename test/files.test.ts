@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -91,5 +91,153 @@ print(json.dumps(files.states(os.path.join(env["TMPDIR"], "steading"), "s1")))`)
     expect(run(JSON.stringify(events[0])).exitCode).toBe(0);
     expect(run("not json").exitCode).toBe(0);
     expect(readFileSync(join(root, "steading/sessions/s1.files"), "utf8")).toMatch(/^\d+ - main R \/a\/r\.ts\n$/);
+  });
+});
+
+describe("the deck's files tab", () => {
+  // A repository with a changed file, a new one (a space and é in its name) and one read; a file
+  // outside it; one written then deleted. The record says who touched each; ag1 is at work.
+  const setup = () => {
+    const dir = mkdtempSync(join(tmpdir(), "files-tab-"));
+    const repo = join(dir, "repo"), base = join(dir, "st", "agent");
+    const git = (...a: string[]) => Bun.spawnSync(["git", "-C", repo, "-c", "user.email=a@example.com", "-c", "user.name=a", ...a]);
+    mkdirSync(join(repo, "src/lib"), { recursive: true });
+    mkdirSync(join(repo, "test"), { recursive: true });
+    mkdirSync(base, { recursive: true });
+    mkdirSync(join(dir, "out"));
+    writeFileSync(join(repo, "src/lib/x.py"), "a\nb\n");
+    writeFileSync(join(repo, "test/t.ts"), "r\n");
+    git("init", "-q");
+    git("add", ".");
+    git("commit", "-qm", "init");
+    writeFileSync(join(repo, "src/lib/x.py"), "a\nc\nd\n");
+    writeFileSync(join(repo, "new file é.md"), "1\n2\n3\n");
+    writeFileSync(join(dir, "out/notes.txt"), "far away\n");
+    writeFileSync(join(base, "root"), repo);
+    mkdirSync(join(dir, "st", "sessions"));
+    const now = Date.now() * 1e6;
+    writeFileSync(join(dir, "st/sessions/sid.files"), [
+      `${now - 9e9} - main R ${join(repo, "test/t.ts")}`,
+      `${now - 8e9} ag1 wanjang:builder W ${join(repo, "src/lib/x.py")}`,
+      `${now - 7e9} - main W ${join(repo, "new file é.md")}`,
+      `${now - 6e9} - main R ${join(dir, "out/notes.txt")}`,
+      `${now - 5e9} - main W ${join(repo, "gone.txt")}`,
+    ].join("\n") + "\n");
+    return { dir, repo, base };
+  };
+  // bin/viewer.py loaded on that base, its threads run inline, the files tab shown.
+  const deck = (base: string, body: string, env: Record<string, string> = {}) => {
+    const r = Bun.spawnSync(["python3", "-I", "-c", `import sys, json, os, time, types, importlib.util as u
+sys.argv = ["v", ${JSON.stringify(base)}]
+spec = u.spec_from_file_location("v", ${JSON.stringify(join(bin, "viewer.py"))})
+m = u.module_from_spec(spec); spec.loader.exec_module(m)
+m.background = lambda fn, *a: fn(*a)
+m.SHOWN["kind"] = "files"
+agents = types.SimpleNamespace(session="/p/sid.jsonl", agent_status="", records={"ag1": ("working", 1)})
+f = m.Files(agents)
+plain = lambda lines: [m.ANSI.sub("", l).replace(m.SPIN_MARK, "*").rstrip() for l in lines]
+${body}`], { env: { PATH: process.env.PATH!, HOME: "/nonexistent", ...env } });
+    expect(r.stderr.toString()).toBe("");
+    return JSON.parse(r.stdout.toString());
+  };
+
+  test("a tree from the repository's root: folders first, one-folder chains on one row, outside files under their folder", () => {
+    const { dir, base } = setup();
+    const rows = deck(base, `f.refresh()
+print(json.dumps(plain(f.rows(90))))`);
+    const names = ["▾ src/lib/", "✎   x.py", "▾ test/", "◦   t.ts", "✎ gone.txt", "✎ new file é.md", `▾ ${join(dir, "out")}/`, "◦   notes.txt"];
+    expect(rows.map((r: string, i: number) => r.slice(2, 2 + (names[i] ?? "").length))).toEqual(names);
+    expect(rows[1]).toMatch(/\* editing builder \+2 -1 8s ago$/);  // ag1 works: editing now; the plugin: prefix dropped
+    expect(rows[5]).toMatch(/✓ main \+3 new 7s ago$/);              // new to git: its lines, as added
+    expect(rows[4]).toMatch(/✓ main deleted 5s ago$/);              // gone: no counts
+    expect(rows[3]).toMatch(/\s main 9s ago$/);                     // a read: no state, no counts
+    expect(rows[7]).toMatch(/\s main 6s ago$/);
+  });
+
+  test("reads are dimmed, writes bright; the main agent's writes are being edited while it works, done after", () => {
+    const { base } = setup();
+    const out = deck(base, `f.refresh(); f.tab = 0
+raw = f.rows(90)
+agents.agent_status = "working"; f.refresh(); busy = plain(f.rows(90))[5]
+agents.agent_status = "idle"; agents.records = {"ag1": ("done", 2)}; f.refresh(); done = plain(f.rows(90))
+dim, bright = m.fg(m.DIMMED_RGB), m.fg(m.BRIGHT_RGB)
+print(json.dumps([dim + "  t.ts" in raw[3], bright + "  x.py" in raw[1], busy, done[1], done[5]]))`);
+    expect(out[0]).toBe(true);
+    expect(out[1]).toBe(true);
+    expect(out[2]).toMatch(/\* editing main \+3 new/);
+    expect(out[3]).toMatch(/✓ builder \+2 -1/);
+    expect(out[4]).toMatch(/✓ main \+3 new/);
+  });
+
+  test("enter shows the diff (git diff HEAD, or the whole file as added), esc and q come back; y copies, o needs herdr", () => {
+    const { repo, base } = setup();
+    const out = deck(base, `copied = []; m.copy = copied.append
+f.refresh()
+def diff(row):
+    f.focus = "list"; f.select(row); f.list_key("\\r")
+    shown = plain(f.frame(90, 40)[0])
+    return [f.focus, [l.strip("│ ") for l in shown if l.strip("│ ")[:1] in "+-@"]]
+tracked, new, outside = diff(1), diff(5), diff(7)
+f.key("\\x1b"); after_esc = f.focus
+f.list_key("\\r"); f.key(m.back_key(f, "q")); after_q = f.focus
+f.select(1); f.list_key("y"); f.list_key("o")
+msg = f.msg
+f.select(0); f.list_key("\\r"); folder = f.focus
+print(json.dumps([tracked, new, outside, after_esc, after_q, copied, msg, folder, f.hints()[:3]]))`);
+    expect(out[0][0]).toBe("log");
+    expect(out[0][1]).toEqual(expect.arrayContaining(["-b", "+c", "+d"]));
+    expect(out[1][1]).toEqual(expect.arrayContaining(["+1", "+2", "+3"]));
+    expect(out[2][1]).toEqual(expect.arrayContaining(["+far away"]));
+    expect(out[3]).toBe("list");
+    expect(out[4]).toBe("list");
+    expect(out[5]).toEqual([join(repo, "src/lib/x.py")]);
+    expect(out[6]).toBe(`outside herdr: open ${join(repo, "src/lib/x.py")} in your editor`);
+    expect(out[7]).toBe("list");  // a folder has no diff
+    expect(out[8]).toEqual([["enter", "diff"], ["o", "edit"], ["y", "copy path"]]);
+  });
+
+  test("o in herdr opens $EDITOR on the file in a split below the deck", () => {
+    const { repo, base } = setup();
+    writeFileSync(join(base, "pane"), "w1:p2");
+    const out = deck(base, `calls = []
+m.herdr = lambda *a: (calls.append(list(a)), {"pane": {"pane_id": "w1:p9"}})[1]
+f.refresh(); f.select(5); f.list_key("o")
+print(json.dumps(calls))`, { HERDR_ENV: "1", EDITOR: "nvim -p" });
+    expect(out[0].slice(0, 5)).toEqual(["pane", "split", "w1:p2", "--direction", "down"]);
+    expect(out[1]).toEqual(["pane", "run", "w1:p9", `nvim -p '${join(repo, "new file é.md")}'`]);
+  });
+
+  test("git runs only while the tab shows, a second apart, and again only when a written file moved", () => {
+    const { repo, base } = setup();
+    const out = deck(base, `calls = []
+git_out = m.git_out
+m.git_out = lambda *a, **k: (calls.append(a[2] if len(a) > 2 else a), git_out(*a, **k))[1]
+counts = []
+m.SHOWN["kind"] = "git"; f.refresh(); counts.append([len(calls), len(f.runs)])
+m.SHOWN["kind"] = "files"; f.refresh(); counts.append(len(calls))
+f.read_at -= 5; f.refresh(); counts.append(len(calls))            # nothing moved: no git
+f.read_at = time.time(); os.utime(${JSON.stringify(join(repo, "src/lib/x.py"))}, (1, 1)); f.refresh(); counts.append(len(calls))  # under a second
+f.read_at -= 5; f.refresh(); counts.append(len(calls))            # a written file moved
+print(json.dumps([counts, calls[:2]]))`);
+    expect(out[0]).toEqual([[0, 0], 2, 2, 2, 4]);
+    expect(out[1]).toEqual(["diff", "ls-files"]);  // one numstat, and ls-files for the written files it does not list
+  });
+
+  test("the tab is F (9), empty without a record, and lists the newest 500 of many", () => {
+    const dir = mkdtempSync(join(tmpdir(), "files-tab-"));
+    const base = join(dir, "st", "agent");
+    mkdirSync(join(dir, "st", "sessions"), { recursive: true });
+    mkdirSync(base);
+    const out = deck(base, `d = m.Deck(); d.key("F"); tab = m.SECTIONS[d.section]
+d.key("1"); d.key("9"); nine = m.SECTIONS[d.section]
+empty = plain(f.frame(80, 30)[0])
+with open(${JSON.stringify(join(dir, "st/sessions/sid.files"))}, "w") as fh:
+    for n in range(600):
+        fh.write(f"{n + 1} - main W /far/f{n}.txt\\n")
+f.refresh()
+files = [r for r in f.runs if not r.folder]
+print(json.dumps([tab, nine, any("No files touched yet" in l for l in empty), len(files), files[0].name, plain(f.run_list(80))[0]]))`);
+    expect(out.slice(0, 5)).toEqual(["files", "files", true, 500, "f100.txt"]);
+    expect(out[5]).toMatch(/files · 500 .*✎ 500 ◦ 0/);
   });
 });

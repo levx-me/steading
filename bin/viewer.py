@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Steading deck: one pane beside the agent with eight sections, read-only but for the system
+"""Steading deck: one pane beside the agent with nine sections, read-only but for the system
 section, where K ends the selected process (after a y).
 
     viewer.py <base>
@@ -15,9 +15,11 @@ per core, load, memory, on a Mac with macmon the GPU, power and heat, and every 
 lists them: a Claude session is one row (named by its folder, what runs under it summed; enter
 unfolds it), the project's dev servers on rows of their own with their port; s sorts by CPU or memory, u shows only
 this user's, K ends the selected one after a y. Sampled every 2s while shown; o opens btop (and
-macmon) in a herdr workspace named system.
+macmon) in a herdr workspace named system. The files section lists the files the session's agents
+read (◦) or wrote (✎) as a tree from the repository's root, each with who touched it last, when,
+and its +/- lines; enter shows its diff, o opens it in $EDITOR in a herdr split, y copies its path.
 
-Keys: [ ] (or tab/shift-tab) and 1-8 switch sections,
+Keys: [ ] (or tab/shift-tab) and 1-9 switch sections,
 ctrl+c closes the pane (q only leaves a log), L reopens it on the other side of the agent (right or above). In a run section j/k pick a run from the list and enter (or l)
 moves into its output; esc comes back. The output takes herdr's copy-mode keys: h j k l, w b e, W B E,
 0 ^ $, { }, gg G, ctrl-d/u, v V select, y yank (the line when nothing is
@@ -38,6 +40,7 @@ import json
 import os
 import re
 import select
+import shlex
 import shutil
 import signal
 import socket
@@ -55,6 +58,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # -I leaves the 
 from procs import Proc, printable, program, read_ps, sessions  # noqa: E402
 from tasklist import read_tasks, task_folder  # noqa: E402
 import reexec  # noqa: E402
+import files  # noqa: E402
 import subagents  # noqa: E402
 # The transcript parser and its cache; tool_summary is re-exported for the tests.
 from transcripts import (Digest, _classify, agent_state, command_phrase, context_use, git_state, prune,  # noqa: E402
@@ -62,7 +66,7 @@ from transcripts import (Digest, _classify, agent_state, command_phrase, context
 
 BASE = sys.argv[1] if len(sys.argv) > 1 else os.environ["STEADING_BASE"]  # plugin panes pass it in the env
 SERVERS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "servers")
-SECTIONS = ["agents", "jobs", "servers", "build", "test", "git", "deploy", "system"]
+SECTIONS = ["agents", "jobs", "servers", "build", "test", "git", "deploy", "system", "files"]
 FOCUS = {"pane": True}  # whether the deck's pane has the keyboard; without it the accents go grey
 SHOWN = {"kind": ""}  # the section on screen: what the others show is looked at less often
 
@@ -100,7 +104,7 @@ def save_settings(values):
     except OSError:
         pass
 # shift and a letter of the tab's name goes there: its first, but git's I (G is vim's bottom) and system's Y (S is servers).
-TAB_KEYS = ["A", "J", "S", "B", "T", "I", "D", "Y"]
+TAB_KEYS = ["A", "J", "S", "B", "T", "I", "D", "Y", "F"]
 # Screen rows (1-based, as in mouse reports): section tabs, then the section's
 # head (run list box, command, info line, rule) and its body.
 HEAD_ROW = 2
@@ -111,7 +115,7 @@ STRIP_RGB, TAB_RGB, ACTIVE_RGB = "33;37;43", "44;49;58", "62;68;81"
 MUTED_RGB, BRIGHT_RGB = "120;127;140", "220;223;228"
 DIMMED_RGB = "88;94;105"  # the side without the cursor: list labels or the log's plain text
 GREEN_RGB, RED_RGB, AMBER_RGB, CYAN_RGB = "152;177;125", "208;134;141", "216;180;106", "127;180;180"
-ACCENT = {"agents": "143;168;210", "jobs": CYAN_RGB, "servers": GREEN_RGB, "build": AMBER_RGB, "test": "122;162;200", "git": "180;142;173", "deploy": "209;154;102", "system": "196;140;180"}
+ACCENT = {"agents": "143;168;210", "jobs": CYAN_RGB, "servers": GREEN_RGB, "build": AMBER_RGB, "test": "122;162;200", "git": "180;142;173", "deploy": "209;154;102", "system": "196;140;180", "files": "158;146;222"}
 MOUSE = re.compile(r"\x1b\[<(\d+);(\d+);(\d+)([Mm])")
 KEYS = re.compile(r"\x1b\[[0-9;]*[A-Za-z~]|\x1bO.|\x1b|.", re.S)
 # Arrow keys move as h j k l do, in the list and in the log (normal and application cursor mode).
@@ -361,6 +365,21 @@ def exit_code(rc):
     return "exit 0" if rc == "0" else f"\033[22m{fg(RED_RGB)}exit {rc}{fg(MUTED_RGB)}{DIM}"
 
 
+def ago(s):
+    """'4m ago' for s seconds."""
+    s = int(max(0, s))
+    for unit, size in (("d", 86400), ("h", 3600), ("m", 60)):
+        if s >= size:
+            return f"{s // size}{unit} ago"
+    return f"{s}s ago"
+
+
+def tilde(path):
+    """path with the home folder as ~."""
+    home = os.path.expanduser("~")
+    return "~" + path[len(home):] if path == home or path.startswith(home + os.sep) else path
+
+
 class Run:
     def __init__(self, path):
         self.path = path
@@ -442,11 +461,7 @@ class Run:
         if not end:
             start = int(self.fixed("start", "0") or 0)
             return f"running {took(time.time() - start)}" if start else "running"
-        s = int(time.time()) - int(end)
-        for unit, size in (("d", 86400), ("h", 3600), ("m", 60)):
-            if s >= size:
-                return f"{s // size}{unit} ago"
-        return f"{s}s ago"
+        return ago(int(time.time()) - int(end))
 
     CMD_LINES = 8  # longest command shown before it is cut
 
@@ -834,6 +849,7 @@ EMPTY = {
     "test": ("No test runs yet", "npm test, pytest, go test, forge test, … show here as the agent runs them."),
     "git": ("No git changes yet", "Commits, pushes and other changes to the repository show here."),
     "deploy": ("No deploys yet", "vercel, fly deploy, terraform apply, … show here once they have run."),
+    "files": ("No files touched yet", "The files this session's agents read or edit show here as a tree, each with its diff."),
 }
 
 
@@ -1035,7 +1051,7 @@ class Runs:
         info and log (an agent: its detail). Each box's border takes the section's
         colour while the cursor is in it."""
         # A short pane (a deck on top of its agent) keeps a shorter list, so the log still shows.
-        self.list_rows = max(3, min(LIST_ROWS, (rows - 10) // 2))
+        self.list_rows = max(3, min(getattr(self, "list_most", LIST_ROWS), (rows - 10) // 2))
         if not self.runs:
             return self.empty_frame(cols, rows), []
         outer, cols = cols, max(10, cols - 4)  # inside the box: "│ " … " │"
@@ -1218,7 +1234,7 @@ class Runs:
         top = f"{edge}╭─{fg(MUTED_RGB)}{head}{edge}{'─' * fill}{right}{edge}{'─' if right else ''}╮{RESET}"
         listed = [top, f"{edge}│{RESET}{' ' * (cols - 2)}{edge}│{RESET}", f"{edge}╰{'─' * (cols - 2)}╯{RESET}"]
         room = max(1, rows - (HEAD_ROW - 1) - len(listed) - 2)
-        icon = {"agents": "◇", "jobs": "◷", "servers": "◉", "build": "▣", "test": "✓", "git": "⎇", "deploy": "⇪"}[self.kind]
+        icon = {"agents": "◇", "jobs": "◷", "servers": "◉", "build": "▣", "test": "✓", "git": "⎇", "deploy": "⇪", "files": "✎"}[self.kind]
         message = [f"{fg(ACCENT[self.kind])}{icon}", f"{BOLD}{fg(BRIGHT_RGB)}{title}{RESET}", ""] + \
             [f"{fg(MUTED_RGB)}{part}" for part in wrap_cells(hint, max(10, min(inner - 4, 48)))]
         centred = [" " * max(0, (inner - cells(ANSI.sub("", l))) // 2) + l for l in message]
@@ -1242,7 +1258,7 @@ class Runs:
         the focus."""
         edge = fg(ACCENT[self.kind]) if self.focus == "list" and FOCUS["pane"] else fg("70;76;88")
         inner = cols - 2
-        title = f" {self.noun} · {len(self.runs)} "
+        title = f" {self.noun} · {sum(not r.folder for r in self.runs) if self.kind == 'files' else len(self.runs)} "
         right = self.title_right()
         if inner - 2 - len(title) - visible_len(right) < 1:  # too narrow: the count alone
             right = ""
@@ -1744,6 +1760,375 @@ class Servers(Runs):
                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
         else:
             super().list_key(k)
+
+
+# Files ----------------------------------------------------------------------
+# The files the deck's session touched, as its agents' hooks recorded them (bin/files.py): a tree
+# from the repository's root, files outside it under their own folder. A file's log is its diff
+# (git diff HEAD, or the whole file as added where git does not know it). Read only while shown.
+
+FILES_MAX = 500  # the newest this many files are listed
+
+
+def git_out(*args, timeout=5):
+    """A git command's stdout as str (paths as Python names them), "" when it fails or hangs."""
+    try:
+        out = subprocess.run(["git", "--literal-pathspecs", "-c", "core.quotePath=false", *args],
+                             capture_output=True, timeout=timeout).stdout
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    return os.fsdecode(out)
+
+
+def line_count(path, most=2_000_000):
+    """The lines of a file git does not know (its first 2 MB): what it adds."""
+    try:
+        with open(path, "rb") as f:
+            data = f.read(most)
+    except OSError:
+        return 0
+    return data.count(b"\n") + (1 if data and not data.endswith(b"\n") else 0)
+
+
+def repo_of(root):
+    """(the repository's top, its git folder) for a folder, as named (no symlinks resolved), found
+    the way git finds it: up to the first .git, a folder or a worktree's "gitdir:" file. ("", "") outside."""
+    at = os.path.abspath(root) if root else ""
+    while at:
+        dot = os.path.join(at, ".git")
+        if os.path.isdir(dot):
+            return at, dot
+        if os.path.isfile(dot):
+            line = read(dot)
+            if line.startswith("gitdir:"):
+                return at, os.path.normpath(os.path.join(at, line[len("gitdir:"):].strip()))
+        up = os.path.dirname(at)
+        at = "" if up == at else up
+    return "", ""
+
+
+class FileRun(Run):
+    """A row of the files tab: a file, whose log is its diff, or a folder over files."""
+
+    def __init__(self, path, owner, folder=False):
+        self.path, self.owner, self.folder = path, owner, folder
+        self.full = self.cmd = path
+        self.tag, self.is_git = "", False
+        self._log, self._loading = (None, None, None, ""), None
+        self.name, self.depth, self.count = os.path.basename(path), 0, 0
+        self.mode, self.agent, self.ns, self.busy = "R", "main", 0, False
+
+    def status(self):
+        if self.folder:
+            return ("▾", MUTED_RGB)
+        return ("✎", ACCENT["files"]) if self.mode == "W" else ("◦", DIMMED_RGB)
+
+    def label(self):
+        return self.name
+
+    def age(self):
+        return "" if self.folder else ago(time.time() - self.ns / 1e9)
+
+    def rc(self):
+        return ""
+
+    def source(self):
+        return ""
+
+    def end(self):
+        return ""
+
+    def hash(self):
+        return ""
+
+    def counts(self):
+        """(text, rgb) pieces for the lines it changed: +N -M, +N new for a file git does not know,
+        deleted for one gone; none for a read or a file outside the repository."""
+        if self.folder or self.mode != "W":
+            return []
+        if not os.path.exists(self.path):
+            return [("deleted", RED_RGB)]
+        got = self.owner.counts.get(self.path)
+        if not got:
+            return []
+        added, removed = got
+        if added == "-":
+            return [("binary", MUTED_RGB)]
+        if self.path in self.owner.untracked:
+            return [(f"+{added}", GREEN_RGB), ("new", MUTED_RGB)]
+        return [(f"+{added}", GREEN_RGB), (f"-{removed}", RED_RGB)]
+
+    def right(self):
+        """The row's right side, plain and in colour: its state, who touched it last, its lines, when."""
+        if self.folder:
+            return "", ""
+        parts = []
+        if self.mode == "W":
+            parts.append((f"{spinner()} editing", AMBER_RGB) if self.busy else ("✓", GREEN_RGB))
+        parts += [(self.agent, MUTED_RGB)] + self.counts() + [(self.age(), MUTED_RGB)]
+        return " ".join(t for t, _ in parts), " ".join(f"{fg(rgb)}{t}" for t, rgb in parts)
+
+    def command(self, cols):
+        """Its path: from the repository's root inside it, else whole."""
+        repo, path = self.owner.repo, self.name if self.folder else self.path
+        path = path[len(repo) + 1:] if repo and path.startswith(repo + os.sep) else tilde(path)
+        return [f"{BOLD}{line}{RESET}" for line in textwrap.wrap(path, max(10, cols))[:3]]
+
+    def info(self):
+        if self.folder:
+            return f"{DIM}  {self.count} file{'s' * (self.count != 1)}{RESET}"
+        state = "editing now" if self.busy else "written" if self.mode == "W" else "read"
+        lines = " ".join(t for t, _ in self.counts())
+        return f"{DIM}  {' · '.join(p for p in (state, f'by {self.agent}', lines, self.age()) if p)}{RESET}"
+
+    def lines(self):
+        """The diff's display lines, or None while it is first read: in a thread, again when the
+        file changes or the tab reads git anew."""
+        if self.folder:
+            return []
+        try:
+            st = os.stat(self.path)
+            key = (st.st_mtime_ns, st.st_size, self.owner.version)
+        except OSError:
+            key = (None, None, self.owner.version)
+        if key != self._log[0] and self._loading != key:
+            self._loading = key
+            background(self._diff, key)
+        return self._log[1]
+
+    def _diff(self, key):
+        try:
+            repo = self.owner.repo
+            if repo and self.path.startswith(repo + os.sep) and self.path not in self.owner.untracked:
+                text = git_out("-C", repo, "diff", "--color=always", "--no-renames", "HEAD", "--", self.path)
+            else:  # git does not know it: the whole file, as added
+                text = git_out("-C", os.path.dirname(self.path), "diff", "--no-index", "--color=always", "--", "/dev/null",
+                               os.path.basename(self.path))
+            if len(text) > self.MAX_BYTES:
+                text = text[:self.MAX_BYTES].rsplit("\n", 1)[0] + f"\n{DIM}… the rest of the diff cut{RESET}"
+            if not text.strip():
+                text = f"{DIM}{'no changes since the last commit' if os.path.exists(self.path) else 'the file is gone'}{RESET}"
+            shown = clean(text.expandtabs(4))  # a tab would throw the box out of line
+            self._log = (key, shown, [ANSI.sub("", l) for l in shown], "")
+        finally:
+            if self._loading == key:
+                self._loading = None
+
+
+class Files(Runs):
+    """The files the session of the agents tab read and wrote, as a tree; the picked one's diff
+    under it. Read once a second while shown, git only when a written file or the record moved."""
+
+    noun = "files"
+    run_class = FileRun
+    list_most = 20  # the tree takes up to half the pane, not the runs' 10 rows
+
+    def __init__(self, agents):
+        super().__init__("files")
+        self.agents = agents
+        self.repo, self.gitdir, self.root_seen = "", "", None  # the repository's top and its .git folder
+        self.counts, self.untracked, self.version = {}, set(), 0  # the latest numstat, and how many so far
+        self.reading, self.read_at, self.read_key = False, 0.0, None
+        self.shape, self.kept = None, {}
+
+    def refresh(self):
+        if SHOWN["kind"] != "files":  # hidden: nothing read, nothing run
+            return False
+        root = read(os.path.join(BASE, "root"))
+        if root != self.root_seen:
+            self.root_seen, (self.repo, self.gitdir) = root, repo_of(root)
+        sid = os.path.basename(self.agents.session)[:-len(".jsonl")]
+        record = files.files_path(os.path.dirname(BASE), sid) if sid else ""
+        got = (files.states(os.path.dirname(BASE), sid) or {}) if sid else {}
+        newest = sorted(got.items(), key=lambda kv: -kv[1][3])[:FILES_MAX]
+        records, main_busy = getattr(self.agents, "records", {}) or {}, self.agents.agent_status == "working"
+        busy = frozenset(p for p, (mode, agent, _, _) in newest if mode == "W" and (
+            main_busy if agent == "-" else (records.get(agent) or ("",))[0] == "working"))
+        shape = (tuple(newest), busy, self.repo)
+        if shape != self.shape:
+            self.shape = shape
+            self.build(newest, busy)
+        self.look_git(root, record, [p for p, s in newest if s[0] == "W"])
+        return False
+
+    def look_git(self, root, record, written):
+        """Read git's counts in a thread: a second apart at most, and only when the record, a written
+        file or the index moved since the last read."""
+        if self.reading or time.time() - self.read_at < 0.9:
+            return
+        stamp = lambda p: Deck.mtime(p) if p else 0
+        key = (root, stamp(record), tuple(stamp(p) for p in written),
+               stamp(os.path.join(self.gitdir, "index")) if self.gitdir else 0)
+        if key == self.read_key:
+            return
+        self.reading, self.read_at = True, time.time()
+        background(self.read_git, root, written, key)
+
+    def read_git(self, root, written, key):
+        try:
+            counts, untracked = {}, set()
+            if self.repo:
+                for item in git_out("-C", self.repo, "diff", "--numstat", "-z", "--no-renames", "HEAD").split("\0"):
+                    parts = item.split("\t", 2)
+                    if len(parts) == 3:
+                        counts[os.path.join(self.repo, parts[2])] = (parts[0], parts[1])
+                inside = [p for p in written if p.startswith(self.repo + os.sep) and p not in counts and os.path.isfile(p)]
+                if inside:  # not changed since HEAD, or new to git: which git knows
+                    known = {os.path.join(self.repo, k) for k in
+                             git_out("-C", self.repo, "ls-files", "-z", "--", *inside).split("\0") if k}
+                    for p in inside:
+                        if p not in known:
+                            untracked.add(p)
+                            counts[p] = (str(line_count(p)), "0")
+            self.counts, self.untracked, self.read_key = counts, untracked, key
+            self.version += 1
+        finally:
+            self.reading = False
+
+    def build(self, newest, busy):
+        """The rows: the repository's tree, then each outside folder; folders before files, by name,
+        a chain of folders with one folder each on one row (src/lib/)."""
+        tree, outside = {}, {}  # folder names end in /, so a file and a folder never meet
+        for path, _ in newest:
+            if self.repo and path.startswith(self.repo + os.sep):
+                node, parts = tree, path[len(self.repo) + 1:].split(os.sep)
+            else:
+                node, parts = outside, [tilde(os.path.dirname(path)).rstrip("/"), os.path.basename(path)]
+            for part in parts[:-1]:
+                node = node.setdefault(part + "/", {})
+            node[parts[-1]] = path
+        states = dict(newest)
+        picked = self.runs[self.tab].path if self.runs else None
+        rows = []
+
+        def walk(node, depth, prefix):
+            count = 0
+            for name in sorted(node, key=lambda n: (not n.endswith("/"), n.lower(), n)):
+                sub = node[name]
+                if isinstance(sub, dict):
+                    while len(sub) == 1 and next(iter(sub)).endswith("/"):  # one folder in one: a/b/
+                        only = next(iter(sub))
+                        name, sub = name + only, sub[only]
+                    key = "\0" + prefix + name
+                    run = self.kept.get(key) or FileRun(key, self, folder=True)
+                    run.name, run.depth = name, depth
+                    rows.append(run)
+                    run.count = walk(sub, depth + 1, prefix + name)
+                    count += run.count
+                else:
+                    run = self.kept.get(sub) or FileRun(sub, self)
+                    mode, _, kind, ns = states[sub]
+                    run.name, run.depth, run.mode, run.ns = name, depth, mode, ns
+                    run.agent, run.busy = kind.rsplit(":", 1)[-1] or "main", sub in busy  # wanjang:builder -> builder
+                    rows.append(run)
+                    count += 1
+            return count
+
+        walk(tree, 0, "")
+        walk(outside, 0, "/")
+        self.runs, self.kept = rows, {r.path: r for r in rows}
+        paths = [r.path for r in rows]
+        self.tab = paths.index(picked) if picked in paths else max(0, min(self.tab, len(rows) - 1))
+
+    def title_right(self):
+        written = sum(r.mode == "W" for r in self.runs if not r.folder)
+        read_only = sum(r.mode == "R" for r in self.runs if not r.folder)
+        return f" {fg(ACCENT['files'])}✎ {written} {fg(MUTED_RGB)}◦ {read_only} " if self.runs else ""
+
+    def badge(self):
+        if SHOWN["kind"] == "files" and any(r.busy for r in self.runs):
+            return (spinner(), AMBER_RGB)
+        return ("✎", ACCENT["files"]) if any(r.mode == "W" and not r.folder for r in self.runs) else ("·", MUTED_RGB)
+
+    def watch(self):
+        run = self.runs[self.tab] if self.runs else None
+        log = run._log if run else (None, None)
+        return self.version, id(self.shape), id(run), log[0], len(log[1] or ())
+
+    def place_cursor(self):
+        """The diff from its top while the tree has the keyboard."""
+        if self.focus == "list":
+            self.cy = 0
+        elif self.follow:
+            self.cy = max(0, len(self.plain) - 1)
+
+    def rows(self, cols):
+        """The tree's rows, each cols wide: its mark (✎ written, ◦ read, ▾ folder), the name indented
+        by depth, then on the right its state (a spinner while an agent at work wrote it, ✓ after),
+        who touched it last, its lines and when. Reads dimmed. Scrolls to keep the picked row in view."""
+        most = getattr(self, "list_rows", LIST_ROWS)
+        top = max(0, min(self.tab - most // 2, len(self.runs) - most))
+        self.listed = list(range(top, min(len(self.runs), top + most)))
+        lines = []
+        for i in self.listed:
+            run = self.runs[i]
+            icon, colour = run.status()
+            right, shown = run.right()
+            label = cut("  " * run.depth + run.name, max(2, cols - 6 - cells(right)))
+            gap = " " * max(1, cols - 5 - cells(label) - cells(right))
+            if i == self.tab:
+                arrow = fg(MUTED_RGB) + ("➜" if self.focus == "log" else " ")
+                ground = ACTIVE_RGB if self.focus == "list" else TAB_RGB
+                lines.append(f"{bg(ground)}{arrow}{fg(colour)} {icon} {fg(BRIGHT_RGB)}{BOLD}{label}\033[22m{gap}{shown} {RESET}")
+            else:
+                text = DIMMED_RGB if self.focus != "list" or (run.mode == "R" and not run.folder) else \
+                    MUTED_RGB if run.folder else BRIGHT_RGB
+                lines.append(f"  {fg(colour)}{icon} {fg(text)}{label}{gap}{tint(shown, DIMMED_RGB) if run.mode == 'R' else shown} {RESET}")
+        return lines
+
+    def hints(self):
+        if self.focus == "list" and self.search is None:
+            return [("enter", "diff"), ("o", "edit"), ("y", "copy path"), ("L", "side"), ("[ ]", "tabs"),
+                    (",", "settings"), ("ctrl+c", "close")]
+        return super().hints()
+
+    def list_key(self, k):
+        """j/k down and up the tree, gg G its ends; enter (or l) into the file's diff, o opens it in
+        $EDITOR in a herdr split, y copies its path."""
+        if not self.runs:
+            return
+        run, last = self.runs[self.tab], len(self.runs) - 1
+        if self.pending == "g":
+            self.pending = ""
+            if k == "g":
+                self.select(0)
+        elif k in ("j", "k"):
+            self.select(max(0, min(last, self.tab + (1 if k == "j" else -1))))
+        elif k == "g":
+            self.pending = "g"
+        elif k == "G":
+            self.select(last)
+        elif run.folder:
+            return
+        elif k in ("\r", "\n", "l"):
+            self.focus, self.follow, self.cy, self.cx, self.offset = "log", False, 0, 0, 0
+        elif k == "y":
+            copy(run.path)
+            self.msg = f"copied {tilde(run.path)}"
+        elif k == "o":
+            if not os.environ.get("HERDR_ENV"):
+                self.msg = f"outside herdr: open {tilde(run.path)} in your editor"
+            else:
+                background(self.edit, run.path)
+
+    def edit(self, path):
+        """The file in $EDITOR (vi without one), in a pane split off below the deck's."""
+        where = os.path.dirname(path) if os.path.isdir(os.path.dirname(path)) else os.path.expanduser("~")
+        pane = herdr("pane", "split", read(os.path.join(BASE, "pane")), "--direction", "down", "--ratio", "0.5",
+                     "--cwd", where, "--focus").get("pane", {}).get("pane_id")
+        if not pane:
+            self.msg = "herdr did not open a pane"
+            return
+        herdr("pane", "run", pane, f"{os.environ.get('EDITOR') or 'vi'} {shlex.quote(path)}")
+
+    def click(self, row, col):
+        """A click on the tree picks the row; in the diff it places the cursor."""
+        listed = getattr(self, "listed", [])
+        if self.runs and 0 <= row - HEAD_ROW - 1 < len(listed):
+            self.select(listed[row - HEAD_ROW - 1])
+            self.focus = "list"
+        elif self.runs and not self.runs[self.tab].folder:
+            super().click(row, col)
 
 
 # Agents ---------------------------------------------------------------------
@@ -3393,6 +3778,7 @@ class Deck:
     def __init__(self):
         self.views = [Agents(), Jobs(), Servers()] + [Git() if k == "git" else Runs(k) for k in SECTIONS[3:7]]
         self.views.append(System(self.views[2]))  # its process rows take the servers the servers tab found
+        self.views.append(Files(self.views[0]))  # the files of the session the agents tab follows
         self.views[0].jump = self.jump  # a job in an agent's detail leads to the jobs tab
         self.section = 0
         self.unseen = set()  # tabs with something new not shown yet
@@ -3600,7 +3986,7 @@ class Deck:
         for i, view in enumerate(self.views):
             icon, colour = view.badge()
             name = view.kind.upper()
-            # No number on the tab (1-8 still jump there): more fit a narrow pane.
+            # No number on the tab (1-9 still jump there): more fit a narrow pane.
             # Its key letter underlined: shift and that letter (A, J, S, ...) goes there.
             at = name.index(TAB_KEYS[i])
             name = f"{name[:at]}\033[4m{name[at]}\033[24m{name[at + 1:]}"

@@ -24,14 +24,14 @@ TIMER_FROM = 12                   # the "Testing..." timer's first second
 BRAILLE = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"            # the deck's spinner (bin/viewer.py), 8 frames a second
 SPIN = "<spin>"                   # a run's text: the deck's spinner, turning
 AGENTS_SECS = 5                   # the agents section stays longer: it moves the most
-SCENE_TIMES = [AGENTS_SECS] + [SCENE_SECS] * 7  # in tab order
+SCENE_TIMES = [AGENTS_SECS] + [SCENE_SECS] * 8  # in tab order
 FADE_SECS = 2.5                   # a new run's row fades in from the section's colour (bin/viewer.py)
 CYCLE = sum(SCENE_TIMES)          # one loop of the deck, in seconds: what ticks, ticks over it
 
 BG, STRIP, TAB, ACTIVE = "#1b1e23", "#21252b", "#2c313a", "#3e4451"
 MUTED, BRIGHT, TEXT, DIMMED = "#787f8c", "#dcdfe4", "#abb2bf", "#585e69"
 GREEN, RED, AMBER, CYAN, BLUE = "#98b17d", "#d0868d", "#d8b46a", "#7fb4b4", "#7aa2c8"
-ACCENT = {"AGENTS": "#8fa8d2", "JOBS": CYAN, "SERVERS": GREEN, "BUILD": AMBER, "TEST": BLUE, "GIT": "#b48ead", "DEPLOY": "#d19a66", "SYSTEM": "#c48cb4"}
+ACCENT = {"AGENTS": "#8fa8d2", "JOBS": CYAN, "SERVERS": GREEN, "BUILD": AMBER, "TEST": BLUE, "GIT": "#b48ead", "DEPLOY": "#d19a66", "SYSTEM": "#c48cb4", "FILES": "#9e92de"}
 CLAUDE = "#d77757"                # Claude Code's accent
 RULE = "rule"
 
@@ -95,7 +95,7 @@ agent = [
 ROWS = len(agent)
 
 SECTIONS = [("AGENTS", SPIN, AMBER), ("JOBS", SPIN, AMBER), ("SERVERS", "●", GREEN), ("BUILD", SPIN, AMBER), ("TEST", SPIN, AMBER),
-            ("GIT", "✓", GREEN), ("DEPLOY", "·", MUTED), ("SYSTEM", "·", MUTED)]
+            ("GIT", "✓", GREEN), ("DEPLOY", "·", MUTED), ("SYSTEM", "·", MUTED), ("FILES", "✎", ACCENT["FILES"])]
 
 out = []
 
@@ -290,7 +290,7 @@ def run_box(rows, accent, noun, picked=0, fade=None, state=None):
     to the right end of the top border (git: the repository's state)."""
     first = 2
     rect(d0 + 0.5, first - 0.5, D - 1, None, rows=len(rows) + 1, rx=5, stroke=accent)
-    title = f" {noun} · {sum(1 for r in rows if r[0])} "
+    title = f" {noun} · {sum(1 for r in rows if r[0] and r[0] != '▾')} "  # (the files tab counts no folder)
     out.append(f'<rect x="{x(d0 + 1.5):.1f}" y="{top(first - 1) + LH * 0.1:.1f}" width="{len(title) * CW:.1f}" '
                f'height="{LH * 0.8:.1f}" fill="{BG}"/>')
     text(d0 + 2, first - 1, [(title, MUTED)], end)
@@ -315,12 +315,15 @@ def run_box(rows, accent, noun, picked=0, fade=None, state=None):
             body = [(name, BRIGHT if on else TEXT, on), (doing, ACCENT["AGENTS"])]  # the doing text in the section's colour, as in the deck
             if waiting:  # its turn over, its work going on: dimmed, saying what it waits on
                 body = [(name, DIMMED), (doing, DIMMED)]
+        elif isinstance(label, list):  # runs of its own (the files tab: a read dimmed, a folder grey)
+            body = [(t, BRIGHT, True) if on else (t, c) for t, c in label]
         else:
             body = [(label, MUTED) if sub else (label, BRIGHT if on else TEXT, on)]
         left = [("   ", MUTED), *mark, *body]
         room = D - 2 - (3 + 2 + sum(len(t) for t, *_ in body)) - 1
         if isinstance(right, list):
-            width = sum(max(len(t(n)) for n in range(CYCLE)) if callable(t) else len(t) for t, _ in right)
+            width = sum(1 if t == SPIN else max(len(t(n)) for n in range(CYCLE)) if callable(t) else len(t)
+                        for t, _ in right)
             if isinstance(label, tuple) and room - width < 1:  # too long: what it does is cut, as cut() does
                 body[1] = (body[1][0][:len(body[1][0]) - (1 - room + width) - 1] + "…", body[1][1])
                 left, room = [("   ", MUTED), *mark, *body], width + 1
@@ -743,8 +746,61 @@ def scene_system():
     hints([("enter", "fold"), ("K", "kill"), ("s", "by mem"), ("u", "mine"), ("o", "btop"), ("[ ]", "tabs")])
 
 
+def scene_files():
+    """The files the session's agents touched, as a tree from the repository's root (bin/viewer.py
+    Files): ✎ written, ◦ read and dimmed, a folder grey; on the right a spinner while an agent at work
+    wrote it (the main agent is testing), ✓ after, who touched it last, its lines, when. The picked
+    file's diff under it, a second each."""
+    section_bar(8)
+    start = sum(SCENE_TIMES[:8])
+    pen = ACCENT["FILES"]
+    folder = lambda name: ("▾", MUTED, [(name, MUTED)], "")
+    def written(name, busy, who, added, removed, age):
+        state = [(SPIN, AMBER), (" editing ", AMBER)] if busy else [("✓ ", GREEN)]
+        lines = [(f"+{added} ", GREEN), ("new " if removed is None else f"-{removed} ", MUTED if removed is None else RED)]
+        return ("✎", pen, [(name, TEXT)], state + [(who + " ", MUTED)] + lines + [(age, MUTED)])
+    rows = [folder("src/"), folder("  auth/"), written("    refresh.ts", True, "main", 64, None, "3m ago"),
+            folder("  middleware/"), written("    auth.ts", True, "main", 19, 5, "1m ago"),
+            folder("test/"), ("◦", DIMMED, [("  auth.test.ts", DIMMED)], [("Explore 4m ago", DIMMED)]),
+            written("  refresh.test.ts", False, "tester", 41, None, "2m ago"),
+            ("◦", DIMMED, [("package.json", DIMMED)], [("main 5m ago", DIMMED)])]
+    cut = lambda t, n=D - 4: t if len(t) <= n else t[:n - 1] + "…"  # a line wider than the box, as fit() cuts it
+    meta = lambda t: [(cut(t), BRIGHT, True)]
+    hunk = lambda t: [(cut(t), CYAN)]
+    add, gone, same = (lambda t: [(cut("+" + t), GREEN)]), (lambda t: [(cut("-" + t), RED)]), (lambda t: [(cut(" " + t), TEXT)])
+    contents = [
+        (2, [[("src/auth/refresh.ts", BRIGHT, True)], [("  editing now · by main · +64 new · 3m ago", MUTED)], RULE,
+             meta("diff --git a/src/auth/refresh.ts b/src/auth/refresh.ts"), meta("new file mode 100644"),
+             meta("--- /dev/null"), meta("+++ b/src/auth/refresh.ts"), hunk("@@ -0,0 +1,64 @@"),
+             add('import { randomBytes } from "node:crypto";'), add('import { db } from "../db";'), add(""),
+             add("export async function issue(userId: string) {"),
+             add('  const token = randomBytes(32).toString("base64url");'),
+             add("  await db.refresh.insert({ userId, token, family: token });"),
+             add("  return token;"), add("}")]),
+        (4, [[("src/middleware/auth.ts", BRIGHT, True)], [("  editing now · by main · +19 -5 · 1m ago", MUTED)], RULE,
+             meta("diff --git a/src/middleware/auth.ts b/src/middleware/auth.ts"),
+             meta("--- a/src/middleware/auth.ts"), meta("+++ b/src/middleware/auth.ts"),
+             hunk("@@ -12,9 +12,23 @@ export function auth(req, res, next) {"),
+             same("  const { exp, sub } = verify(header);"), gone("  if (exp < now()) {"), add("  if (exp <= now()) {"),
+             same("    return res.status(401).end();"), same("  }"),
+             add("  const fresh = await rotate(req.cookies.refresh);"), add("  if (!fresh) return revoke(sub, res);")]),
+        (7, [[("test/refresh.test.ts", BRIGHT, True)], [("  written · by tester · +41 new · 2m ago", MUTED)], RULE,
+             meta("diff --git a/test/refresh.test.ts b/test/refresh.test.ts"), meta("new file mode 100644"),
+             meta("--- /dev/null"), meta("+++ b/test/refresh.test.ts"), hunk("@@ -0,0 +1,41 @@"),
+             add('import { issue, rotate } from "../src/auth/refresh";'), add(""),
+             add('test("a retired token revokes its family", async () => {'),
+             add('  const first = await issue("u1");'), add("  await rotate(first);"),
+             add("  expect(await rotate(first)).toBeNull();"), add("});")]),
+    ]
+    state = [(" ✎ 3", pen), (" ◦ 2 ", MUTED)]
+    for n, (picked, content) in enumerate(contents):
+        layer("t", start + n, lambda: body(run_box(rows, pen, "files", picked, None, state), content))
+    hints([("enter", "diff"), ("o", "edit"), ("y", "copy path"), ("L", "side"), ("[ ]", "tabs")])
+
+
 # In the order of the tabs.
-scenes = [scene_agents, scene_jobs, scene_servers, scene_build, scene_test, scene_git, scene_deploy, scene_system]
+scenes = [scene_agents, scene_jobs, scene_servers, scene_build, scene_test, scene_git, scene_deploy, scene_system,
+          scene_files]
 for i, draw in enumerate(scenes):
     layer("s", i, draw)
 layers("s", len(scenes), CYCLE, SCENE_TIMES)
