@@ -52,7 +52,8 @@ def _source(path):
         return f.read()
 
 
-PARSER = hashlib.sha1(_source(os.path.join(HERE, "transcripts.py")) + _source(os.path.join(HERE, "classify"))).hexdigest()
+PARSER = hashlib.sha1(_source(os.path.join(HERE, "transcripts.py")) + _source(os.path.join(HERE, "classify"))
+                      + _source(os.path.join(HERE, "subagents.py"))).hexdigest()
 TAIL, EVERY = 64, 20  # bytes checked before the offset; seconds between saves of one file
 KEEP = 14 * 86400  # a cache file untouched this long is pruned (a live transcript's is rewritten every EVERY s)
 
@@ -104,7 +105,7 @@ def cache_save(path, owner, state, force=False):
     owner["kept_at"] = time.time()
     try:
         st = os.stat(path)
-        os.makedirs(CACHE, exist_ok=True)
+        os.makedirs(CACHE, mode=0o700, exist_ok=True)
         tmp = f"{cache_file(path)}.{os.getpid()}.{threading.get_ident()}"
         with open(tmp, "wb") as f:  # protocol 4: Python 3.9 and 3.15 read each other's
             pickle.dump({"parser": PARSER, "path": path, "ino": st.st_ino, "dev": st.st_dev,

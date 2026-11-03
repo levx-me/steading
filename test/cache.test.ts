@@ -83,8 +83,8 @@ describe("the parse cache", () => {
     expect(again.notified).toEqual({ bbb: "done" });
   });
 
-  test("is dropped by an edit to the parser (transcripts.py or bin/classify)", () => {
-    for (const file of ["transcripts.py", "classify"]) {
+  test("is dropped by an edit to the parser (transcripts.py, bin/classify or bin/subagents.py)", () => {
+    for (const file of ["transcripts.py", "classify", "subagents.py"]) {
       const { dir, main, cache } = setup();
       const copy = binCopy(dir);
       read(dir, main, cache, { folder: copy });
