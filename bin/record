@@ -10,16 +10,20 @@ set -u
 
 input=$(cat)
 [ "${HERDR_ENV:-}" = 1 ] && [ -n "${HERDR_PANE_ID:-}" ] || exit 0
-. "$(dirname "$0")/py.sh"
-cmd=$(printf '%s' "$input" | jq -r '.tool_input.command // empty')
-[ -n "$cmd" ] || exit 0
+. "${0%/*}/py.sh"
+# Every field this hook reads, in one jq call (@sh quotes each for eval). The command, the
+# description and the error lose their trailing newlines, as $(...) used to take them off.
+eval "$(printf '%s' "$input" | jq -r '@sh "cmd=\(.tool_input.command // "" | sub("\n+$"; ""))
+  desc=\(.tool_input.description // "" | sub("\n+$"; "")) cwd=\(.cwd // "")
+  event=\(.hook_event_name // "") id=\(.tool_use_id // "") err=\(.error // "" | sub("\n+$"; ""))
+  ms=\(.duration_ms // 0 | floor) bg=\(.tool_response.backgroundTaskId? // "")"' 2>/dev/null)"
+[ -n "${cmd:-}" ] || exit 0
 
 # Its output and exit code into DIR (log, rc), from this event.
 outcome() {
-  if [ "$(printf '%s' "$input" | jq -r .hook_event_name)" = PostToolUseFailure ]; then
+  if [ "$event" = PostToolUseFailure ]; then
     # "Exit code N" on the first line, then the combined output.
-    local err rc
-    err=$(printf '%s' "$input" | jq -r '.error // ""')
+    local rc
     rc=$(printf '%s\n' "$err" | sed -n '1s/^Exit code \([0-9][0-9]*\).*/\1/p')
     printf '%s\n' "$err" | sed '1{/^Exit code [0-9]*$/d;}' > "$1/log"
     printf '%s\n' "${rc:-1}" > "$1/rc"
@@ -31,8 +35,7 @@ outcome() {
 
 # A job bin/hook followed: kept with how it ended when it ran 5s or more (the lowest jobs
 # threshold the deck's settings offer; it shows those past the one set), else dropped.
-id=$(printf '%s' "$input" | jq -r '.tool_use_id // empty')
-job=$(grep -lxF -- "$id" "${TMPDIR:-/tmp}/steading/$(printf '%s' "$HERDR_PANE_ID" | tr ':/' '__')"/jobs/runs/*/id 2>/dev/null | head -n 1)
+job=$(grep -lxF -- "$id" "${TMPDIR:-/tmp}/steading/${HERDR_PANE_ID//[:\/]/_}"/jobs/runs/*/id 2>/dev/null | head -n 1)
 if [ -n "$id" ] && [ -n "$job" ]; then
   job=${job%/id}
   start=$(cat "$job/start" 2>/dev/null)
@@ -50,22 +53,20 @@ case $cmd in *"/bin/run\" "*) exit 0 ;; esac # routed through bin/run: already r
 # What it ran, on shell tokens (bin/classify): test, build, deploy, or a git
 # command that changes something. Read-only git, echo/grep mentioning a runner,
 # and heredoc bodies do not count.
-what=$(printf '%s' "$cmd" | "$py" -I "$(dirname "$0")/classify")
-kind=$(printf '%s' "$what" | jq -r .kind)
-label=$(printf '%s' "$what" | jq -r .label)
+what=$(printf '%s' "$cmd" | "$py" -I "${0%/*}/classify")
+eval "$(printf '%s' "$what" | jq -r '@sh "kind=\(.kind) label=\(.label) kinds=\(.kinds | join(" "))"')"
+kinds=" $kinds "
 # The session note asks for "<kind>: <command>" descriptions; one names the
 # section and labels the run (read-only git stays out all the same).
-desc=$(printf '%s' "$input" | jq -r '.tool_input.description // empty')
 # git and deploy only when the command really writes or ships (`vercel ls` is no deploy).
-kinds=" $(printf '%s' "$what" | jq -r '.kinds | join(" ")') "
 if [[ $desc =~ ^(test|build|git|deploy):[[:space:]]*(.+)$ ]] &&
   case ${BASH_REMATCH[1]} in git | deploy) [[ $kinds == *" ${BASH_REMATCH[1]} "* ]] ;; esac; then
   kind=${BASH_REMATCH[1]} label=${BASH_REMATCH[2]}
 fi
 [ -n "$kind" ] || exit 0
 
-root=$(cd "$(dirname "$0")/.." && pwd)
-dir="${TMPDIR:-/tmp}/steading/$(printf '%s' "$HERDR_PANE_ID" | tr ':/' '__')/$kind"
+root=$(cd "${0%/*}/.." && pwd)
+dir="${TMPDIR:-/tmp}/steading/${HERDR_PANE_ID//[:\/]/_}/$kind"
 mkdir -p "$dir/runs"
 
 keep=20; [ "$kind" = git ] && keep=50
@@ -76,7 +77,7 @@ mkdir -p "$r"
 
 printf '%s\n' "$cmd" > "$r/cmd"
 [ -n "$label" ] && printf '%s\n' "$label" > "$r/label"
-printf '%s' "$input" | jq -r '.cwd // empty' > "$r/cwd"
+printf '%s\n' "$cwd" > "$r/cwd"
 # The branch a git command ran on: in the repo it cd's into last, else its cwd.
 # Not for runs replayed from a transcript, whose branch then is unknown.
 if [ "$kind" = git ] && [ -z "${STEADING_RESTORE_END:-}" ]; then
@@ -89,15 +90,13 @@ if [ "$kind" = git ] && [ -z "${STEADING_RESTORE_END:-}" ]; then
   git -C "$repo" symbolic-ref --short -q HEAD > "$r/branch" 2>/dev/null || rm -f "$r/branch"
 fi
 end=${STEADING_RESTORE_END:-$(date +%s)} # bin/restore passes the end from the transcript
-ms=$(printf '%s' "$input" | jq -r '.duration_ms // 0 | floor')
 printf '%s\n' "$(( end - ms / 1000 ))" > "$r/start"
 
-bg=$(printf '%s' "$input" | jq -r '.tool_response.backgroundTaskId // empty')
 if [ -n "$bg" ]; then
   # Sent to the background: this hook fires at launch, not at the end. Point the
   # deck at Claude's task output file instead; it follows it and reads the
   # "[exited with code N]" line Claude Code appends when the command ends.
-  out=$(find "/private/tmp/claude-$(id -u)" "${TMPDIR:-/tmp}/claude-$(id -u)" -maxdepth 4 \
+  out=$(find "/private/tmp/claude-$UID" "${TMPDIR:-/tmp}/claude-$UID" -maxdepth 4 \
     -name "$bg.output" -print -quit 2>/dev/null)
   printf '%s\n' "${out:-}" > "$r/source"
   [ -n "$out" ] || printf '(running in the background as %s; output not found)\n' "$bg" > "$r/log"

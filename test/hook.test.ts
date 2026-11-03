@@ -193,6 +193,14 @@ describe("record keeps finished runs for the deck", () => {
     return null;
   };
 
+  test("a command with quotes, newlines and $() reaches the files as it was", () => {
+    const command = "git commit -m \"it's $(echo hi)\n`ls`\" && echo '$HOME'";
+    const r = ok(command, "out\nput");
+    expect(r?.kind).toBe("git");
+    expect(r?.cmd).toBe(command);
+    expect(r?.log).toBe("out\nput");
+  });
+
   test("a description in the note's format names the section and the label", () =>
     expect(labelOf("build: ./build.sh", "/usr/bin/time -p ./build.sh > /tmp/b.log 2>&1; git status --short"))
       .toEqual({ kind: "build", label: "./build.sh" }));

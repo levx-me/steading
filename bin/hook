@@ -12,14 +12,18 @@ set -u
 
 input=$(cat)
 [ "${HERDR_ENV:-}" = 1 ] && [ -n "${HERDR_PANE_ID:-}" ] || exit 0
-. "$(dirname "$0")/py.sh"
-cmd=$(printf '%s' "$input" | jq -r '.tool_input.command // empty')
-[ -n "$cmd" ] || exit 0
+. "${0%/*}/py.sh"
+# Every field this hook reads, in one jq call (@sh quotes each for eval). The command and the
+# description lose their trailing newlines, as $(...) used to take them off.
+eval "$(printf '%s' "$input" | jq -r '@sh "cmd=\(.tool_input.command // "" | sub("\n+$"; ""))
+  desc=\(.tool_input.description // "" | sub("\n+$"; "")) cwd=\(.cwd // "")
+  bg=\(.tool_input.run_in_background // false) timeout=\(.tool_input.timeout // 120000)
+  id=\(.tool_use_id // "") sid=\(.session_id // "")"' 2>/dev/null)"
+[ -n "${cmd:-}" ] || exit 0
 
 # Starting a dev server: leave the command alone, just bring an open deck to servers.
 devs='(^|[;&|(] *)(npx |pnpm (exec |dlx )?|yarn |bunx )?((npm|pnpm|yarn|bun) (run )?(dev|start|serve|preview)|next (dev|start)|vite( |$)|astro dev|nuxt dev|remix dev|wrangler dev|python3? -m http\.server|uvicorn |flask run|rails (s|server)|anvil( |$)|php artisan serve)'
 if [[ $cmd =~ $devs ]]; then
-  cwd=$(printf '%s' "$input" | jq -r '.cwd // empty')
   (cd "${cwd:-$PWD}" && "$CLAUDE_PLUGIN_ROOT/bin/pane" --follow servers >/dev/null 2>&1 &)
   exit 0
 fi
@@ -29,41 +33,36 @@ fi
 # (<claude tmp>/<project>/<session>/tasks/<id>.output, which exists only while
 # it runs), and bin/record files how it ended. Nothing about the call changes.
 job() {
-  [ "$(printf '%s' "$input" | jq -r '.tool_input.run_in_background // false')" = true ] && return
+  [ "$bg" = true ] && return
   # Tests, builds, git and deploys have their own tabs (bin/record files them once run).
-  [ -n "$(printf '%s' "$what" | jq -r '.kind // empty')" ] && return
-  [[ $(printf '%s' "$input" | jq -r '.tool_input.description // empty') =~ ^(test|build|git|deploy): ]] && return
-  local id sid r n dir
-  id=$(printf '%s' "$input" | jq -r '.tool_use_id // empty')
-  sid=$(printf '%s' "$input" | jq -r '.session_id // empty')
+  [ -n "$kind" ] && return
+  [[ $desc =~ ^(test|build|git|deploy): ]] && return
+  local r n dir
   [ -n "$id" ] && [ -n "$sid" ] || return
-  dir="${TMPDIR:-/tmp}/steading/$(printf '%s' "$HERDR_PANE_ID" | tr ':/' '__')/jobs/runs"
+  dir="${TMPDIR:-/tmp}/steading/${HERDR_PANE_ID//[:\/]/_}/jobs/runs"
   mkdir -p "$dir"
   n=$(ls "$dir" | sort -n | tail -1); n=$(( ${n:-0} + 1 ))
   ls "$dir" | sort -rn | tail -n +20 | while read -r old; do rm -rf "${dir:?}/$old"; done
   r="$dir/$n"
   mkdir -p "$r"
   printf '%s\n' "$cmd" > "$r/cmd"
-  printf '%s' "$input" | jq -r '.tool_input.description // empty' > "$r/label"
-  printf '%s' "$input" | jq -r '.cwd // empty' > "$r/cwd"
-  printf '%s' "$input" | jq -r '.tool_input.timeout // 120000' > "$r/timeout"
+  printf '%s\n' "$desc" > "$r/label"
+  printf '%s\n' "$cwd" > "$r/cwd"
+  printf '%s\n' "$timeout" > "$r/timeout"
   printf '%s\n' "$id" > "$r/id"
   # The output files there now, before the command starts: its own is the one that appears.
-  ls /tmp/claude-"$(id -u)"/*/"$sid"/tasks "${TMPDIR:-/tmp}"/claude-"$(id -u)"/*/"$sid"/tasks 2>/dev/null > "$r/before"
-  ("$py" -I "$(dirname "$0")/job" "$r" "$sid" >/dev/null 2>&1 &)
+  ls /tmp/claude-"$UID"/*/"$sid"/tasks "${TMPDIR:-/tmp}"/claude-"$UID"/*/"$sid"/tasks 2>/dev/null > "$r/before"
+  ("$py" -I "${0%/*}/job" "$r" "$sid" >/dev/null 2>&1 &)
 }
 
-what=$(printf '%s' "$cmd" | "$py" -I "$(dirname "$0")/classify")
-[ "$(printf '%s' "$what" | jq -r .routable)" = true ] || { job; exit 0; }
-kind=$(printf '%s' "$what" | jq -r .kind)
-core=$(printf '%s' "$what" | jq -r .core)
-post=$(printf '%s' "$what" | jq -r .post)
+what=$(printf '%s' "$cmd" | "$py" -I "${0%/*}/classify")
+eval "$(printf '%s' "$what" | jq -r '@sh "routable=\(.routable) kind=\(.kind) core=\(.core) post=\(.post) clabel=\(.label)"')"
+[ "$routable" = true ] || { job; exit 0; }
 
 # The label: the agent's "<kind>: <command>" description when it gave one, else
 # the command classify found.
-desc=$(printf '%s' "$input" | jq -r '.tool_input.description // empty')
 if [[ $desc =~ ^(test|build|git|deploy):[[:space:]]*(.+)$ ]]; then label=${BASH_REMATCH[2]}
-else label=$(printf '%s' "$what" | jq -r .label)
+else label=$clabel
 fi
 
 # Empty values travel as "-": an empty word would vanish and shift the rest.
