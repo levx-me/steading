@@ -160,6 +160,10 @@ def run(event, env, start=None):
 
     # The repository: as the git tab's border shows it ("main ↑2", "1 changed").
     cwd = event.get("cwd") or os.getcwd()
+    # A shell inside the repository's .git (a wanjang run folder, .git/wanjang/<run>) has no work tree:
+    # git status fails there and rev-parse succeeds, which left the row empty. Read the repository it is in.
+    if "/.git/" in cwd + "/":
+        cwd = (cwd + "/").split("/.git/")[0]
     repo = repostate = ""
     git = git_state(cwd)
     if git:

@@ -1174,6 +1174,29 @@ exit 0
     expect(calls).toContain("--source steading-run-w1:p1 --token wstree=└ --clear-token wsrun");
   });
 
+  test("a shell inside the repository's .git (a wanjang run folder) still shows the repository", () => {
+    const { mkdtempSync, writeFileSync, readFileSync, chmodSync, mkdirSync } = require("node:fs");
+    const { tmpdir } = require("node:os");
+    const dir = mkdtempSync(join(tmpdir(), "steading-ingit-"));
+    writeFileSync(join(dir, "herdr"), `#!/bin/sh
+echo "$@" >> ${dir}/calls
+[ "$1 $2" = "pane get" ] && echo '{"result":{"pane":{"workspace_id":"w1","tab_id":"w1:t1"}}}'
+exit 0
+`);
+    chmodSync(join(dir, "herdr"), 0o755);
+    Bun.spawnSync(["git", "init", "-q", "-b", "main", join(dir, "repo")]);
+    const run = join(dir, "repo", ".git", "wanjang", "2026-11-04-run");
+    mkdirSync(run, { recursive: true });
+    const env = { PATH: process.env.PATH!, HOME: join(dir, "home"), TMPDIR: dir, HERDR_ENV: "1", HERDR_PANE_ID: "w1:p1", HERDR_BIN_PATH: join(dir, "herdr"), GIT_CEILING_DIRECTORIES: dir };
+    Bun.spawnSync(["python3", "-I", join(root, "bin/sidebar.py")], { env,
+      stdin: Buffer.from(JSON.stringify({ hook_event_name: "Stop", session_id: "abcd1234-0000", cwd: run })) });
+    const calls = readFileSync(join(dir, "calls"), "utf8");
+    expect(calls).toMatch(/--token repo=\S* ?main/);
+    expect(calls).toContain("--token repostate=");
+    expect(calls).toMatch(/--token wsrepo=\S* ?main/);
+    expect(calls).not.toContain("no git");
+  });
+
   test("the workspace's third Spaces row names its dev servers and running jobs, with guides in one source", () => {
     const { mkdtempSync, writeFileSync, readFileSync, mkdirSync, chmodSync } = require("node:fs");
     const { tmpdir } = require("node:os");
