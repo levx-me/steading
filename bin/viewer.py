@@ -1180,8 +1180,7 @@ class Runs:
             body.append(f"{fg(AMBER_RGB)}{spinner()} running{secs}{RESET}")
         # The run's box: all the rest of the pane, bordered in the section's colour while it has the cursor.
         out = self.boxed(head[box:] + body, outer, room, self.focus == "log")
-        if not in_head:
-            thumb(out, 1 + len(extras) + ruled, height, log_offset, len(log_plain), self.kind if self.focus == "log" and FOCUS["pane"] else "")
+        thumb(out, 1 + len(extras) + ruled, height, log_offset, len(log_plain), self.kind if self.focus == "log" and FOCUS["pane"] else "")
         return head[:box] + out, []
 
     def header(self, run, cols, plain):
