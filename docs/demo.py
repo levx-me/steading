@@ -285,10 +285,11 @@ def section_bar(active):
         text(d0 + D - len(count), 0, [(count, BRIGHT, True)], end)
 
 
-def run_box(rows, accent, noun, picked=0, fade=None, state=None):
+def run_box(rows, accent, noun, picked=0, fade=None, state=None, total=0):
     """The run list: a rounded box, its count in the border, run `picked` raised.
     A row with no icon continues the run above (a git run's steps). `state` runs
-    to the right end of the top border (git: the repository's state)."""
+    to the right end of the top border (git: the repository's state). `total` rows in a
+    list showing fewer: the scrollbar, a thicker stretch of the right border (┃), at the top."""
     first = 2
     rect(d0 + 0.5, first - 0.5, D - 1, None, rows=len(rows) + 1, rx=5, stroke=accent)
     title = f" {noun} · {sum(1 for r in rows if r[0] and r[0] != '▾')} "  # (the files tab counts no folder)
@@ -300,6 +301,11 @@ def run_box(rows, accent, noun, picked=0, fade=None, state=None):
         out.append(f'<rect x="{x(d0 + D - 2 - width):.1f}" y="{top(first - 1) + LH * 0.1:.1f}" '
                    f'width="{width * CW:.1f}" height="{LH * 0.8:.1f}" fill="{BG}"/>')
         text(d0 + D - 2 - width, first - 1, state, end)
+    if total > len(rows):
+        size = max(1, round(len(rows) ** 2 / total))
+        edge = x(d0 + D - 0.5)
+        out.append(f'<line x1="{edge:.1f}" y1="{top(first):.1f}" x2="{edge:.1f}" y2="{top(first + size):.1f}" '
+                   f'stroke="{accent}" stroke-width="3"/>')
     starts = [n for n, r in enumerate(rows) if r[0]]
     at = starts[picked]
     span = (starts[picked + 1] if picked + 1 < len(starts) else len(rows)) - at
@@ -795,7 +801,7 @@ def scene_files():
     ]
     state = [(" ✎ 3", pen), (" ◦ 2 ", MUTED)]
     for n, (picked, content) in enumerate(contents):
-        layer("t", start + n, lambda: body(run_box(rows, pen, "files", picked, None, state), content))
+        layer("t", start + n, lambda: body(run_box(rows, pen, "files", picked, None, state, total=14), content))
     hints([("enter", "diff"), ("o", "edit"), ("y", "copy path"), ("L", "side"), ("[ ]", "tabs")])
 
 

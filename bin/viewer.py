@@ -1179,7 +1179,10 @@ class Runs:
             secs = f" {int(time.time()) - start}s" if start else ""
             body.append(f"{fg(AMBER_RGB)}{spinner()} running{secs}{RESET}")
         # The run's box: all the rest of the pane, bordered in the section's colour while it has the cursor.
-        return head[:box] + self.boxed(head[box:] + body, outer, room, self.focus == "log"), []
+        out = self.boxed(head[box:] + body, outer, room, self.focus == "log")
+        if not in_head:
+            thumb(out, 1 + len(extras) + ruled, height, log_offset, len(log_plain), self.kind if self.focus == "log" and FOCUS["pane"] else "")
+        return head[:box] + out, []
 
     def header(self, run, cols, plain):
         """A reported run's head: its status as a badge with where, how long and when on
@@ -1265,6 +1268,7 @@ class Runs:
         fill = max(0, inner - 2 - len(title) - visible_len(right)) + (0 if right else 1)
         top = f"{edge}╭─{fg(MUTED_RGB)}{title}{edge}{'─' * fill}{right}{edge}{'─' if right else ''}╮{RESET}"
         rows = [f"{edge}│{RESET}{line}{RESET}{edge}│{RESET}" for line in self.rows(inner)]
+        thumb(rows, 0, *self.scroll, self.kind if self.focus == "list" and FOCUS["pane"] else "")
         return [top, *rows, f"{edge}╰{'─' * inner}╯{RESET}"]
 
     def rows(self, cols):
@@ -1285,6 +1289,7 @@ class Runs:
         most = getattr(self, "list_rows", LIST_ROWS)
         top = max(0, min(at - max(0, (most - span) // 2), len(entries) - most))
         shown_entries = entries[top:top + most]
+        self.scroll = (most, top, len(entries))  # visible, top, total: the scrollbar
         self.listed = [i for i, _, _ in shown_entries]
 
         lines = []
@@ -2065,6 +2070,7 @@ class Files(Runs):
         most = getattr(self, "list_rows", LIST_ROWS)
         top = max(0, min(self.tab - most // 2, len(self.runs) - most))
         self.listed = list(range(top, min(len(self.runs), top + most)))
+        self.scroll = (most, top, len(self.runs))
         lines = []
         for i in self.listed:
             run = self.runs[i]
@@ -2271,6 +2277,22 @@ def button(text, rgb, focused):
     if focused:
         return f"{bg(rgb)}{fg(STRIP_RGB)}{BOLD} {text} \033[22m{RESET}"
     return f"{bg(TAB_RGB)}{fg(rgb)} {text} {RESET}"
+
+
+def thumb(lines, first, visible, top, total, lit):
+    """A scrollbar drawn on the box border: on lines[first:first + visible] the last │ becomes ┃
+    where the window top..top+visible of total rows sits; nothing when all rows fit. Returns lines.
+    lit: the section whose accent the thumb takes, or "" for grey."""
+    if total <= visible or visible < 1:
+        return lines
+    size = max(1, round(visible * visible / total))
+    start = round(top * (visible - size) / (total - visible))
+    ink = fg(ACCENT[lit] if lit else MUTED_RGB)
+    for n in range(first + start, first + start + size):
+        at = lines[n].rfind("│") if n < len(lines) else -1
+        if at >= 0:
+            lines[n] = lines[n][:at] + ink + "┃" + lines[n][at + 1:]
+    return lines
 
 
 def card(title, lines, cols):
@@ -3641,8 +3663,10 @@ class System:
         shown = self.listed[self.top:self.top + room]
         self.shown, self.list_row = len(shown), HEAD_ROW + len(out) + 2  # under the card's border and header
         title = f"{self.noun} · {len(self.listed)} · {'mine' if self.mine else 'all users'} · by {self.by}"
-        out += card(title, self.process_lines(shown, w, self.at - self.top) if "procs" in s else [f"{DIM}sampling…{RESET}"],
-                    cols) + [""]
+        procs = card(title, self.process_lines(shown, w, self.at - self.top) if "procs" in s else [f"{DIM}sampling…{RESET}"], cols)
+        if "procs" in s:  # the bar spans the rows under the column header
+            thumb(procs, 2, room, self.top, len(self.listed), "system" if FOCUS["pane"] else "")
+        out += procs + [""]
         have = s.get("have", set())
         tools = "btop + macmon" if PLATFORM == "darwin" and "macmon" in have else "btop"
         self.button_row = HEAD_ROW + len(out)  # screen rows count from 1, the tabs on the first

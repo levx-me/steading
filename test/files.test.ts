@@ -154,6 +154,25 @@ print(json.dumps(plain(f.rows(90))))`);
     expect(rows[7]).toMatch(/\s main 6s ago$/);
   });
 
+  test("a list longer than its box shows a scrollbar: ┃ on the right border, flush at both ends, none when all fit", () => {
+    const { base } = setup();
+    const out = deck(base, `f.refresh()
+def bars(rows):
+    ls = ["│"] * rows; m.thumb(ls, 0, rows, 0, rows, ""); return ls
+def thumb(top, total=30):
+    ls = ["│"] * 10; m.thumb(ls, 0, 10, top, total, "")
+    return "".join("#" if "┃" in l else "." for l in ls)
+f.select(0); top = plain(f.frame(90, 20)[0])
+f.select(7); bottom = plain(f.frame(90, 20)[0])
+print(json.dumps([thumb(0), thumb(20), thumb(10), bars(5) == ["│"] * 5, [l[-1] for l in top[1:6]], [l[-1] for l in bottom[1:6]]]))`);
+    expect(out[0]).toBe("###.......");   // 10 of 30: 3 rows, at the top
+    expect(out[1]).toBe(".......###");   // flush at the bottom
+    expect(out[2]).toBe("....###...");   // proportional in between
+    expect(out[3]).toBe(true);           // everything fits: the border is unchanged
+    expect(out[4]).toEqual(["┃", "┃", "┃", "│", "│"]);  // 5 of 8 rows on show: a 3-row thumb at the top, then flush at the end
+    expect(out[5]).toEqual(["│", "│", "┃", "┃", "┃"]);
+  });
+
   test("reads are dimmed, writes bright; the main agent's writes are being edited while it works, done after", () => {
     const { base } = setup();
     const out = deck(base, `f.refresh(); f.tab = 0
