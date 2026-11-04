@@ -882,6 +882,27 @@ describe("jobs: other commands followed while they run", () => {
 });
 
 describe("one deck per agent", () => {
+  test("an opener inside the repository's .git (a wanjang run folder) records the repository as the root", () => {
+    const { mkdtempSync, writeFileSync, chmodSync, readFileSync, mkdirSync } = require("node:fs");
+    const { tmpdir } = require("node:os");
+    const dir = mkdtempSync(join(tmpdir(), "steading-paneroot-"));
+    writeFileSync(join(dir, "herdr"), `#!/bin/sh
+case "$1 $2" in
+  "plugin pane") echo '{"result":{"plugin_pane":{"pane":{"pane_id":"p1"}}}}';;
+  "pane get") exit 1;;
+  *) echo '{}';;
+esac
+`);
+    chmodSync(join(dir, "herdr"), 0o755);
+    Bun.spawnSync(["git", "init", "-q", join(dir, "repo")]);
+    const run = join(dir, "repo", ".git", "wanjang", "2026-11-04-run");
+    mkdirSync(run, { recursive: true });
+    const env = { PATH: `${dir}:${process.env.PATH}`, TMPDIR: join(dir, "tmp"), HERDR_PANE_ID: "w1:p0", HERDR_SOCKET_PATH: "/nonexistent", GIT_CEILING_DIRECTORIES: dir };
+    Bun.spawnSync(["bash", "bin/pane", "", run], { env, cwd: root });
+    const { realpathSync } = require("node:fs");
+    expect(realpathSync(readFileSync(join(dir, "tmp", "steading", "w1_p0", "root"), "utf8").trim())).toBe(realpathSync(join(dir, "repo")));
+  }, 30000);
+
   test("openers and L flips at the same moment leave a single deck", () => {
     const { mkdtempSync, writeFileSync, chmodSync, readdirSync } = require("node:fs");
     const { tmpdir } = require("node:os");

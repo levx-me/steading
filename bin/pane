@@ -12,6 +12,9 @@ follow=
 [ "${1:-}" = --follow ] && { follow=1; shift; }
 section=${1:-}
 cwd=${2:-$PWD}
+# Inside the repository's .git (a wanjang run folder, .git/wanjang/<run>) rev-parse finds no work tree:
+# use the repository it is in.
+case "$cwd/" in */.git/*) cwd=${cwd%%/.git/*}; cwd=${cwd%/.git} ;; esac
 agent=${HERDR_PANE_ID:?not inside a herdr pane}
 root=$(cd "$(dirname "$0")/.." && pwd)
 
