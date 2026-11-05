@@ -23,7 +23,8 @@ import time
 
 STALE = 3 * 3600  # "working" this long with no new start: it died without its stop (a crash)
 TEAMMATE = "in_process_teammate"  # the meta's taskKind of an agent team's teammate
-_meta = {}  # meta path -> (mtime ns, finished)
+INTERRUPTED = b"[Request interrupted by user"  # the last record of an agent cut off mid-turn
+_meta = {}  # meta or transcript path -> (mtime ns, finished / interrupted)
 _read = {}  # log path -> (bytes read, latest clear, {agent: (state, ns)})
 
 
@@ -65,17 +66,31 @@ def record(root, event, now=None):
 
 
 def finished(meta, since):
-    """Whether the agent's meta.json says "finished" and was written at or after `since` ns (its
-    last start): an agent that died of an API error gets no SubagentStop, only this."""
+    """Whether the agent is over: its meta.json says "finished" (an agent that died of an API error,
+    or was stopped by TaskStop, gets no SubagentStop, only this), or its transcript, written at or after
+    `since` ns (its last start), ends in "[Request interrupted by user]" (the children of a stopped
+    agent are cut off with no meta change). A resumed agent starts again later, so it works again."""
     try:
         mtime = os.stat(meta).st_mtime_ns
+        if mtime >= since:
+            if _meta.get(meta, (0,))[0] != mtime:
+                with open(meta) as f:
+                    _meta[meta] = (mtime, json.load(f).get("finished") is True)
+            if _meta[meta][1]:
+                return True
+    except (OSError, ValueError, AttributeError):
+        pass
+    log = meta[: -len(".meta.json")] + ".jsonl"
+    try:
+        mtime = os.stat(log).st_mtime_ns
         if mtime < since:
             return False
-        if _meta.get(meta, (0,))[0] != mtime:
-            with open(meta) as f:
-                _meta[meta] = (mtime, json.load(f).get("finished") is True)
-        return _meta[meta][1]
-    except (OSError, ValueError, AttributeError):
+        if _meta.get(log, (0,))[0] != mtime:
+            with open(log, "rb") as f:
+                f.seek(max(0, os.fstat(f.fileno()).st_size - 4096))
+                _meta[log] = (mtime, f.read().rstrip().rsplit(b"\n", 1)[-1].find(INTERRUPTED) >= 0)
+        return _meta[log][1]
+    except OSError:
         return False
 
 

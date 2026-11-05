@@ -1054,6 +1054,22 @@ print(got["job"][0], got["c"][0], subagents.states(root_, "S")["job"][0])   # wi
 `)).toEqual(["done working working"]);
   }, 30000);
 
+  test("a working agent whose transcript ends in an interruption after its start (the child of a stopped agent) is done", () => {
+    expect(run(`
+root_, subs = os.path.dirname(state), main[:-len(".jsonl")] + "/subagents"
+t = time.time_ns()
+for a, line in (("kid", "[Request interrupted by user]"), ("busy", "thinking")):
+    subagents.record(root_, {"hook_event_name": "SubagentStart", "session_id": "S", "agent_id": a}, now=t - 10**9)
+    with open(f"{subs}/agent-{a}.meta.json", "w") as f:
+        json.dump({"parentAgentId": "pm"}, f)                      # no "finished": only the transcript says it
+    with open(f"{subs}/agent-{a}.jsonl", "w") as f:
+        f.write(json.dumps({"type": "user", "message": {"content": [{"type": "text", "text": "x"}]}}) + "\\n")
+        f.write(json.dumps({"type": "user", "message": {"content": [{"type": "text", "text": line}]}}) + "\\n")
+got = subagents.states(root_, "S", folder=subs)
+print(got["kid"][0], got["busy"][0])
+`)).toEqual(["done working"]);
+  }, 30000);
+
   test("a stop processed before its start still ends it; a kill's notification ends one with no stop; stale starts drop", () => {
     expect(run(`
 root_ = os.path.dirname(state)
