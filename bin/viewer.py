@@ -2539,14 +2539,17 @@ class AgentRun(Run):
 
     waiting = None  # what it waits on, done or idle itself (Agents.refresh): "waits on 1 background command"
 
-    def __init__(self, path, deck):
+    def __init__(self, path, deck, crew=None):
         self.path, self.deck = path, deck   # the agent's transcript; the Agents view
+        self.crew = crew  # the crew run (CrewRun id) whose session started it, if one did
         self.id = os.path.basename(path)[len("agent-"):-len(".jsonl")]
         try:
             with open(path[:-len(".jsonl")] + ".meta.json") as f:
                 self.meta = json.load(f)
         except (OSError, ValueError):
             self.meta = {}
+        if crew:  # a crew run's own subagent hangs under it
+            self.meta.setdefault("parentAgentId", crew)
         self.tag, self.is_git = "", False
         self.full = self.cmd = self.meta.get("description") or self.id
         self.first, self.calls, self.cols = os.path.getmtime(path), 0, 60
@@ -2570,6 +2573,8 @@ class AgentRun(Run):
             if at != getattr(self, "meta_at", at):
                 with open(meta) as f:
                     self.meta = json.load(f)
+                if getattr(self, "crew", None):
+                    self.meta.setdefault("parentAgentId", self.crew)
             self.meta_at = at
         except (OSError, ValueError):
             pass
@@ -2913,6 +2918,144 @@ class MainRun(AgentRun):
         return [f"{BOLD}{line}{RESET}" for line in textwrap.wrap(self.given(), max(10, cols))[:2]]
 
 
+CREW_KEEP = 300  # a crew run that ended stays listed this long, its result and cost on show
+CREW_ID = re.compile(r"[A-Za-z0-9-]+")
+_crew = {}       # run record path -> (its mtime ns, the record)
+_crew_path = {}  # crew run session id -> its transcript
+
+
+def crew_home():
+    return os.environ.get("CLAUDE_CONFIG_DIR") or os.path.expanduser("~/.claude")
+
+
+def crew_runs(sid, now=None):
+    """The wanjang crew-console runs (bin/crew-run) the session started, each a record in
+    <config>/wanjang/crew-console/runs/<its session id>.json, written at its start and on its exit;
+    one still running, or ended under CREW_KEEP ago. A record is read again only when its mtime moves."""
+    now = now or time.time()
+    out = []
+    try:
+        entries = list(os.scandir(os.path.join(crew_home(), "wanjang", "crew-console", "runs")))
+    except OSError:
+        return []
+    for e in entries:
+        if not sid or not e.name.endswith(".json"):  # (a .tmp is a record being written)
+            continue
+        try:
+            at = e.stat().st_mtime_ns
+            if _crew.get(e.path, (None,))[0] != at:
+                with open(e.path) as f:
+                    _crew[e.path] = (at, json.load(f))
+        except (OSError, ValueError):
+            continue
+        rec = _crew[e.path][1]
+        if not isinstance(rec, dict) or rec.get("parent_session_id") != sid \
+                or not CREW_ID.fullmatch(str(rec.get("session_id") or "")):
+            continue
+        ended = rec.get("ended")
+        if rec.get("status") == "running" or isinstance(ended, (int, float)) and now - ended < CREW_KEEP:
+            out.append(rec)
+    return out
+
+
+def crew_transcript(sid):
+    """A crew run's own transcript, <config>/projects/*/<its session id>.jsonl, "" until it is written."""
+    if sid not in _crew_path:
+        root = os.path.join(crew_home(), "projects")
+        try:
+            found = [p for p in (os.path.join(root, d, sid + ".jsonl") for d in os.listdir(root)) if os.path.isfile(p)]
+        except OSError:
+            found = []
+        if not found:
+            return ""
+        _crew_path[sid] = found[0]
+    return _crew_path[sid]
+
+
+class CrewRun(AgentRun):
+    """A wanjang crew-console run the session started (bin/crew-run: a claude -p of its own, billed to
+    the Console API key), listed like a subagent: what it does from its own transcript, its state from
+    its run record (rec), its own subagents under it."""
+
+    def __init__(self, path, deck, rec):
+        self.rec = rec
+        super().__init__(path, deck)
+        self.id = rec["session_id"]
+        agent = str(rec.get("agent") or "agent")
+        self.meta = {"agentType": agent if ":" in agent else f"wanjang:{agent}"}
+        self.full = self.cmd = str(rec.get("title") or "") or self.id
+
+    def number(self, key):
+        v = self.rec.get(key)
+        return v if isinstance(v, (int, float)) and not isinstance(v, bool) else None
+
+    def finished(self):
+        return self.rec.get("status") in ("done", "error")
+
+    def activity(self):
+        """"done" or "failed" as its record says on exit; while it says running, "working" when its
+        process is alive or its transcript moved lately, else "stopped" (killed before it could say)."""
+        status = self.rec.get("status")
+        if status in ("done", "error"):
+            return "done" if status == "done" else "failed"
+        pid = self.number("pid")
+        if pid and pid > 0:  # ponytail: a reused pid reads as alive; the transcript's quiet is not asked then
+            try:
+                os.kill(int(pid), 0)
+                return "working"
+            except PermissionError:
+                return "working"
+            except OSError:
+                pass
+        try:
+            quiet = time.time() - os.path.getmtime(self.path)
+        except OSError:
+            quiet = LIVE_SECS
+        return "working" if quiet < LIVE_SECS else "stopped"
+
+    def ended(self):
+        return {"done": "done", "failed": "failed", "stopped": "stopped"}.get(self.activity(), "")
+
+    def shown(self, state):
+        """Whether it is listed: at work, or ended under CREW_KEEP ago (stopped: its transcript's last write)."""
+        if state == "working":
+            return True
+        try:
+            at = self.number("ended") or os.path.getmtime(self.path)
+        except OSError:
+            return False
+        return time.time() - at < CREW_KEEP
+
+    def age(self):
+        """How long it has been at work, or worked, by its record."""
+        start = self.number("started") or self.digest.first or self.first
+        end = self.number("ended") if self.ended() else None
+        return took((end or time.time()) - start)
+
+    def timer(self):
+        return None if self.ended() else super().timer()  # ended: the time it took, no countdown
+
+    def cost(self):
+        """Its cost once it ended ("$0.42"), as claude -p reported it, else ""."""
+        cost = self.number("cost_usd")
+        return f"${cost:.2f}" if self.finished() and cost is not None else ""
+
+    def subline(self, cols=0):
+        """A subagent's second row, with "api" (billed to the Console API key) and, ended, its cost before the time."""
+        text, plain, shown = super().subline(cols)
+        cost = f"{self.cost()}  " if self.cost() else ""
+        return text, f"api  {cost}{plain}", f"{fg(CYAN_RGB)}api  {fg(MUTED_RGB)}{cost}{shown}"
+
+    def top_right(self):
+        right = super().top_right()
+        return right if getattr(self.deck, "sublines", True) else f"api · {right}"
+
+    def info(self):
+        self.count()
+        parts = [self.meta["agentType"], "on the API key", self.cost(), f"{self.calls} tool call{'s' * (self.calls != 1)}"]
+        return f"{DIM}  {' · '.join(p for p in parts if p)}{RESET}"
+
+
 _listed = {}  # folder: (its mtime, the subagent transcripts in it)
 
 
@@ -2955,27 +3098,40 @@ class Agents(Runs):
         self.digest = Digest()                        # what the main transcript says about the agent
         self.etas, self.eta_all = {}, None            # when each agent and all of them should be done (wanjang)
         self.eta_at, self.eta_busy = 0.0, False
+        self.crews = []                               # [(run record, transcript)]: the crew runs it started
 
     def fetch_eta(self, session):
         """When the agents should be done, from wanjang's status (in the background, ETA_SECS apart):
         {agent id: (started, likely, latest, tasks done, tasks total)} in epoch seconds. An agent past
         every past run gets no times from it: those held keep counting, over. No wanjang, or its
         status failing: no times, and nothing else changes."""
-        data = {}
-        try:
-            script = wanjang_status()
-            if script:
+        def ask(session):
+            try:
                 out = subprocess.run([sys.executable, script, "--eta", "--json", "--session", session],
                                      capture_output=True, text=True, timeout=60)
                 data = json.loads(out.stdout) if out.returncode == 0 else {}
-        except (OSError, ValueError, subprocess.SubprocessError):
-            data = {}
+            except (OSError, ValueError, subprocess.SubprocessError):
+                data = {}
+            return data if isinstance(data, dict) else {}
+        data, crews = {}, {}
+        try:
+            script = wanjang_status()
+            if script:
+                data = ask(session)
+                # A crew run at work: its own session's subagents, and it ends when they all should.
+                crews = {rec["session_id"]: (rec, ask(path)) for rec, path in self.crews if rec.get("status") == "running"}
+        except OSError:
+            data, crews = {}, {}
         finally:
             self.eta_busy = False
-        if session != self.session or not isinstance(data, dict):
+        if session != self.session:
             return
         held, was = {}, self.etas
-        for a in data.get("agents") or []:
+        for rec, child in crews.values():
+            at = child.get("eta_all")
+            if isinstance(at, (int, float)) and isinstance(rec.get("started"), (int, float)):
+                held[rec["session_id"]] = (rec["started"], at, at, None, None)
+        for a in list(data.get("agents") or []) + [a for _, child in crews.values() for a in child.get("agents") or []]:
             e = a.get("eta") if isinstance(a, dict) else None
             if not isinstance(e, dict) or not isinstance(a.get("started"), (int, float)):
                 continue
@@ -2984,7 +3140,8 @@ class Agents(Runs):
                 likely, latest = was[a["id"]][1:3]
             if likely or e.get("over"):
                 held[a.get("id")] = (a["started"], likely, latest or likely, e.get("tasks_done"), e.get("tasks_total"))
-        self.etas, self.eta_all = held, data.get("eta_all")
+        alls = [d.get("eta_all") for d in [data] + [c for _, c in crews.values()] if isinstance(d.get("eta_all"), (int, float))]
+        self.etas, self.eta_all = held, max(alls, default=None)
         wake()
 
     def title_right(self):
@@ -3036,6 +3193,9 @@ class Agents(Runs):
                 self.tasks_key = (session, key)
                 self.tasks = read_tasks(os.path.basename(session)[:-len(".jsonl")], tasks)
             self.digest.disk = self.tasks  # (a digest loaded from the cache brings its own)
+        # The crew runs it started that are at work or ended lately, once their transcript is there.
+        sid = os.path.basename(session)[:-len(".jsonl")]
+        self.crews = [(rec, path) for rec in crew_runs(sid) for path in [crew_transcript(rec["session_id"])] if path]
 
     def read_main(self):
         """What the main transcript has said since the last read: answers to Agent calls
@@ -3066,21 +3226,32 @@ class Agents(Runs):
         sid = os.path.basename(self.session)[:-len(".jsonl")]
         self.records = (subagents.states(os.path.dirname(BASE), sid, folder=folder) or {}) if self.session else {}  # who works, by the hooks
         paths = transcripts(folder) if folder else []
+        # Its crew runs (CrewRun), each with its own session's subagents under it.
+        crews = {path: rec for rec, path in self.crews} if self.session else {}
+        crew_of = {}  # a crew run's subagent transcript -> the crew run's id
+        for path, rec in crews.items():
+            subs = path[:-len(".jsonl")] + "/subagents"
+            self.records.update(subagents.states(os.path.dirname(BASE), rec["session_id"], folder=subs) or {})
+            crew_of.update((p, rec["session_id"]) for p in transcripts(subs))
+        paths += list(crews) + list(crew_of)
         # A subagent's transcript is read in the background the first time (a deck starting
         # beside a long session would otherwise stall on all of them); it joins once read.
         keep = {r.path: r for r in getattr(self, "every", [])}
         missing = [p for p in paths if p not in keep and p not in getattr(self, "built", {})]
         if missing and not getattr(self, "building", False):
             self.building, self.built = True, dict(getattr(self, "built", {}))
-            def build(todo=missing):
+            def build(todo=missing, crews=crews, crew_of=crew_of):
                 try:
                     for p in todo:
-                        self.built[p] = AgentRun(p, self)
+                        self.built[p] = CrewRun(p, self, crews[p]) if p in crews else AgentRun(p, self, crew_of.get(p))
                 finally:  # one bad transcript must not keep every later subagent off the list
                     self.building = False
             background(build)
         keep.update(getattr(self, "built", {}))
         self.every = [keep[p] for p in paths if p in keep]
+        for r in self.every:
+            if isinstance(r, CrewRun):
+                r.rec = crews[r.path]  # its record as last read: running, then done or error
         if self.session and (self.main is None or self.main.path != self.session):
             self.main = MainRun(self.session, self)
         # The subagents at work as a tree: the newest on top, each subagent's own
@@ -3129,7 +3300,7 @@ class Agents(Runs):
             return waits[r]
         for r in self.every:
             r.waiting = waits_on(r) and f"waits on {waits_on(r)}"
-        working = [r for r in self.every if act[r] == "working" or r.waiting]
+        working = [r for r in self.every if act[r] == "working" or r.waiting or isinstance(r, CrewRun) and r.shown(act[r])]
         # A manager waiting on its workers writes nothing while it waits, so it reads as
         # quiet; it stays listed while any of its subagents works, so they hang under it.
         for r in list(working):
