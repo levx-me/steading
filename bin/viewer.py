@@ -2718,6 +2718,8 @@ class AgentRun(Run):
             filled = round(5 * done / total)
             plain = f"{'▰' * filled}{'▱' * (5 - filled)} {done}/{total}  "
             shown = f"{fg(GREEN_RGB)}{'▰' * filled}{fg(DIMMED_RGB)}{'▱' * (5 - filled)} {fg(MUTED_RGB)}{done}/{total}  "
+        if getattr(self, "crew", None):  # a crew run's worker bills to the Console API key too
+            plain, shown = "api  " + plain, f"{fg(CYAN_RGB)}api  {fg(MUTED_RGB)}" + shown
         timer = self.timer()
         if timer:
             bar_plain, bar_shown, count, count_shown = timer

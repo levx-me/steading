@@ -107,7 +107,7 @@ describe("a crew-console run the shown session started is listed like a subagent
     expect(lines[crew]).toMatch(/wanjang:builder\s+Run the login tests\s+sonnet-5-5$/);
     expect(lines[crew + 1]).toMatch(/Fix the login bug\s+api  ▕.*▏  0[45]:\d\d$/);
     expect(lines[crew + 2]).toMatch(/└ wanjang:scout/); // its own subagent, under it
-    expect(lines[crew + 3]).toMatch(/Find the login calls\s+▕.*▏  0[34]:\d\d$/);
+    expect(lines[crew + 3]).toMatch(/Find the login calls\s+api  ▕.*▏  0[34]:\d\d$/); // its worker bills to the API key too
     expect(running).toContain("info wanjang:builder · on the API key · 1 tool call");
     // Ended: still listed, done, its cost on its second row and in its detail.
     const after = done.split("\n");
