@@ -23,6 +23,7 @@ import time
 
 STALE = 3 * 3600  # "working" this long with no new start: it died without its stop (a crash)
 TEAMMATE = "in_process_teammate"  # the meta's taskKind of an agent team's teammate
+_meta = {}  # meta path -> (mtime ns, finished)
 _read = {}  # log path -> (bytes read, latest clear, {agent: (state, ns)})
 
 
@@ -63,10 +64,26 @@ def record(root, event, now=None):
         f.write(f"{now or time.time_ns()} {state} {agent}\n")
 
 
-def states(root, sid, now=None):
+def finished(meta, since):
+    """Whether the agent's meta.json says "finished" and was written at or after `since` ns (its
+    last start): an agent that died of an API error gets no SubagentStop, only this."""
+    try:
+        mtime = os.stat(meta).st_mtime_ns
+        if mtime < since:
+            return False
+        if _meta.get(meta, (0,))[0] != mtime:
+            with open(meta) as f:
+                _meta[meta] = (mtime, json.load(f).get("finished") is True)
+        return _meta[meta][1]
+    except (OSError, ValueError, AttributeError):
+        return False
+
+
+def states(root, sid, now=None, folder=None):
     """{agent_id: (state, ns)} for the session: "working", "idle", "done", or "stopped" (cleared
     by a new process, or working so long it must have died); None when the session has no record
-    at all (it began before them). Only the lines added since the last call are read."""
+    at all (it began before them). With the session's subagents `folder`, a working agent whose meta
+    says it finished after its last start is "done". Only the lines added since the last call are read."""
     path = log_path(root, sid)
     try:
         size = os.path.getsize(path)
@@ -92,8 +109,14 @@ def states(root, sid, now=None):
                 got[agent] = (state, t)
         _read[path] = (at + done, cleared, got)
     now = now or time.time_ns()
-    return {a: ("stopped", t) if t < cleared or (s == "working" and now - t > STALE * 10**9) else (s, t)
-            for a, (s, t) in got.items()}
+    out = {}
+    for a, (s, t) in got.items():
+        if t < cleared or (s == "working" and now - t > STALE * 10**9):
+            s = "stopped"
+        elif s == "working" and folder and finished(os.path.join(folder, f"agent-{os.path.basename(a)}.meta.json"), t):
+            s = "done"
+        out[a] = (s, t)
+    return out
 
 
 # An agent's own background work, from its transcript: a command it started in the background (Bash

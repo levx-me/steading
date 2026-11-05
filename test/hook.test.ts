@@ -1041,6 +1041,19 @@ hook("SubagentStart", "job"); hook("SessionStart", source="resume"); print(look(
     ]);
   }, 30000);
 
+  test("a working agent whose meta says finished, written after its start, is done; a resumed one (meta older) still works", () => {
+    expect(run(`
+root_, subs = os.path.dirname(state), main[:-len(".jsonl")] + "/subagents"
+t = time.time_ns()
+for a, start in (("job", t - 10**9), ("c", t + 10**9)):            # "c" started again after the meta's last write
+    subagents.record(root_, {"hook_event_name": "SubagentStart", "session_id": "S", "agent_id": a}, now=start)
+    with open(f"{subs}/agent-{a}.meta.json", "w") as f:
+        json.dump({"finished": True}, f)
+got = subagents.states(root_, "S", folder=subs)
+print(got["job"][0], got["c"][0], subagents.states(root_, "S")["job"][0])   # without the folder, as before
+`)).toEqual(["done working working"]);
+  }, 30000);
+
   test("a stop processed before its start still ends it; a kill's notification ends one with no stop; stale starts drop", () => {
     expect(run(`
 root_ = os.path.dirname(state)

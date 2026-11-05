@@ -3064,7 +3064,7 @@ class Agents(Runs):
             background(self.fetch_eta, self.session)
         folder = self.session[:-len(".jsonl")] + "/subagents" if self.session else ""
         sid = os.path.basename(self.session)[:-len(".jsonl")]
-        self.records = (subagents.states(os.path.dirname(BASE), sid) or {}) if self.session else {}  # who works, by the hooks
+        self.records = (subagents.states(os.path.dirname(BASE), sid, folder=folder) or {}) if self.session else {}  # who works, by the hooks
         paths = transcripts(folder) if folder else []
         # A subagent's transcript is read in the background the first time (a deck starting
         # beside a long session would otherwise stall on all of them); it joins once read.

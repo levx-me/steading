@@ -39,7 +39,7 @@ def live(root, folder):
     """Subagents at work: those Claude Code's hooks say are (bin/subagents.py, the record the
     deck reads too), and, of those the hooks never named (a session begun before the record),
     the ones that wrote their transcripts in the last 90 s."""
-    rec = subagents.states(root, os.path.basename(os.path.dirname(folder))) or {}
+    rec = subagents.states(root, os.path.basename(os.path.dirname(folder)), folder=folder) or {}
     n = sum(1 for state, _ in rec.values() if state == "working")
     try:
         names = os.listdir(folder)
