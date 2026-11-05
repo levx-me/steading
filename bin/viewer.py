@@ -2204,21 +2204,38 @@ def clock(secs):
 
 
 def wanjang_status():
-    """wanjang's bin/status, when that plugin is installed, else "": $STEADING_WANJANG_STATUS (the tests;
-    empty turns it off), else the install path Claude Code records for it, else its newest cached copy."""
+    """wanjang's bin/status, when that plugin is installed and its status knows --eta, else "":
+    $STEADING_WANJANG_STATUS (the tests; empty turns it off), else a directory marketplace that holds wanjang
+    (Claude Code runs a local checkout in place), else the install path Claude Code records, else its newest cached copy."""
     if "STEADING_WANJANG_STATUS" in os.environ:
         return os.environ["STEADING_WANJANG_STATUS"]
     home = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.expanduser("~/.claude")
+    found = []
+    try:
+        with open(os.path.join(home, "plugins", "known_marketplaces.json")) as f:
+            found += [os.path.join(m["source"]["path"], "bin", "status") for k, m in json.load(f).items()
+                      if k == "wanjang" and (m.get("source") or {}).get("source") == "directory"]
+    except (OSError, ValueError, AttributeError, TypeError, KeyError):
+        pass
     try:
         with open(os.path.join(home, "plugins", "installed_plugins.json")) as f:
             plugins = json.load(f).get("plugins") or {}
-        found = [os.path.join(e["installPath"], "bin", "status") for k, v in plugins.items()
-                 if k.startswith("wanjang@") for e in v if e.get("installPath")]
+        found += [os.path.join(e["installPath"], "bin", "status") for k, v in plugins.items()
+                  if k.startswith("wanjang@") for e in v if e.get("installPath")]
     except (OSError, ValueError, AttributeError, TypeError, KeyError):
-        found = []
+        pass
     found += sorted(glob.glob(os.path.join(home, "plugins", "cache", "wanjang", "wanjang", "*", "bin", "status")),
                     key=os.path.getmtime, reverse=True)
-    return next((p for p in found if os.path.isfile(p)), "")
+    return next((p for p in found if knows_eta(p)), "")
+
+
+def knows_eta(path):
+    """an older wanjang's status has no --eta: the deck would show no timers from it"""
+    try:
+        with open(path, errors="replace") as f:
+            return "--eta" in f.read()
+    except OSError:
+        return False
 
 
 def heartbeat(stamps, width):
