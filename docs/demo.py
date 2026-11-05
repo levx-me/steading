@@ -288,7 +288,7 @@ def section_bar(active):
 def run_box(rows, accent, noun, picked=0, fade=None, state=None, total=0):
     """The run list: a rounded box, its count in the border, run `picked` raised.
     A row with no icon continues the run above (a git run's steps). `state` runs
-    to the right end of the top border (git: the repository's state). `total` rows in a
+    to the right end of the top border (git: the repository's state; agents: when all should be done). `total` rows in a
     list showing fewer: the scrollbar, a thicker stretch of the right border (┃), at the top."""
     first = 2
     rect(d0 + 0.5, first - 0.5, D - 1, None, rows=len(rows) + 1, rx=5, stroke=accent)
@@ -297,7 +297,7 @@ def run_box(rows, accent, noun, picked=0, fade=None, state=None, total=0):
                f'height="{LH * 0.8:.1f}" fill="{BG}"/>')
     text(d0 + 2, first - 1, [(title, MUTED)], end)
     if state:
-        width = sum(len(t) for t, _ in state)
+        width = sum(max(len(t(n)) for n in range(CYCLE)) if callable(t) else len(t) for t, _ in state)
         out.append(f'<rect x="{x(d0 + D - 2 - width):.1f}" y="{top(first - 1) + LH * 0.1:.1f}" '
                    f'width="{width * CW:.1f}" height="{LH * 0.8:.1f}" fill="{BG}"/>')
         text(d0 + D - 2 - width, first - 1, state, end)
@@ -461,6 +461,17 @@ def card(title, rows, inner=D - 8):
         [[("╰" + "─" * (inner + 2) + "╯", edge)]]
 
 
+def clock(secs):
+    return f"{max(0, secs) // 60:02}:{max(0, secs) % 60:02}"
+
+
+def timer(filled, rgb, count):
+    """An agent's time bar to its likely end and its countdown (a function of the second), as runs
+    (bin/viewer.py AgentRun.timer): past the latest, full in amber and +mm:ss over it."""
+    return [("▕", DIMMED), ("█" * filled, rgb), ("░" * (10 - filled), TAB), ("▏", DIMMED),
+            (lambda t: " " + count(t).rjust(6), AMBER if rgb == AMBER else MUTED)]
+
+
 def bar(parts, width):
     """A stacked bar as runs: [(cells, colour)], the rest of width in track grey."""
     runs = [("█" * n, c) for n, c in parts if n]
@@ -481,13 +492,15 @@ def scene_agents():
                    ("", AMBER, "  auth refresh tokens", [("▰▰▰", GREEN), ("▱▱", DIMMED), (" 3/5  ", MUTED),
                                                     (lambda t: took(134 + t).rjust(6), MUTED)]),
                    # A manager and its workers, on branch lines: its turn over, it waits on them.
+                   # With wanjang installed, each subagent's bar fills to when it should be done, counting
+                   # down each second; past its latest, full in amber and counting up. The border: all of them.
                    ("◷", MUTED, (pad("  └ ", "foreman"), "  waits on 2 subagents", True), [("sonnet-5-5", BRIGHT)]),
-                   ("", AMBER, "      Map the auth tests", [(lambda t: took(38 + t).rjust(6), MUTED)]),
+                   ("", AMBER, "      Map the auth tests", timer(4, ACCENT["AGENTS"], lambda t: clock(702 - t))),
                    (SPIN, AMBER, (pad("    ├ ", "foreman-scout"), "  Searching"), [("haiku-5-5", BRIGHT)]),
-                   ("", AMBER, "        Find every refresh call", [(lambda t: took(21 + t).rjust(6), MUTED)]),
+                   ("", AMBER, "        Find every refresh call", timer(8, ACCENT["AGENTS"], lambda t: clock(231 - t))),
                    (SPIN, AMBER, (pad("    └ ", "foreman-builder"), "  Writing tests"), [("sonnet-5-5", BRIGHT)]),
-                   ("", AMBER, "        Write the rotation tests", [(lambda t: took(17 + t).rjust(6), MUTED)])],
-                  ACCENT["AGENTS"], "agents")
+                   ("", AMBER, "        Write the rotation tests", timer(10, AMBER, lambda t: "+" + clock(130 + t)))],
+                  ACCENT["AGENTS"], "agents", state=[(" ~16:20 · ", MUTED), (lambda t: f"{clock(702 - t)} left ", MUTED)])
     rect(d0 + 3, row + 1, 11, AMBER)  # the WORKING pill, inside the run's box
     body(row, [
         [("  ", STRIP, True), (SPIN, STRIP, True), (" WORKING ", STRIP, True), ("   ", MUTED), ("↑", GREEN),

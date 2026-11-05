@@ -24,7 +24,7 @@ beside the agent**, live, so you never scroll back through the conversation to f
 
 | Tab | What you see |
 |---|---|
-| **agents** | The agent and every subagent at work: what each is doing right now, its tasks and model, and for the one you pick a heartbeat, context, tokens and tools |
+| **agents** | The agent and every subagent at work: what each is doing right now, its tasks and model, with [wanjang](https://github.com/levx-me/wanjang) a bar and a live countdown to when each should be done, and for the one you pick a heartbeat, context, tokens and tools |
 | **files** | The files this session's agents read (`◦`) or wrote (`✎`) as a tree from the repository's root, a spinner on one being edited now, git `+N -M` beside each. `enter` shows its diff, `o` opens it in `$EDITOR` in a herdr split, `y` copies its path |
 | **jobs** | Any command that has run 10s or more, with what it is for and how long it has left before its timeout, output as it comes |
 | **servers** | Dev servers of the project and its herdr workspace, each with its log; one key opens it in the browser |

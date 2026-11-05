@@ -1275,14 +1275,15 @@ class Runs:
         step; status, age and hash sit on its first row. Scrolls by rows, keeping
         the selected run in view; self.listed maps each row to its run."""
         entries = []  # (run index, first row of the run?, text)
+        self.sublines = getattr(self, "list_rows", LIST_ROWS) >= 6  # (an agent's countdown moves up without them)
         for i in range(len(self.runs) - 1, -1, -1):
             run = self.runs[i]
             steps = git_steps(run.full) if self.kind == "git" else []
             for n, text in enumerate(steps or [run.label()]):
                 entries.append((i, n == 0, text))
             # A second row (agents: what it is doing), when the list has the room.
-            if hasattr(run, "subline") and getattr(self, "list_rows", LIST_ROWS) >= 6:
-                entries.append((i, False, run.subline()))
+            if hasattr(run, "subline") and self.sublines:
+                entries.append((i, False, run.subline(cols)))
         at = next(n for n, (i, first, _) in enumerate(entries) if i == self.tab)
         span = sum(1 for i, _, _ in entries if i == self.tab)
         most = getattr(self, "list_rows", LIST_ROWS)
@@ -2192,6 +2193,34 @@ def took(secs):
     return f"{secs}s"
 
 
+ETA_SECS = 30  # wanjang's status is asked when the agents should be done at most this often: it reads every past run
+ETA_BAR = 10   # cells in an agent's time bar
+
+
+def clock(secs):
+    """A countdown, mm:ss (the minutes run past 59)."""
+    secs = int(max(0, secs))
+    return f"{secs // 60:02}:{secs % 60:02}"
+
+
+def wanjang_status():
+    """wanjang's bin/status, when that plugin is installed, else "": $STEADING_WANJANG_STATUS (the tests;
+    empty turns it off), else the install path Claude Code records for it, else its newest cached copy."""
+    if "STEADING_WANJANG_STATUS" in os.environ:
+        return os.environ["STEADING_WANJANG_STATUS"]
+    home = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.expanduser("~/.claude")
+    try:
+        with open(os.path.join(home, "plugins", "installed_plugins.json")) as f:
+            plugins = json.load(f).get("plugins") or {}
+        found = [os.path.join(e["installPath"], "bin", "status") for k, v in plugins.items()
+                 if k.startswith("wanjang@") for e in v if e.get("installPath")]
+    except (OSError, ValueError, AttributeError, TypeError, KeyError):
+        found = []
+    found += sorted(glob.glob(os.path.join(home, "plugins", "cache", "wanjang", "wanjang", "*", "bin", "status")),
+                    key=os.path.getmtime, reverse=True)
+    return next((p for p in found if os.path.isfile(p)), "")
+
+
 def heartbeat(stamps, width):
     """Transcript writes over the last width × BEAT_SECS seconds, a column each, newest on the right."""
     now = time.time()
@@ -2626,19 +2655,53 @@ class AgentRun(Run):
         """The work it was given, as the call that started it described it."""
         return self.full
 
-    def subline(self):
+    def timer(self):
+        """Its time bar and countdown, counted here each second from the finish times wanjang gave
+        (Agents.fetch_eta): (plain bar, shown bar, plain count, shown count), or None without them.
+        The bar fills to the likely end; past it, full in amber, counting down to the latest; past
+        that, +mm:ss over it. Longer than any past run before a time was held: full, "over"."""
+        held = getattr(self.deck, "etas", {}).get(self.id)
+        if not held:
+            return None
+        started, likely, latest = held[:3]
+        now = time.time()
+        if likely is None:
+            frac, rgb, count = 1, AMBER_RGB, "over"
+        elif now < likely:
+            frac, rgb, count = (now - started) / max(1, likely - started), ACCENT["agents"], clock(likely - now)
+        elif now < latest:
+            frac, rgb, count = 1, AMBER_RGB, clock(latest - now)
+        else:
+            frac, rgb, count = 1, AMBER_RGB, "+" + clock(now - latest)
+        filled = min(ETA_BAR, max(0, round(ETA_BAR * frac)))
+        count = count.rjust(6)
+        return (f"▕{'█' * filled}{'░' * (ETA_BAR - filled)}▏",
+                f"{fg(DIMMED_RGB)}▕{fg(rgb)}{'█' * filled}{fg(TAB_RGB)}{'░' * (ETA_BAR - filled)}{fg(DIMMED_RGB)}▏",
+                count, f"{fg(MUTED_RGB if rgb != AMBER_RGB else AMBER_RGB)}{count}")
+
+    def subline(self, cols=0):
         """The row under its name in the list: the work it was given, then its tasks done
-        (when it keeps a list) and how long it has been at it, as (text, plain, shown)."""
+        (when it keeps a list, or wanjang read a run log's for it) and how long it has been at it,
+        as (text, plain, shown). With a finish time, its bar and countdown take the age's place;
+        a row cols wide that would leave the work fewer than 12 cells drops the bar."""
         self.count()
         d = self.digest
         indent = getattr(self, "tree_cont", None) or " " * (len(self.prefix()) + 2)
         doing = self.given()
         plain = shown = ""
-        if d.listed():
-            done, total = sum(1 for _, st in d.listed().values() if st == "completed"), len(d.listed())
+        held = getattr(self.deck, "etas", {}).get(self.id) or (0,) * 5
+        listed = d.listed()
+        done, total = (sum(1 for _, st in listed.values() if st == "completed"), len(listed)) if listed else held[3:5]
+        if total:
             filled = round(5 * done / total)
             plain = f"{'▰' * filled}{'▱' * (5 - filled)} {done}/{total}  "
             shown = f"{fg(GREEN_RGB)}{'▰' * filled}{fg(DIMMED_RGB)}{'▱' * (5 - filled)} {fg(MUTED_RGB)}{done}/{total}  "
+        timer = self.timer()
+        if timer:
+            bar_plain, bar_shown, count, count_shown = timer
+            if cols and cols - 8 - len(indent) - len(plain + bar_plain + " " + count) < 12:
+                return indent + doing, plain + count, shown + count_shown
+            return indent + doing, plain + bar_plain + " " + count, shown + bar_shown + " " + count_shown
         age = self.age()
         return indent + doing, plain + age, shown + f"{fg(MUTED_RGB)}{age}"
 
@@ -2648,9 +2711,12 @@ class AgentRun(Run):
         return re.sub(r"-\d{8}$", "", (self.digest.model or self.digest.requested or "").replace("claude-", ""))
 
     def top_right(self):
-        """At the right of its first row: its model, and its effort when one is set."""
+        """At the right of its first row: its model, and its effort when one is set; in a list too short
+        for second rows, its countdown after them."""
         model, effort = self.model(), self.digest.effort
-        return f"{model} · {effort}" if model and effort else model
+        right = f"{model} · {effort}" if model and effort else model
+        timer = None if getattr(getattr(self, "deck", None), "sublines", True) else self.timer()
+        return f"{right}  {timer[2].strip()}".strip() if timer else right
 
     def age(self):
         """How long it has been at work (the list shows only those at work)."""
@@ -2870,6 +2936,48 @@ class Agents(Runs):
         self.read_to, self.reading, self.cached = 0, False, ""
         self.main, self.stamps = None, []             # the main transcript's write times, last hour
         self.digest = Digest()                        # what the main transcript says about the agent
+        self.etas, self.eta_all = {}, None            # when each agent and all of them should be done (wanjang)
+        self.eta_at, self.eta_busy = 0.0, False
+
+    def fetch_eta(self, session):
+        """When the agents should be done, from wanjang's status (in the background, ETA_SECS apart):
+        {agent id: (started, likely, latest, tasks done, tasks total)} in epoch seconds. An agent past
+        every past run gets no times from it: those held keep counting, over. No wanjang, or its
+        status failing: no times, and nothing else changes."""
+        data = {}
+        try:
+            script = wanjang_status()
+            if script:
+                out = subprocess.run([sys.executable, script, "--eta", "--json", "--session", session],
+                                     capture_output=True, text=True, timeout=60)
+                data = json.loads(out.stdout) if out.returncode == 0 else {}
+        except (OSError, ValueError, subprocess.SubprocessError):
+            data = {}
+        finally:
+            self.eta_busy = False
+        if session != self.session or not isinstance(data, dict):
+            return
+        held, was = {}, self.etas
+        for a in data.get("agents") or []:
+            e = a.get("eta") if isinstance(a, dict) else None
+            if not isinstance(e, dict) or not isinstance(a.get("started"), (int, float)):
+                continue
+            likely, latest = e.get("likely"), e.get("latest")
+            if not likely and e.get("over") and a.get("id") in was:
+                likely, latest = was[a["id"]][1:3]
+            if likely or e.get("over"):
+                held[a.get("id")] = (a["started"], likely, latest or likely, e.get("tasks_done"), e.get("tasks_total"))
+        self.etas, self.eta_all = held, data.get("eta_all")
+        wake()
+
+    def title_right(self):
+        """At the right of the list's top border: when all the work at hand should be done, and its countdown."""
+        at = self.eta_all if len(self.runs) > 1 else None
+        if not isinstance(at, (int, float)):
+            return ""
+        left = at - time.time()
+        count = f"{fg(MUTED_RGB)}{clock(left)} left" if left >= 0 else f"{fg(AMBER_RGB)}+{clock(-left)}"
+        return f" {fg(MUTED_RGB)}~{time.strftime('%H:%M', time.localtime(at))} · {count} "
 
     def find_session(self):
         """The newest transcript of the Claude session herdr runs in the agent's pane."""
@@ -2901,6 +3009,7 @@ class Agents(Runs):
             self.notified_at = {}
             self.digest = Digest()
             self.cached = ""
+            self.etas, self.eta_all, self.eta_at = {}, None, 0.0  # another session's times: asked afresh
         if session:  # the real task list, as often as the session is looked for
             try:  # read again only when a task file came, went or changed
                 key = sorted((e.name, e.stat().st_mtime_ns) for e in os.scandir(tasks)) if tasks else None
@@ -2930,6 +3039,12 @@ class Agents(Runs):
                 finally:  # an error in one read must not stop every later read
                     self.reading = False
             background(read)
+        # The finish times, while the tab is on show with subagents listed; nobody looks otherwise.
+        if len(self.runs) <= 1:
+            self.etas, self.eta_all = {}, None
+        elif SHOWN["kind"] == "agents" and not self.eta_busy and time.time() - self.eta_at >= ETA_SECS:
+            self.eta_busy, self.eta_at = True, time.time()
+            background(self.fetch_eta, self.session)
         folder = self.session[:-len(".jsonl")] + "/subagents" if self.session else ""
         sid = os.path.basename(self.session)[:-len(".jsonl")]
         self.records = (subagents.states(os.path.dirname(BASE), sid) or {}) if self.session else {}  # who works, by the hooks
