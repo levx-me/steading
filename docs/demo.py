@@ -491,7 +491,7 @@ def scene_agents():
     row = run_box([(SPIN, AMBER, (pad("", "main"), "  ◐ Fix expiry"), [("opus-5-5 · high", BRIGHT)]),
                    ("", AMBER, "  auth refresh tokens", [("▰▰▰", GREEN), ("▱▱", DIMMED), (" 3/5  ", MUTED),
                                                     (lambda t: took(134 + t).rjust(6), MUTED)]),
-                   # A wanjang crew-console run the session started (its own claude -p, billed to the Console
+                   # A wanjang crew-api run the session started (its own claude -p, billed to the Console
                    # API key): listed like a subagent, "api" on its second row (bin/viewer.py CrewRun).
                    (SPIN, AMBER, (pad("  ", "wanjang:builder"), "  Testing"), [("sonnet-5-5 · medium", BRIGHT)]),
                    ("", AMBER, "    Fix the token expiry", [("api  ", CYAN), *timer(6, ACCENT["AGENTS"], lambda t: clock(412 - t))]),

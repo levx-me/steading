@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { join } from "node:path";
-import { mkdtempSync, mkdirSync, writeFileSync, chmodSync, utimesSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, chmodSync, utimesSync, renameSync } from "node:fs";
 import { tmpdir } from "node:os";
 
 const root = join(import.meta.dir, "..");
@@ -23,7 +23,7 @@ const CHILD = "22222222-bbbb-4bbb-8bbb-222222222222";
 function setup() {
   const dir = mkdtempSync(join(tmpdir(), "steading-crew-"));
   const proj = join(dir, "projects", "-repo");
-  const runs = join(dir, "wanjang", "crew-console", "runs");
+  const runs = join(dir, "wanjang", "crew-api", "runs");
   mkdirSync(join(proj, CHILD, "subagents"), { recursive: true });
   mkdirSync(runs, { recursive: true });
   const at = new Date(Date.now() - 60_000).toISOString();
@@ -89,7 +89,7 @@ s.eta_at = time.time()  # no new times asked
 draw()
 `;
 
-describe("a crew-console run the shown session started is listed like a subagent", () => {
+describe("a crew-api run the shown session started is listed like a subagent", () => {
   test("its type, brief, what it does, api tag, its own subagent under it, a countdown; ended: its result and cost", () => {
     const t = setup();
     const r = Bun.spawnSync(["python3", "-I", "-c", check, join(root, "bin/viewer.py"), t.main, join(t.runs, `${CHILD}.json`)], {
@@ -115,6 +115,20 @@ describe("a crew-console run the shown session started is listed like a subagent
     expect(after[row]).toMatch(/✓\s+wanjang:builder/);
     expect(after[row + 1]).toMatch(/Fix the login bug\s+api  \$0\.42  1m( \ds)?$/);
     expect(done).toContain("info wanjang:builder · on the API key · $0.42 · 1 tool call");
+  });
+
+  test("runs recorded under the old crew-console folder are still read while crew-api/ is absent", () => {
+    const t = setup();
+    renameSync(join(t.dir, "wanjang", "crew-api"), join(t.dir, "wanjang", "crew-console"));
+    const code = `
+${PYLOAD}
+v = load("v", sys.argv[1])
+print(len(v.crew_runs("${PARENT}")))`;
+    const r = Bun.spawnSync(["python3", "-I", "-c", code, join(root, "bin/viewer.py")], {
+      env: { PATH: process.env.PATH!, STEADING_BASE: join(t.dir, "base"), CLAUDE_CONFIG_DIR: t.dir },
+    });
+    expect(r.stderr.toString()).toBe("");
+    expect(Number(r.stdout.toString().trim())).toBeGreaterThan(0);
   });
 
   test("a run whose process is gone and whose transcript is quiet is stopped", () => {

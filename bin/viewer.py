@@ -2931,13 +2931,16 @@ def crew_home():
 
 
 def crew_runs(sid, now=None):
-    """The wanjang crew-console runs (bin/crew-run) the session started, each a record in
-    <config>/wanjang/crew-console/runs/<its session id>.json, written at its start and on its exit;
+    """The wanjang crew-api runs (bin/crew-run) the session started, each a record in
+    <config>/wanjang/crew-api/runs/<its session id>.json (crew-console/ before the rename, read while crew-api/ is absent),
+    written at its start and on its exit;
     one still running, or ended under CREW_KEEP ago. A record is read again only when its mtime moves."""
     now = now or time.time()
     out = []
+    base = os.path.join(crew_home(), "wanjang")
+    base = os.path.join(base, "crew-api" if os.path.isdir(os.path.join(base, "crew-api")) else "crew-console")  # (old name: runs still going)
     try:
-        entries = list(os.scandir(os.path.join(crew_home(), "wanjang", "crew-console", "runs")))
+        entries = list(os.scandir(os.path.join(base, "runs")))
     except OSError:
         return []
     for e in entries:
@@ -2975,7 +2978,7 @@ def crew_transcript(sid):
 
 
 class CrewRun(AgentRun):
-    """A wanjang crew-console run the session started (bin/crew-run: a claude -p of its own, billed to
+    """A wanjang crew-api run the session started (bin/crew-run: a claude -p of its own, billed to
     the Console API key), listed like a subagent: what it does from its own transcript, its state from
     its run record (rec), its own subagents under it."""
 
